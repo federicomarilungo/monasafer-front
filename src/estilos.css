@@ -106,6 +106,10 @@ body {
 .lema { color: var(--suave); font-weight: 600; max-width: 340px; }
 .tarjeta { background: var(--tarjeta); border: 2px solid var(--borde); border-radius: 24px; box-shadow: var(--sombra); }
 .formulario { width: 100%; padding: 18px; display: grid; gap: 12px; text-align: left; }
+.google { display: grid; gap: 12px; }
+.boton-google { min-height: 44px; display: flex; justify-content: center; }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--suave); font-size: 0.85rem; font-weight: 600; margin: 0; }
+.separador::before, .separador::after { content: ''; flex: 1; border-top: 2px dashed var(--borde, currentColor); opacity: 0.4; }
 .pestanas { display: grid; grid-template-columns: 1fr 1fr; background: var(--fondo); border-radius: 14px; padding: 4px; }
 .pestana { border: 0; background: transparent; padding: 10px; border-radius: 11px; font: inherit; font-weight: 800; color: var(--suave); cursor: pointer; }
 .pestana.activa { background: var(--tarjeta); color: var(--texto); box-shadow: 0 2px 0 var(--borde); }

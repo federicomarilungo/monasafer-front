@@ -2,6 +2,7 @@ import './estilos.css';
 import { mesDe, resumenDelMes, sumarMeses } from './motor.js';
 import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
+import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
@@ -23,6 +24,24 @@ function mostrarEntrada() {
   $('pantalla-onboarding').hidden = true;
   $('pantalla-entrada').hidden = false;
   $('mono-entrada').innerHTML = svgMono('feliz');
+  mostrarBotonGoogle($('boton-google'), entrarConGoogle).then((hay) => ($('google-entrada').hidden = !hay));
+}
+
+async function entrarConGoogle(credencial) {
+  mostrarError('error-entrada', null);
+  try {
+    const r = await api('POST', '/auth/google', { credencial });
+    await entrarConToken(r.token);
+  } catch (err) {
+    mostrarError('error-entrada', err.message);
+  }
+}
+
+async function entrarConToken(token) {
+  guardarToken(token);
+  estado.modo = 'real';
+  await cargar();
+  entrarApp();
 }
 
 document.querySelectorAll('.pestana').forEach((b) =>
@@ -44,10 +63,7 @@ $('form-entrada').addEventListener('submit', async (e) => {
     const cuerpo = { email: f.email.value, clave: f.clave.value };
     if (modoEntrada === 'registro') cuerpo.nombre = f.nombre.value;
     const r = await api('POST', `/auth/${modoEntrada}`, cuerpo);
-    guardarToken(r.token);
-    estado.modo = 'real';
-    await cargar();
-    entrarApp();
+    await entrarConToken(r.token);
   } catch (err) {
     const msg = err instanceof ErrorApi && err.status === 404 ? 'Las cuentas todavía no están activas. Mientras, mirá la demo.' : err.message;
     mostrarError('error-entrada', msg);
@@ -65,6 +81,7 @@ $('boton-demo').addEventListener('click', () => {
 
 $('boton-salir').addEventListener('click', () => {
   guardarToken(null);
+  olvidarGoogle();
   estado.datos = null;
   mostrarEntrada();
 });
