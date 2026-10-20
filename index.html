@@ -10,10 +10,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <main class="app">
+    <!-- Entrada: login, registro o demo -->
+    <main class="app entrada" id="pantalla-entrada" hidden>
+      <div class="mono mono-entrada" id="mono-entrada" aria-hidden="true"></div>
+      <h1 class="marca grande">Mona<span>safer</span></h1>
+      <p class="lema">Anotá lo que vas a gastar y Mona te dice si llegás a fin de mes. Lo que sobra es ahorro.</p>
+      <form class="tarjeta formulario" id="form-entrada">
+        <div class="pestanas" role="tablist">
+          <button type="button" class="pestana activa" data-modo="login">Entrar</button>
+          <button type="button" class="pestana" data-modo="registro">Crear cuenta</button>
+        </div>
+        <label class="campo" id="campo-nombre" hidden>Tu nombre<input name="nombre" autocomplete="given-name" maxlength="60" /></label>
+        <label class="campo">Email<input name="email" type="email" autocomplete="email" required /></label>
+        <label class="campo">Contraseña<input name="clave" type="password" autocomplete="current-password" minlength="8" required /></label>
+        <p class="error" id="error-entrada" hidden></p>
+        <button class="boton principal" type="submit" id="boton-entrada">Entrar</button>
+      </form>
+      <button class="boton enlace" id="boton-demo" type="button">Ver la demo sin cuenta</button>
+    </main>
+
+    <!-- La app -->
+    <main class="app" id="pantalla-app" hidden>
       <header class="cabecera">
         <h1 class="marca">Mona<span>safer</span></h1>
         <span class="demo" id="demo" hidden>datos de ejemplo</span>
+        <button class="boton enlace chico" id="boton-salir" type="button">Salir</button>
       </header>
 
       <nav class="navegador-mes" aria-label="Mes">
@@ -32,12 +53,79 @@
       </section>
 
       <section class="resumen" id="resumen"></section>
+      <button class="aviso-cobro" id="aviso-cobro" type="button" hidden></button>
 
       <section>
         <h3 class="subtitulo">Gastos del mes</h3>
         <ul class="gastos" id="gastos"></ul>
+        <p class="vacio" id="vacio" hidden>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
       </section>
+
+      <button class="boton-flotante" id="boton-nuevo" aria-label="Nuevo gasto">+</button>
     </main>
+
+    <!-- Hoja: nuevo o editar gasto -->
+    <dialog class="hoja" id="hoja-gasto">
+      <form method="dialog" id="form-gasto">
+        <h3 id="titulo-hoja-gasto">Nuevo gasto</h3>
+        <label class="campo monto-campo">Monto<input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
+        <label class="campo">¿Qué es?<input name="nombre" maxlength="80" required placeholder="Alquiler, súper, cuota…" autocomplete="off" /></label>
+        <div class="emojis" id="emojis"></div>
+        <div class="chips" role="radiogroup" aria-label="Tipo">
+          <button type="button" class="chip activo" data-tipo="puntual">Solo este mes</button>
+          <button type="button" class="chip" data-tipo="fijo">Fijo</button>
+          <button type="button" class="chip" data-tipo="reserva">Reserva</button>
+        </div>
+        <p class="ayuda" id="ayuda-tipo"></p>
+        <label class="campo" id="campo-hasta" hidden>Hasta (opcional, ej. última cuota)<input name="mesFin" type="month" /></label>
+        <div class="chips" id="campo-modo" hidden role="radiogroup" aria-label="Cómo se gasta la reserva">
+          <button type="button" class="chip activo" data-modo="proporcional">Baja sola con los días</button>
+          <button type="button" class="chip" data-modo="manual">Cargo cada uso</button>
+        </div>
+        <p class="error" id="error-gasto" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden>Borrar</button>
+          <button type="button" class="boton" data-cerrar>Cancelar</button>
+          <button type="submit" class="boton principal">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: usos de una reserva -->
+    <dialog class="hoja" id="hoja-reserva">
+      <form method="dialog" id="form-uso">
+        <h3 id="titulo-reserva">Reserva</h3>
+        <div class="frasco grande"><span id="frasco-reserva"></span></div>
+        <p class="ayuda" id="texto-reserva"></p>
+        <div id="carga-uso">
+          <label class="campo monto-campo">¿Cuánto usaste?<input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+          <label class="campo">Nota<input name="nota" maxlength="120" placeholder="SUBE, nafta…" autocomplete="off" /></label>
+        </div>
+        <ul class="usos" id="lista-usos"></ul>
+        <p class="error" id="error-uso" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" id="boton-editar-reserva">Editar</button>
+          <button type="button" class="boton" data-cerrar>Cerrar</button>
+          <button type="submit" class="boton principal" id="boton-usar">Usar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: saldo e ingreso -->
+    <dialog class="hoja" id="hoja-plata">
+      <form method="dialog" id="form-plata">
+        <h3>Tu plata</h3>
+        <label class="campo monto-campo">Saldo en cuenta hoy<input name="saldo" inputmode="decimal" required autocomplete="off" /></label>
+        <label class="campo">Ingreso mensual<input name="ingreso" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        <label class="campo">Día de cobro<input name="dia" type="number" min="1" max="31" placeholder="1" /></label>
+        <p class="error" id="error-plata" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar>Cancelar</button>
+          <button type="submit" class="boton principal">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

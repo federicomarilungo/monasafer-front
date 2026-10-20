@@ -10,4 +10,4 @@ npm test        # motor de cálculo
 npm run build   # dist/
 ```
 
-Por ahora la pantalla del mes funciona con datos de ejemplo (`src/demo.js`), sin back.
+Con cuenta usa la API (`src/api.js`); sin cuenta, "Ver la demo" usa datos de ejemplo (`src/demo.js`) con las mismas reglas. En local, `npm run dev` manda `/api` a `localhost:3001` (ver `vite.config.js`).
