@@ -5,6 +5,7 @@ import { datosDemo } from './demo.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
+import { iniciarOnboarding } from './onboarding.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
@@ -19,6 +20,7 @@ let modoEntrada = 'login';
 
 function mostrarEntrada() {
   $('pantalla-app').hidden = true;
+  $('pantalla-onboarding').hidden = true;
   $('pantalla-entrada').hidden = false;
   $('mono-entrada').innerHTML = svgMono('feliz');
 }
@@ -74,8 +76,30 @@ function entrarApp() {
   $('boton-salir').textContent = estado.modo === 'demo' ? 'Entrar' : 'Salir';
   configurarMoneda(estado.perfil?.moneda ?? 'USD');
   estado.mesVisto = mesActual;
+  const nuevo = estado.modo === 'real' && estado.datos.gastos.length === 0 && estado.datos.perfil.saldo === 0 && !estado.datos.perfil.ingresoMensual;
+  if (nuevo) return empezarOnboarding();
   pintar();
-  if (estado.modo === 'real' && estado.datos.gastos.length === 0 && estado.datos.perfil.saldo === 0) abrirPlata();
+}
+
+function empezarOnboarding() {
+  $('pantalla-app').hidden = true;
+  iniciarOnboarding({
+    nombre: estado.perfil?.nombre ?? '',
+    mes: mesActual,
+    guardarPlata: async (saldo, ingreso) => {
+      await api('PATCH', '/perfil', { saldo, ingresoMensual: ingreso });
+      await cargar();
+    },
+    crearGasto: async (g) => {
+      await api('POST', '/gastos', g);
+      await cargar();
+    },
+    balance: () => resumenDelMes(estado.datos, hoy, mesActual).balance,
+    alTerminar: () => {
+      $('pantalla-app').hidden = false;
+      pintar();
+    },
+  });
 }
 
 async function cargar() {

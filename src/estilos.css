@@ -225,3 +225,19 @@ body {
 .interruptor input:focus-visible + i { outline: 3px solid var(--banana); }
 .resumen-gasto { background: var(--fondo); border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: 0.9rem; }
 .hoja form { overflow-y: auto; max-height: 92vh; }
+
+/* ---- Onboarding (C6) ---- */
+.onboarding { padding-top: 24px; }
+.progreso { height: 8px; background: var(--borde); border-radius: 99px; overflow: hidden; }
+.progreso span { display: block; height: 100%; width: 0; background: var(--selva); border-radius: 99px; transition: width 0.4s cubic-bezier(.3,1.4,.6,1); }
+.charla { display: flex; align-items: flex-end; gap: 10px; }
+.mono-onb { width: 96px; flex-shrink: 0; }
+.globo {
+  position: relative; flex: 1; background: var(--tarjeta); border: 2px solid var(--borde); border-radius: 20px 20px 20px 6px;
+  padding: 14px; font-weight: 700; box-shadow: var(--sombra);
+}
+.onb-chips { gap: 8px; }
+.onb-chips .chip.activo::after { content: ' ✓'; }
+.onb-monto { display: grid; gap: 10px; animation: subir 0.2s ease-out; }
+.onb-cargados { list-style: none; padding: 0; display: grid; gap: 4px; font-weight: 700; }
+.onb-cargados li { background: var(--fondo); border-radius: 10px; padding: 6px 10px; }
