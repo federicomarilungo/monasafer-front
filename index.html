@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2f9e6b" />
+    <title>Monasafer</title>
+    <link rel="icon" href="/mono.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="cabecera">
+        <h1 class="marca">Mona<span>safer</span></h1>
+        <span class="demo" id="demo" hidden>datos de ejemplo</span>
+      </header>
+
+      <nav class="navegador-mes" aria-label="Mes">
+        <button class="flecha" id="mes-anterior" aria-label="Mes anterior">‹</button>
+        <h2 id="titulo-mes">—</h2>
+        <button class="flecha" id="mes-siguiente" aria-label="Mes siguiente">›</button>
+      </nav>
+
+      <section class="tarjeta-balance" id="tarjeta-balance">
+        <div class="mono" id="mono" aria-hidden="true"></div>
+        <div class="balance">
+          <p class="etiqueta">Te sobra a fin de mes</p>
+          <p class="monto-grande" id="balance">0</p>
+          <p class="frase" id="frase"></p>
+        </div>
+      </section>
+
+      <section class="resumen" id="resumen"></section>
+
+      <section>
+        <h3 class="subtitulo">Gastos del mes</h3>
+        <ul class="gastos" id="gastos"></ul>
+      </section>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

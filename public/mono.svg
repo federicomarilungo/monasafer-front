@@ -1,0 +1,15 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="mono-svg mono-feliz" role="img" aria-label="Mona está feliz">
+  <circle cx="34" cy="96" r="24" fill="#8b5a2b"/><circle cx="34" cy="96" r="13" fill="#f2c9a0"/>
+  <circle cx="166" cy="96" r="24" fill="#8b5a2b"/><circle cx="166" cy="96" r="13" fill="#f2c9a0"/>
+  <circle cx="100" cy="100" r="70" fill="#8b5a2b"/>
+  <path d="M100 60 C60 60 50 100 62 128 C70 160 130 160 138 128 C150 100 140 60 100 60Z" fill="#f2c9a0"/>
+  <g class="ojos">
+    <ellipse cx="80" cy="96" rx="9" ry="11" fill="#2b1608"/><circle cx="83" cy="92" r="3" fill="#fff"/>
+    <ellipse cx="120" cy="96" rx="9" ry="11" fill="#2b1608"/><circle cx="123" cy="92" r="3" fill="#fff"/>
+  </g>
+  
+  <ellipse cx="92" cy="116" rx="3" ry="2" fill="#4a2a14"/><ellipse cx="108" cy="116" rx="3" ry="2" fill="#4a2a14"/>
+  <path d="M78 128 Q100 150 122 128" stroke="#4a2a14" stroke-width="5" fill="none" stroke-linecap="round"/>
+  
+</svg>

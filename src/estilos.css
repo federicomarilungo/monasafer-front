@@ -1,0 +1,95 @@
+:root {
+  --fondo: #fff8e7;
+  --tarjeta: #ffffff;
+  --texto: #2b1d10;
+  --suave: #8a7560;
+  --selva: #2f9e6b;
+  --selva-oscura: #1f7a50;
+  --banana: #ffd23f;
+  --rojo: #e5484d;
+  --borde: #f0e2c4;
+  --sombra: 0 6px 0 #f0e2c4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #1a1510;
+    --tarjeta: #2a2219;
+    --texto: #fff3dc;
+    --suave: #bba88f;
+    --borde: #3d3226;
+    --sombra: 0 6px 0 #0f0c08;
+  }
+}
+* { box-sizing: border-box; margin: 0; }
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: 'Nunito', system-ui, sans-serif;
+  min-height: 100vh;
+}
+.app { max-width: 480px; margin: 0 auto; padding: 16px 16px 48px; display: grid; gap: 18px; }
+.cabecera { display: flex; align-items: center; justify-content: space-between; }
+.marca { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1.9rem; color: var(--selva); letter-spacing: -0.5px; }
+.marca span { color: var(--banana); -webkit-text-stroke: 1px var(--selva-oscura); }
+.demo { font-size: 0.75rem; background: var(--banana); color: #2b1d10; padding: 4px 10px; border-radius: 99px; font-weight: 800; }
+
+.navegador-mes { display: flex; align-items: center; justify-content: space-between; }
+.navegador-mes h2 { font-family: 'Baloo 2', sans-serif; font-size: 1.3rem; }
+.flecha {
+  width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--borde); background: var(--tarjeta);
+  color: var(--texto); font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 3px 0 var(--borde);
+  transition: transform 0.1s;
+}
+.flecha:active { transform: translateY(3px); box-shadow: none; }
+.flecha:disabled { opacity: 0.3; cursor: default; }
+
+.tarjeta-balance {
+  display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 28px;
+  background: var(--selva); color: #fff; box-shadow: 0 8px 0 var(--selva-oscura);
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.tarjeta-balance[data-animo='nervioso'] { background: #e8a33a; box-shadow: 0 8px 0 #b97a1c; }
+.tarjeta-balance[data-animo='panico'] { background: var(--rojo); box-shadow: 0 8px 0 #a8282c; }
+.mono { width: 110px; flex-shrink: 0; }
+.mono-svg { width: 100%; display: block; }
+.mono-feliz { animation: balanceo 3s ease-in-out infinite; transform-origin: 50% 90%; }
+.mono-nervioso { animation: temblor 0.5s ease-in-out infinite; }
+.mono-panico { animation: temblor 0.18s linear infinite; }
+.mono-svg .ojos { animation: parpadeo 4s infinite; transform-origin: 50% 48%; }
+@keyframes balanceo { 50% { transform: rotate(-6deg); } }
+@keyframes temblor { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+@keyframes parpadeo { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
+.etiqueta { font-size: 0.8rem; opacity: 0.85; font-weight: 600; }
+.monto-grande { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 2.6rem; line-height: 1.1; }
+.frase { font-size: 0.9rem; font-weight: 600; }
+
+.resumen {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: var(--tarjeta);
+  border: 2px solid var(--borde); border-radius: 20px; padding: 12px; text-align: center; font-weight: 800;
+}
+.resumen .etiqueta { color: var(--suave); }
+.mas { color: var(--selva); }
+.menos { color: var(--rojo); }
+
+.subtitulo { font-family: 'Baloo 2', sans-serif; font-size: 1.15rem; margin-bottom: 8px; }
+.gastos { list-style: none; padding: 0; display: grid; gap: 10px; }
+.gasto {
+  display: flex; align-items: center; gap: 12px; background: var(--tarjeta); border: 2px solid var(--borde);
+  border-radius: 18px; padding: 12px; box-shadow: var(--sombra); transition: opacity 0.3s;
+}
+.gasto.pagado { opacity: 0.55; }
+.gasto.pagado .nombre { text-decoration: line-through; }
+.emoji { font-size: 1.7rem; }
+.info { flex: 1; min-width: 0; }
+.nombre { font-weight: 800; }
+.tipo { font-size: 0.75rem; color: var(--suave); }
+.montos { text-align: right; }
+.monto { font-weight: 800; }
+.de { font-size: 0.75rem; color: var(--suave); }
+.frasco { height: 8px; background: var(--borde); border-radius: 99px; margin-top: 6px; overflow: hidden; }
+.frasco span { display: block; height: 100%; background: var(--banana); border-radius: 99px; transition: width 0.5s; }
+.check {
+  width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--selva); background: transparent;
+  color: #fff; font-weight: 800; cursor: pointer; flex-shrink: 0;
+}
+.pagado .check { background: var(--selva); }
