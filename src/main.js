@@ -191,9 +191,11 @@ function golpe(el) {
 }
 
 function etiquetaTipo(l, g) {
-  if (l.tipo === 'fijo') return g?.mesFin ? `fijo hasta ${nombreMes(g.mesFin).split(' ')[0].toLowerCase()}` : 'fijo';
-  if (l.tipo === 'reserva') return g?.modoReserva === 'manual' ? 'reserva · cargás los usos' : 'reserva · baja con los días';
-  return 'solo este mes';
+  const corto = (m) => nombreMes(m).split(' ')[0].toLowerCase();
+  const soloEste = l.tipo === 'puntual' || (l.tipo === 'reserva' && !g?.recurrente);
+  const duracion = soloEste ? 'solo este mes' : g?.mesFin ? `hasta ${corto(g.mesFin)}` : 'todos los meses';
+  if (l.tipo !== 'reserva') return duracion;
+  return `reserva · ${g?.modoReserva === 'manual' ? 'cargás los usos' : 'baja con los días'} · ${duracion}`;
 }
 
 function filaGasto(l) {
@@ -406,10 +408,8 @@ function alertaSuave(texto) {
 }
 
 // Gasto
-const EMOJIS = ['💸', '🏠', '🛒', '🚌', '⚡', '📶', '💳', '👟', '🍔', '🎁', '💊', '🎓', '🐶', '✈️'];
+const EMOJIS = ['💸', '🏠', '🛒', '🚌', '⛽', '⚡', '💧', '🔥', '📶', '📱', '💳', '🏦', '👟', '👕', '🍔', '☕', '🍺', '🎁', '🎉', '💊', '🏋️', '💇', '🎓', '📚', '🐶', '👶', '🚗', '✈️', '🏖️', '🎬', '🎮', '🎵', '📺', '🛠️', '🧾', '🍌'];
 let gastoEditado = null;
-let tipoElegido = 'puntual';
-let modoElegido = 'proporcional';
 let emojiElegido = '💸';
 
 $('emojis').innerHTML = EMOJIS.map((e) => `<button type="button" class="emoji-boton" data-emoji="${e}">${e}</button>`).join('');
@@ -422,7 +422,7 @@ $('emojis').addEventListener('click', (e) => {
 });
 // Si no eligieron emoji a mano, Mona adivina por el nombre.
 const ADIVINAR = [
-  [/alquiler|expensa|casa|depto/i, '🏠'], [/s[uú]per|chino|mercado|verdu/i, '🛒'], [/transporte|sube|colectivo|subte|nafta|uber|taxi/i, '🚌'],
+  [/alquiler|expensa|casa|depto/i, '🏠'], [/s[uú]per|chino|mercado|verdu/i, '🛒'], [/nafta|combustible|ypf|shell/i, '⛽'], [/transporte|sube|colectivo|subte|uber|taxi/i, '🚌'],
   [/luz|gas|agua|edesur|edenor/i, '⚡'], [/internet|wifi|celular|tel[eé]fono/i, '📶'], [/tarjeta|cuota|visa|master/i, '💳'],
   [/zapa|ropa/i, '👟'], [/comida|delivery|resto|cena|almuerzo/i, '🍔'], [/regalo|cumple/i, '🎁'], [/farmacia|m[eé]dic|prepaga|obra social/i, '💊'],
   [/curso|facu|colegio|escuela/i, '🎓'], [/perro|gato|vete/i, '🐶'], [/viaje|vacaciones|vuelo/i, '✈️'],
@@ -438,25 +438,110 @@ function elegirEmoji(e) {
   document.querySelectorAll('.emoji-boton').forEach((b) => b.classList.toggle('activo', b.dataset.emoji === e));
 }
 
-const AYUDAS = {
-  puntual: 'Se descuenta solo en este mes.',
-  fijo: 'Se repite todos los meses. Si tiene fin (cuotas), poné el último mes.',
-  reserva: 'Apartás un monto para algo difícil de estimar (transporte, súper) y lo vas gastando.',
-};
+// Duración y reserva son dos cosas distintas (Fede, 20/10): cualquier gasto, sea reserva
+// o no, puede ser de este mes, de varios meses o para siempre. Se traduce al modelo así:
+// no reserva + este mes = puntual; no reserva + varios/siempre = fijo (mesFin o null);
+// reserva + este mes = reserva no recurrente; reserva + varios/siempre = recurrente.
+const forma = { duracion: 'mes', meses: 3, reserva: false, modo: 'proporcional' };
 
-function elegirTipo(t) {
-  tipoElegido = t;
-  document.querySelectorAll('[data-tipo]').forEach((b) => b.classList.toggle('activo', b.dataset.tipo === t));
-  $('ayuda-tipo').textContent = AYUDAS[t];
-  $('campo-hasta').hidden = t === 'puntual';
-  $('campo-modo').hidden = t !== 'reserva';
+function mesInicioDelForm() {
+  return gastoEditado?.mesInicio ?? estado.mesVisto;
 }
-function elegirModo(m) {
-  modoElegido = m;
-  document.querySelectorAll('[data-modo]').forEach((b) => b.classList.toggle('activo', b.dataset.modo === m));
+
+function pintarForma() {
+  document.querySelectorAll('[data-duracion]').forEach((b) => b.classList.toggle('activo', b.dataset.duracion === forma.duracion));
+  const varios = forma.duracion === 'hasta';
+  $('meses-elegir').hidden = !varios;
+  $('meses-rapidos').hidden = !varios;
+  $('meses-n').textContent = forma.meses;
+  $('meses-palabra').textContent = forma.meses === 1 ? 'mes' : 'meses';
+  $('meses-menos').disabled = forma.meses <= 2;
+  document.querySelectorAll('[data-meses]').forEach((b) => b.classList.toggle('activo', Number(b.dataset.meses) === forma.meses));
+  $('es-reserva').checked = forma.reserva;
+  $('campo-modo').hidden = !forma.reserva;
+  document.querySelectorAll('#campo-modo [data-modo]').forEach((b) => b.classList.toggle('activo', b.dataset.modo === forma.modo));
+
+  // Resumen en palabras de lo que va a pasar
+  const monto = centavos($('form-gasto').monto.value) ?? 0;
+  const inicio = mesInicioDelForm();
+  const mesCorto = (m) => nombreMes(m).toLowerCase();
+  const cuanto = monto ? plata(monto) : 'Este gasto';
+  const verbo = forma.reserva ? 'se reservan' : 'se descuentan';
+  let texto;
+  if (forma.duracion === 'mes') texto = `${cuanto} ${verbo} solo en ${mesCorto(inicio)}.`;
+  else if (forma.duracion === 'siempre') texto = `${cuanto} ${verbo} todos los meses desde ${mesCorto(inicio)}, hasta que lo borres.`;
+  else {
+    const fin = sumarMeses(inicio, forma.meses - 1);
+    texto = `${cuanto} ${verbo} por mes de ${mesCorto(inicio)} a ${mesCorto(fin)}. Último mes: ${mesCorto(fin)}.`;
+  }
+  if (forma.reserva) texto += forma.modo === 'manual' ? ' Vas cargando cada uso.' : ' Baja sola a medida que pasan los días.';
+  $('resumen-gasto').textContent = texto;
 }
-document.querySelectorAll('[data-tipo]').forEach((b) => b.addEventListener('click', () => elegirTipo(b.dataset.tipo)));
-document.querySelectorAll('#campo-modo [data-modo]').forEach((b) => b.addEventListener('click', () => elegirModo(b.dataset.modo)));
+
+document.querySelectorAll('[data-duracion]').forEach((b) =>
+  b.addEventListener('click', () => {
+    forma.duracion = b.dataset.duracion;
+    sonar('toque');
+    pintarForma();
+  }),
+);
+$('meses-menos').addEventListener('click', () => {
+  forma.meses = Math.max(2, forma.meses - 1);
+  sonar('toque');
+  pintarForma();
+});
+$('meses-mas').addEventListener('click', () => {
+  forma.meses = Math.min(60, forma.meses + 1);
+  sonar('toque');
+  pintarForma();
+});
+document.querySelectorAll('[data-meses]').forEach((b) =>
+  b.addEventListener('click', () => {
+    forma.meses = Number(b.dataset.meses);
+    sonar('toque');
+    pintarForma();
+  }),
+);
+$('es-reserva').addEventListener('change', (e) => {
+  forma.reserva = e.target.checked;
+  sonar(forma.reserva ? 'pop' : 'toque');
+  pintarForma();
+});
+document.querySelectorAll('#campo-modo [data-modo]').forEach((b) =>
+  b.addEventListener('click', () => {
+    forma.modo = b.dataset.modo;
+    sonar('toque');
+    pintarForma();
+  }),
+);
+$('form-gasto').monto.addEventListener('input', pintarForma);
+
+/** Lee un gasto guardado y deja el formulario en los dos ejes. */
+function formaDesdeGasto(g) {
+  forma.reserva = g?.tipo === 'reserva';
+  forma.modo = g?.modoReserva ?? 'proporcional';
+  forma.meses = 3;
+  if (!g || g.tipo === 'puntual' || (g.tipo === 'reserva' && !g.recurrente)) forma.duracion = 'mes';
+  else if (!g.mesFin) forma.duracion = 'siempre';
+  else {
+    const [a1, m1] = g.mesInicio.split('-').map(Number);
+    const [a2, m2] = g.mesFin.split('-').map(Number);
+    const n = (a2 - a1) * 12 + (m2 - m1) + 1;
+    forma.duracion = n <= 1 ? 'mes' : 'hasta';
+    forma.meses = Math.max(2, n);
+  }
+}
+
+/** De los dos ejes al modelo del back. */
+function gastoDesdeForma() {
+  const inicio = mesInicioDelForm();
+  const mesFin = forma.duracion === 'hasta' ? sumarMeses(inicio, forma.meses - 1) : null;
+  if (forma.reserva) {
+    return { tipo: 'reserva', modoReserva: forma.modo, recurrente: forma.duracion !== 'mes', mesFin };
+  }
+  if (forma.duracion === 'mes') return { tipo: 'puntual', mesFin: null };
+  return { tipo: 'fijo', mesFin };
+}
 
 function abrirGasto(g = null) {
   gastoEditado = g;
@@ -467,11 +552,10 @@ function abrirGasto(g = null) {
   $('boton-borrar-gasto').hidden = !g;
   f.monto.value = g ? String(g.monto / 100) : '';
   f.nombre.value = g?.nombre ?? '';
-  f.mesFin.value = g?.mesFin ?? '';
   elegirEmoji(g?.emoji || '💸');
   emojiAMano = !!g;
-  elegirTipo(g?.tipo ?? 'puntual');
-  elegirModo(g?.modoReserva ?? 'proporcional');
+  formaDesdeGasto(g);
+  pintarForma();
   $('hoja-gasto').showModal();
   if (!g) f.monto.focus();
 }
@@ -496,13 +580,8 @@ $('form-gasto').addEventListener('submit', async (e) => {
   const f = e.target;
   const monto = centavos(f.monto.value);
   if (monto === null) return mostrarError('error-gasto', 'Poné un monto válido');
-  const g = { nombre: f.nombre.value.trim(), emoji: emojiElegido, monto, tipo: tipoElegido };
+  const g = { nombre: f.nombre.value.trim(), emoji: emojiElegido, monto, ...gastoDesdeForma() };
   if (!gastoEditado) g.mesInicio = estado.mesVisto;
-  if (tipoElegido !== 'puntual') g.mesFin = f.mesFin.value || null;
-  if (tipoElegido === 'reserva') {
-    g.modoReserva = modoElegido;
-    g.recurrente = true;
-  }
   try {
     await acciones.guardarGasto(gastoEditado?.id, g);
     $('hoja-gasto').close();

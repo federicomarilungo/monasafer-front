@@ -72,18 +72,45 @@
         <h3 id="titulo-hoja-gasto">Nuevo gasto</h3>
         <label class="campo monto-campo">Monto<input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
         <label class="campo">¿Qué es?<input name="nombre" maxlength="80" required placeholder="Alquiler, súper, cuota…" autocomplete="off" /></label>
-        <div class="emojis" id="emojis"></div>
-        <div class="chips" role="radiogroup" aria-label="Tipo">
-          <button type="button" class="chip activo" data-tipo="puntual">Solo este mes</button>
-          <button type="button" class="chip" data-tipo="fijo">Fijo</button>
-          <button type="button" class="chip" data-tipo="reserva">Reserva</button>
-        </div>
-        <p class="ayuda" id="ayuda-tipo"></p>
-        <label class="campo" id="campo-hasta" hidden>Hasta (opcional, ej. última cuota)<input name="mesFin" type="month" /></label>
-        <div class="chips" id="campo-modo" hidden role="radiogroup" aria-label="Cómo se gasta la reserva">
-          <button type="button" class="chip activo" data-modo="proporcional">Baja sola con los días</button>
-          <button type="button" class="chip" data-modo="manual">Cargo cada uso</button>
-        </div>
+        <div class="emojis" id="emojis" aria-label="Ícono"></div>
+
+        <fieldset class="grupo">
+          <legend>¿Cuánto dura?</legend>
+          <div class="segmentos" role="radiogroup">
+            <button type="button" class="segmento activo" data-duracion="mes">Solo este mes</button>
+            <button type="button" class="segmento" data-duracion="hasta">Varios meses</button>
+            <button type="button" class="segmento" data-duracion="siempre">Siempre</button>
+          </div>
+          <div class="meses-elegir" id="meses-elegir" hidden>
+            <button type="button" class="paso" id="meses-menos" aria-label="Un mes menos">−</button>
+            <div class="meses-cuenta"><b id="meses-n">3</b> <span id="meses-palabra">meses</span></div>
+            <button type="button" class="paso" id="meses-mas" aria-label="Un mes más">+</button>
+          </div>
+          <div class="chips chicas" id="meses-rapidos" hidden>
+            <button type="button" class="chip" data-meses="2">2</button>
+            <button type="button" class="chip" data-meses="3">3</button>
+            <button type="button" class="chip" data-meses="6">6</button>
+            <button type="button" class="chip" data-meses="12">12</button>
+            <button type="button" class="chip" data-meses="18">18</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="grupo">
+          <label class="interruptor">
+            <span>
+              <b>Es una reserva</b>
+              <small>Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.</small>
+            </span>
+            <input type="checkbox" id="es-reserva" />
+            <i aria-hidden="true"></i>
+          </label>
+          <div class="chips" id="campo-modo" hidden role="radiogroup" aria-label="Cómo se gasta la reserva">
+            <button type="button" class="chip activo" data-modo="proporcional">Baja sola con los días</button>
+            <button type="button" class="chip" data-modo="manual">Cargo cada uso</button>
+          </div>
+        </fieldset>
+
+        <p class="resumen-gasto" id="resumen-gasto"></p>
         <p class="error" id="error-gasto" hidden></p>
         <div class="acciones">
           <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden>Borrar</button>

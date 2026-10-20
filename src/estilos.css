@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light dark;
   --fondo: #fff8e7;
   --tarjeta: #ffffff;
   --texto: #2b1d10;
@@ -132,7 +133,12 @@ body {
   color: var(--texto); border-radius: 99px; padding: 8px 14px; cursor: pointer;
 }
 .chip.activo { background: var(--banana); border-color: #e0b520; color: #2b1d10; }
-.emojis { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.emojis {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px;
+  max-height: 104px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  padding: 2px; mask-image: linear-gradient(to bottom, #000 80%, transparent);
+}
+.emojis::-webkit-scrollbar { display: none; }
 .emoji-boton { font-size: 1.4rem; border: 2px solid transparent; background: var(--fondo); border-radius: 12px; padding: 4px 6px; cursor: pointer; }
 .emoji-boton.activo { border-color: var(--selva); }
 .acciones { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
@@ -190,3 +196,32 @@ body {
   background: var(--tarjeta); border: 2px dashed var(--banana); border-radius: 18px; padding: 12px; display: grid; gap: 10px;
   font-weight: 600; animation: subir 0.3s ease-out;
 }
+
+/* ---- Hoja de gasto: duración y reserva ---- */
+.grupo { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.grupo legend { font-size: 0.85rem; font-weight: 800; color: var(--suave); margin-bottom: 8px; padding: 0; }
+.segmentos { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--fondo); border: 2px solid var(--borde); border-radius: 16px; padding: 4px; gap: 4px; }
+.segmento { font: inherit; font-weight: 800; font-size: 0.85rem; border: 0; background: transparent; color: var(--suave); border-radius: 12px; padding: 10px 4px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.segmento.activo { background: var(--banana); color: #2b1d10; box-shadow: 0 3px 0 #e0b520; }
+.meses-elegir { display: flex; align-items: center; justify-content: center; gap: 18px; animation: subir 0.2s ease-out; }
+.paso {
+  width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--borde); background: var(--tarjeta); color: var(--texto);
+  font-size: 1.6rem; font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 var(--borde);
+}
+.paso:active { transform: translateY(3px); box-shadow: none; }
+.paso:disabled { opacity: 0.35; }
+.meses-cuenta { min-width: 110px; text-align: center; font-weight: 800; color: var(--suave); }
+.meses-cuenta b { font-family: 'Baloo 2', sans-serif; font-size: 2.2rem; color: var(--texto); line-height: 1; }
+.chips.chicas { justify-content: center; }
+.chips.chicas .chip { min-width: 44px; padding: 6px 10px; }
+.interruptor { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.interruptor span { flex: 1; display: grid; gap: 2px; }
+.interruptor small { color: var(--suave); font-weight: 600; font-size: 0.8rem; }
+.interruptor input { position: absolute; opacity: 0; pointer-events: none; }
+.interruptor i { width: 52px; height: 30px; border-radius: 99px; background: var(--borde); position: relative; flex-shrink: 0; transition: background 0.2s; }
+.interruptor i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); transition: transform 0.2s cubic-bezier(.3,1.6,.6,1); }
+.interruptor input:checked + i { background: var(--selva); }
+.interruptor input:checked + i::after { transform: translateX(22px); }
+.interruptor input:focus-visible + i { outline: 3px solid var(--banana); }
+.resumen-gasto { background: var(--fondo); border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: 0.9rem; }
+.hoja form { overflow-y: auto; max-height: 92vh; }
