@@ -123,6 +123,12 @@ body {
 .campo input:focus { outline: none; border-color: var(--selva); }
 .monto-campo input { font-family: 'Baloo 2', sans-serif; font-size: 2rem; font-weight: 800; padding: 6px 14px; }
 .error { color: var(--rojo); font-weight: 800; font-size: 0.9rem; }
+.ok { color: var(--selva); font-weight: 800; font-size: 0.9rem; }
+.legal { color: var(--suave); font-size: 0.8rem; text-align: center; }
+.legal a { color: inherit; }
+.borrar { border-top: 2px dashed var(--borde); padding-top: 12px; display: grid; gap: 10px; }
+.borrar summary { color: var(--rojo); font-weight: 800; cursor: pointer; }
+.borrar[open] { display: grid; }
 .ayuda { color: var(--suave); font-size: 0.85rem; font-weight: 600; }
 .boton {
   font: inherit; font-weight: 800; border: 2px solid var(--borde); background: var(--tarjeta); color: var(--texto);

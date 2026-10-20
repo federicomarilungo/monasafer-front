@@ -79,18 +79,93 @@ $('boton-demo').addEventListener('click', () => {
   entrarApp();
 });
 
-$('boton-salir').addEventListener('click', () => {
+// ---------- Recupero de contraseña y cuenta (L1, L2) ----------
+
+$('boton-olvide').addEventListener('click', () => {
+  const f = $('form-olvide');
+  f.email.value = $('form-entrada').email.value;
+  mostrarError('error-olvide', null);
+  $('ok-olvide').hidden = true;
+  $('hoja-olvide').showModal();
+});
+
+$('form-olvide').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  mostrarError('error-olvide', null);
+  $('boton-mandar-olvide').disabled = true;
+  try {
+    await api('POST', '/auth/olvide', { email: e.target.email.value });
+    $('ok-olvide').hidden = false;
+    sonar('pop');
+  } catch (err) {
+    mostrarError('error-olvide', err.message);
+  } finally {
+    $('boton-mandar-olvide').disabled = false;
+  }
+});
+
+/** El link del email trae el código después del #, así no viaja al servidor ni queda en logs. */
+function codigoRecupero() {
+  const m = /^#recuperar=([\w-]+)$/.exec(location.hash);
+  return m ? m[1] : null;
+}
+
+$('form-recuperar').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  mostrarError('error-recuperar', null);
+  try {
+    const r = await api('POST', '/auth/recuperar', { codigo: codigoRecupero(), clave: e.target.clave.value });
+    history.replaceState(null, '', location.pathname);
+    $('hoja-recuperar').close();
+    sonar('fanfarria');
+    await entrarConToken(r.token);
+  } catch (err) {
+    mostrarError('error-recuperar', err.message);
+  }
+});
+window.addEventListener('hashchange', () => {
+  if (codigoRecupero() && !$('hoja-recuperar').open) {
+    mostrarError('error-recuperar', null);
+    $('hoja-recuperar').showModal();
+  }
+});
+$('hoja-recuperar').addEventListener('close', () => history.replaceState(null, '', location.pathname));
+
+$('boton-cuenta').addEventListener('click', () => {
+  const f = $('form-cuenta');
+  $('cuenta-email').textContent = estado.perfil?.email ?? '';
+  f.confirmacion.value = '';
+  f.querySelector('details').open = false;
+  mostrarError('error-cuenta', null);
+  $('hoja-cuenta').showModal();
+});
+
+$('boton-borrar-cuenta').addEventListener('click', async () => {
+  mostrarError('error-cuenta', null);
+  try {
+    await api('DELETE', '/perfil', { confirmacion: $('form-cuenta').confirmacion.value });
+    $('hoja-cuenta').close();
+    salir();
+  } catch (err) {
+    mostrarError('error-cuenta', err.message);
+  }
+});
+
+function salir() {
   guardarToken(null);
   olvidarGoogle();
   estado.datos = null;
   mostrarEntrada();
-});
+}
+
+$('boton-salir').addEventListener('click', salir);
 
 function entrarApp() {
   $('pantalla-entrada').hidden = true;
   $('pantalla-app').hidden = false;
   $('demo').hidden = estado.modo !== 'demo';
   $('boton-salir').textContent = estado.modo === 'demo' ? 'Entrar' : 'Salir';
+  $('boton-cuenta').hidden = estado.modo !== 'real';
   configurarMoneda(estado.perfil?.moneda ?? 'USD');
   estado.mesVisto = mesActual;
   const nuevo = estado.modo === 'real' && estado.datos.gastos.length === 0 && estado.datos.perfil.saldo === 0 && !estado.datos.perfil.ingresoMensual;
@@ -756,6 +831,11 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 (async () => {
+  if (codigoRecupero()) {
+    mostrarEntrada();
+    mostrarError('error-recuperar', null);
+    return $('hoja-recuperar').showModal();
+  }
   if (hayToken()) {
     try {
       estado.modo = 'real';

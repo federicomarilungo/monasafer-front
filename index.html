@@ -33,6 +33,8 @@
         <label class="campo">Contraseña<input name="clave" type="password" autocomplete="current-password" minlength="8" required /></label>
         <p class="error" id="error-entrada" hidden></p>
         <button class="boton principal" type="submit" id="boton-entrada">Entrar</button>
+        <button class="boton enlace chico" type="button" id="boton-olvide">¿Te olvidaste la contraseña?</button>
+        <p class="legal">Al entrar o crear tu cuenta aceptás los <a href="/terminos.html">términos</a> y la <a href="/privacidad.html">política de privacidad</a>.</p>
       </form>
       <button class="boton enlace" id="boton-demo" type="button">Ver la demo sin cuenta</button>
     </main>
@@ -53,6 +55,7 @@
         <h1 class="marca">Mona<span>safer</span></h1>
         <span class="demo" id="demo" hidden>datos de ejemplo</span>
         <button class="boton-sonido" id="boton-sonido" type="button" aria-label="Silenciar sonidos">🔊</button>
+        <button class="boton-sonido" id="boton-cuenta" type="button" aria-label="Tu cuenta" hidden>⚙️</button>
         <button class="boton enlace chico" id="boton-salir" type="button">Salir</button>
       </header>
 
@@ -169,6 +172,50 @@
         <div class="acciones">
           <button type="button" class="boton" data-cerrar>Cancelar</button>
           <button type="submit" class="boton principal">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="hoja" id="hoja-olvide">
+      <form method="dialog" id="form-olvide">
+        <h3>¿Te olvidaste la contraseña?</h3>
+        <p>Poné tu email y te mandamos un link para elegir una nueva. Vale una hora.</p>
+        <label class="campo">Email<input name="email" type="email" autocomplete="email" required /></label>
+        <p class="error" id="error-olvide" hidden></p>
+        <p class="ok" id="ok-olvide" hidden>Listo. Si hay una cuenta con ese email, te llegó el link (mirá también en spam).</p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar>Cerrar</button>
+          <button type="submit" class="boton principal" id="boton-mandar-olvide">Mandar link</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="hoja" id="hoja-recuperar">
+      <form method="dialog" id="form-recuperar">
+        <h3>Elegí tu contraseña nueva</h3>
+        <label class="campo">Contraseña nueva<input name="clave" type="password" autocomplete="new-password" minlength="8" required /></label>
+        <p class="error" id="error-recuperar" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar>Cancelar</button>
+          <button type="submit" class="boton principal">Guardar y entrar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="hoja" id="hoja-cuenta">
+      <form method="dialog" id="form-cuenta">
+        <h3>Tu cuenta</h3>
+        <p id="cuenta-email"></p>
+        <p class="legal"><a href="/terminos.html">Términos</a> · <a href="/privacidad.html">Privacidad</a> · <a href="mailto:hola@monasafer.com">hola@monasafer.com</a></p>
+        <details class="borrar">
+          <summary>Borrar mi cuenta</summary>
+          <p>Se borran tu cuenta, tus gastos, reservas y todo lo que cargaste. No se puede deshacer.</p>
+          <label class="campo">Escribí tu email para confirmar<input name="confirmacion" type="email" autocomplete="off" /></label>
+          <p class="error" id="error-cuenta" hidden></p>
+          <button type="button" class="boton peligro" id="boton-borrar-cuenta">Borrar todo para siempre</button>
+        </details>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar>Cerrar</button>
         </div>
       </form>
     </dialog>

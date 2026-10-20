@@ -1,0 +1,13 @@
+:root { color-scheme: light dark; --fondo:#fff8e7; --tarjeta:#fff; --texto:#2b1d10; --suave:#8a7560; --selva:#2f9e6b; --borde:#f0e2c4; }
+@media (prefers-color-scheme: dark) { :root { --fondo:#1a1510; --tarjeta:#2a2219; --texto:#fff3dc; --suave:#bba88f; --borde:#3d3226; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--fondo); color:var(--texto); font-family:'Nunito',system-ui,sans-serif; line-height:1.55; }
+main { max-width:720px; margin:0 auto; padding:24px 16px 48px; }
+.marca { font-weight:900; font-size:1.6rem; color:var(--selva); text-decoration:none; }
+.marca span { color:#e0a800; }
+h1 { font-size:1.6rem; margin:16px 0 4px; }
+h2 { font-size:1.15rem; margin:28px 0 6px; }
+.fecha { color:var(--suave); font-size:.9rem; margin:0 0 20px; }
+.tarjeta { background:var(--tarjeta); border:2px solid var(--borde); border-radius:16px; padding:16px; }
+a { color:var(--selva); }
+li { margin:4px 0; }
