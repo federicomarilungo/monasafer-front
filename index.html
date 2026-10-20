@@ -18,25 +18,26 @@
     <main class="app entrada" id="pantalla-entrada" hidden>
       <div class="mono mono-entrada" id="mono-entrada" aria-hidden="true"></div>
       <h1 class="marca grande">Mona<span>safer</span></h1>
-      <p class="lema">Anotá lo que vas a gastar y Mona te dice si llegás a fin de mes. Lo que sobra es ahorro.</p>
+      <p class="lema" data-t>Anotá lo que vas a gastar y Mona te dice si llegás a fin de mes. Lo que sobra es ahorro.</p>
       <form class="tarjeta formulario" id="form-entrada">
         <div class="google" id="google-entrada" hidden>
           <div class="boton-google" id="boton-google"></div>
-          <p class="separador"><span>o con tu email</span></p>
+          <p class="separador"><span data-t>o con tu email</span></p>
         </div>
         <div class="pestanas" role="tablist">
-          <button type="button" class="pestana activa" data-modo="login">Entrar</button>
-          <button type="button" class="pestana" data-modo="registro">Crear cuenta</button>
+          <button type="button" class="pestana activa" data-modo="login" data-t>Entrar</button>
+          <button type="button" class="pestana" data-modo="registro" data-t>Crear cuenta</button>
         </div>
-        <label class="campo" id="campo-nombre" hidden>Tu nombre<input name="nombre" autocomplete="given-name" maxlength="60" /></label>
-        <label class="campo">Email<input name="email" type="email" autocomplete="email" required /></label>
-        <label class="campo">Contraseña<input name="clave" type="password" autocomplete="current-password" minlength="8" required /></label>
+        <label class="campo" id="campo-nombre" hidden><span data-t>Tu nombre</span><input name="nombre" autocomplete="given-name" maxlength="60" /></label>
+        <label class="campo"><span data-t>Email</span><input name="email" type="email" autocomplete="email" required /></label>
+        <label class="campo"><span data-t>Contraseña</span><input name="clave" type="password" autocomplete="current-password" minlength="8" required /></label>
         <p class="error" id="error-entrada" hidden></p>
         <button class="boton principal" type="submit" id="boton-entrada">Entrar</button>
-        <button class="boton enlace chico" type="button" id="boton-olvide">¿Te olvidaste la contraseña?</button>
-        <p class="legal">Al entrar o crear tu cuenta aceptás los <a href="/terminos.html">términos</a> y la <a href="/privacidad.html">política de privacidad</a>.</p>
+        <button class="boton enlace chico" type="button" id="boton-olvide" data-t>¿Te olvidaste la contraseña?</button>
+        <p class="legal" data-t-html>Al entrar o crear tu cuenta aceptás los <a href="/terminos.html">términos</a> y la <a href="/privacidad.html">política de privacidad</a>.</p>
       </form>
-      <button class="boton enlace" id="boton-demo" type="button">Ver la demo sin cuenta</button>
+      <button class="boton enlace" id="boton-demo" type="button" data-t>Ver la demo sin cuenta</button>
+      <button class="boton enlace chico" id="boton-idioma-entrada" type="button">English</button>
     </main>
 
     <!-- Onboarding con Mona (C6) -->
@@ -53,22 +54,23 @@
     <main class="app" id="pantalla-app" hidden>
       <header class="cabecera">
         <h1 class="marca">Mona<span>safer</span></h1>
-        <span class="demo" id="demo" hidden>datos de ejemplo</span>
-        <button class="boton-sonido" id="boton-sonido" type="button" aria-label="Silenciar sonidos">🔊</button>
-        <button class="boton-sonido" id="boton-cuenta" type="button" aria-label="Tu cuenta" hidden>⚙️</button>
+        <span class="demo" id="demo" hidden data-t>datos de ejemplo</span>
+        <button class="boton-sonido" id="boton-sonido" type="button" aria-label="Silenciar sonidos" data-t-aria>🔊</button>
+        <button class="boton-sonido" id="boton-metricas" type="button" aria-label="Métricas" data-t-aria>📊</button>
+        <button class="boton-sonido" id="boton-cuenta" type="button" aria-label="Tu cuenta" data-t-aria hidden>⚙️</button>
         <button class="boton enlace chico" id="boton-salir" type="button">Salir</button>
       </header>
 
-      <nav class="navegador-mes" aria-label="Mes">
-        <button class="flecha" id="mes-anterior" aria-label="Mes anterior">‹</button>
+      <nav class="navegador-mes" aria-label="Mes" data-t-aria>
+        <button class="flecha" id="mes-anterior" aria-label="Mes anterior" data-t-aria>‹</button>
         <h2 id="titulo-mes">—</h2>
-        <button class="flecha" id="mes-siguiente" aria-label="Mes siguiente">›</button>
+        <button class="flecha" id="mes-siguiente" aria-label="Mes siguiente" data-t-aria>›</button>
       </nav>
 
       <section class="tarjeta-balance" id="tarjeta-balance">
         <div class="mono" id="mono" aria-hidden="true"></div>
         <div class="balance">
-          <p class="etiqueta">Te sobra a fin de mes</p>
+          <p class="etiqueta" data-t>Te sobra a fin de mes</p>
           <p class="monto-grande" id="balance">0</p>
           <p class="frase" id="frase"></p>
         </div>
@@ -79,33 +81,41 @@
       <div class="sugerencias" id="sugerencias"></div>
 
       <section>
-        <h3 class="subtitulo">Gastos del mes</h3>
+        <h3 class="subtitulo" data-t>Gastos del mes</h3>
         <ul class="gastos" id="gastos"></ul>
-        <p class="vacio" id="vacio" hidden>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
+        <p class="vacio" id="vacio" hidden data-t-html>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
       </section>
 
-      <button class="boton-flotante" id="boton-nuevo" aria-label="Nuevo gasto">+</button>
+      <aside class="aviso-premium" id="aviso-premium" hidden>
+        <span>🎙️</span>
+        <p><b data-t>Contale a Mona lo que gastaste</b> <small data-t>y ella lo carga. Con Premium no ves más este aviso.</small></p>
+        <button type="button" class="boton chico" id="aviso-probar" data-t>Probar</button>
+        <button type="button" class="cerrar-aviso" id="aviso-cerrar" aria-label="Cerrar aviso" data-t-aria>×</button>
+      </aside>
+
+      <button class="boton-flotante boton-chat" id="boton-chat" aria-label="Hablar con Mona" data-t-aria>💬</button>
+      <button class="boton-flotante" id="boton-nuevo" aria-label="Nuevo gasto" data-t-aria>+</button>
     </main>
 
     <!-- Hoja: nuevo o editar gasto -->
     <dialog class="hoja" id="hoja-gasto">
       <form method="dialog" id="form-gasto">
         <h3 id="titulo-hoja-gasto">Nuevo gasto</h3>
-        <label class="campo monto-campo">Monto<input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
-        <label class="campo">¿Qué es?<input name="nombre" maxlength="80" required placeholder="Alquiler, súper, cuota…" autocomplete="off" /></label>
-        <div class="emojis" id="emojis" aria-label="Ícono"></div>
+        <label class="campo monto-campo"><span data-t>Monto</span><input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
+        <label class="campo"><span data-t>¿Qué es?</span><input name="nombre" maxlength="80" required placeholder="Alquiler, súper, cuota…" data-t-ph autocomplete="off" /></label>
+        <div class="emojis" id="emojis" aria-label="Ícono" data-t-aria></div>
 
         <fieldset class="grupo">
-          <legend>¿Cuánto dura?</legend>
+          <legend data-t>¿Cuánto dura?</legend>
           <div class="segmentos" role="radiogroup">
-            <button type="button" class="segmento activo" data-duracion="mes">Solo este mes</button>
-            <button type="button" class="segmento" data-duracion="hasta">Varios meses</button>
-            <button type="button" class="segmento" data-duracion="siempre">Siempre</button>
+            <button type="button" class="segmento activo" data-duracion="mes" data-t>Solo este mes</button>
+            <button type="button" class="segmento" data-duracion="hasta" data-t>Varios meses</button>
+            <button type="button" class="segmento" data-duracion="siempre" data-t>Siempre</button>
           </div>
           <div class="meses-elegir" id="meses-elegir" hidden>
-            <button type="button" class="paso" id="meses-menos" aria-label="Un mes menos">−</button>
+            <button type="button" class="paso" id="meses-menos" aria-label="Un mes menos" data-t-aria>−</button>
             <div class="meses-cuenta"><b id="meses-n">3</b> <span id="meses-palabra">meses</span></div>
-            <button type="button" class="paso" id="meses-mas" aria-label="Un mes más">+</button>
+            <button type="button" class="paso" id="meses-mas" aria-label="Un mes más" data-t-aria>+</button>
           </div>
           <div class="chips chicas" id="meses-rapidos" hidden>
             <button type="button" class="chip" data-meses="2">2</button>
@@ -119,24 +129,24 @@
         <fieldset class="grupo">
           <label class="interruptor">
             <span>
-              <b>Es una reserva</b>
-              <small>Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.</small>
+              <b data-t>Es una reserva</b>
+              <small data-t>Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.</small>
             </span>
             <input type="checkbox" id="es-reserva" />
             <i aria-hidden="true"></i>
           </label>
-          <div class="chips" id="campo-modo" hidden role="radiogroup" aria-label="Cómo se gasta la reserva">
-            <button type="button" class="chip activo" data-modo="proporcional">Baja sola con los días</button>
-            <button type="button" class="chip" data-modo="manual">Cargo cada uso</button>
+          <div class="chips" id="campo-modo" hidden role="radiogroup" aria-label="Cómo se gasta la reserva" data-t-aria>
+            <button type="button" class="chip activo" data-modo="proporcional" data-t>Baja sola con los días</button>
+            <button type="button" class="chip" data-modo="manual" data-t>Cargo cada uso</button>
           </div>
         </fieldset>
 
         <p class="resumen-gasto" id="resumen-gasto"></p>
         <p class="error" id="error-gasto" hidden></p>
         <div class="acciones">
-          <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden>Borrar</button>
-          <button type="button" class="boton" data-cerrar>Cancelar</button>
-          <button type="submit" class="boton principal">Guardar</button>
+          <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden data-t>Borrar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Guardar</button>
         </div>
       </form>
     </dialog>
@@ -148,15 +158,15 @@
         <div class="frasco grande"><span id="frasco-reserva"></span></div>
         <p class="ayuda" id="texto-reserva"></p>
         <div id="carga-uso">
-          <label class="campo monto-campo">¿Cuánto usaste?<input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
-          <label class="campo">Nota<input name="nota" maxlength="120" placeholder="SUBE, nafta…" autocomplete="off" /></label>
+          <label class="campo monto-campo"><span data-t>¿Cuánto usaste?</span><input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+          <label class="campo"><span data-t>Nota</span><input name="nota" maxlength="120" placeholder="SUBE, nafta…" data-t-ph autocomplete="off" /></label>
         </div>
         <ul class="usos" id="lista-usos"></ul>
         <p class="error" id="error-uso" hidden></p>
         <div class="acciones">
-          <button type="button" class="boton" id="boton-editar-reserva">Editar</button>
-          <button type="button" class="boton" data-cerrar>Cerrar</button>
-          <button type="submit" class="boton principal" id="boton-usar">Usar</button>
+          <button type="button" class="boton" id="boton-editar-reserva" data-t>Editar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cerrar</button>
+          <button type="submit" class="boton principal" id="boton-usar" data-t>Usar</button>
         </div>
       </form>
     </dialog>
@@ -164,59 +174,107 @@
     <!-- Hoja: saldo e ingreso -->
     <dialog class="hoja" id="hoja-plata">
       <form method="dialog" id="form-plata">
-        <h3>Tu plata</h3>
-        <label class="campo monto-campo">Saldo en cuenta hoy<input name="saldo" inputmode="decimal" required autocomplete="off" /></label>
-        <label class="campo">Ingreso mensual<input name="ingreso" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
-        <label class="campo">Día de cobro<input name="dia" type="number" min="1" max="31" placeholder="1" /></label>
+        <h3 data-t>Tu plata</h3>
+        <label class="campo monto-campo"><span data-t>Saldo en cuenta hoy</span><input name="saldo" inputmode="decimal" required autocomplete="off" /></label>
+        <label class="campo"><span data-t>Ingreso mensual</span><input name="ingreso" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        <label class="campo"><span data-t>Día de cobro</span><input name="dia" type="number" min="1" max="31" placeholder="1" /></label>
         <p class="error" id="error-plata" hidden></p>
         <div class="acciones">
-          <button type="button" class="boton" data-cerrar>Cancelar</button>
-          <button type="submit" class="boton principal">Guardar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Guardar</button>
         </div>
       </form>
     </dialog>
 
     <dialog class="hoja" id="hoja-olvide">
       <form method="dialog" id="form-olvide">
-        <h3>¿Te olvidaste la contraseña?</h3>
-        <p>Poné tu email y te mandamos un link para elegir una nueva. Vale una hora.</p>
-        <label class="campo">Email<input name="email" type="email" autocomplete="email" required /></label>
+        <h3 data-t>¿Te olvidaste la contraseña?</h3>
+        <p data-t>Poné tu email y te mandamos un link para elegir una nueva. Vale una hora.</p>
+        <label class="campo"><span data-t>Email</span><input name="email" type="email" autocomplete="email" required /></label>
         <p class="error" id="error-olvide" hidden></p>
-        <p class="ok" id="ok-olvide" hidden>Listo. Si hay una cuenta con ese email, te llegó el link (mirá también en spam).</p>
+        <p class="ok" id="ok-olvide" hidden data-t>Listo. Si hay una cuenta con ese email, te llegó el link (mirá también en spam).</p>
         <div class="acciones">
-          <button type="button" class="boton" data-cerrar>Cerrar</button>
-          <button type="submit" class="boton principal" id="boton-mandar-olvide">Mandar link</button>
+          <button type="button" class="boton" data-cerrar data-t>Cerrar</button>
+          <button type="submit" class="boton principal" id="boton-mandar-olvide" data-t>Mandar link</button>
         </div>
       </form>
     </dialog>
 
     <dialog class="hoja" id="hoja-recuperar">
       <form method="dialog" id="form-recuperar">
-        <h3>Elegí tu contraseña nueva</h3>
-        <label class="campo">Contraseña nueva<input name="clave" type="password" autocomplete="new-password" minlength="8" required /></label>
+        <h3 data-t>Elegí tu contraseña nueva</h3>
+        <label class="campo"><span data-t>Contraseña nueva</span><input name="clave" type="password" autocomplete="new-password" minlength="8" required /></label>
         <p class="error" id="error-recuperar" hidden></p>
         <div class="acciones">
-          <button type="button" class="boton" data-cerrar>Cancelar</button>
-          <button type="submit" class="boton principal">Guardar y entrar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Guardar y entrar</button>
         </div>
       </form>
     </dialog>
 
     <dialog class="hoja" id="hoja-cuenta">
       <form method="dialog" id="form-cuenta">
-        <h3>Tu cuenta</h3>
+        <h3 data-t>Tu cuenta</h3>
         <p id="cuenta-email"></p>
-        <p class="legal"><a href="/terminos.html">Términos</a> · <a href="/privacidad.html">Privacidad</a> · <a href="mailto:hola@monasafer.com">hola@monasafer.com</a></p>
+        <div class="premium-caja" id="premium-caja"></div>
+        <label class="campo"><span data-t>Moneda</span><select name="moneda" id="elegir-moneda"></select></label>
+        <label class="campo"><span data-t>Idioma</span><select name="idioma" id="elegir-idioma"></select></label>
+        <p class="legal"><a href="/terminos.html" data-t>Términos</a> · <a href="/privacidad.html" data-t>Privacidad</a> · <a href="mailto:hola@monasafer.com">hola@monasafer.com</a></p>
         <details class="borrar">
-          <summary>Borrar mi cuenta</summary>
-          <p>Se borran tu cuenta, tus gastos, reservas y todo lo que cargaste. No se puede deshacer.</p>
-          <label class="campo">Escribí tu email para confirmar<input name="confirmacion" type="email" autocomplete="off" /></label>
+          <summary data-t>Borrar mi cuenta</summary>
+          <p data-t>Se borran tu cuenta, tus gastos, reservas y todo lo que cargaste. No se puede deshacer.</p>
+          <label class="campo"><span data-t>Escribí tu email para confirmar</span><input name="confirmacion" type="email" autocomplete="off" /></label>
           <p class="error" id="error-cuenta" hidden></p>
-          <button type="button" class="boton peligro" id="boton-borrar-cuenta">Borrar todo para siempre</button>
+          <button type="button" class="boton peligro" id="boton-borrar-cuenta" data-t>Borrar todo para siempre</button>
         </details>
         <div class="acciones">
-          <button type="button" class="boton" data-cerrar>Cerrar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cerrar</button>
         </div>
+      </form>
+    </dialog>
+
+    <!-- Métricas premium (S2) -->
+    <dialog class="hoja" id="hoja-metricas">
+      <form method="dialog">
+        <h3 data-t>Tus números</h3>
+        <div id="metricas"></div>
+        <div class="acciones"><button type="button" class="boton" data-cerrar data-t>Cerrar</button></div>
+      </form>
+    </dialog>
+
+    <!-- Chat con Mona (S3, S4) -->
+    <dialog class="hoja hoja-chat" id="hoja-chat">
+      <form method="dialog" id="form-chat">
+        <h3><span data-t>Mona te ayuda</span> <small class="quedan" id="chat-quedan"></small></h3>
+        <div class="chat" id="chat"></div>
+        <div class="chat-entrada">
+          <button type="button" class="boton-mic" id="boton-mic" aria-label="Hablar" data-t-aria hidden>🎙️</button>
+          <input name="texto" maxlength="500" autocomplete="off" placeholder="Compré una campera en 6 cuotas…" data-t-ph />
+          <button type="submit" class="boton principal" aria-label="Mandar" data-t-aria>➤</button>
+        </div>
+        <div class="acciones"><button type="button" class="boton" data-cerrar data-t>Cerrar</button></div>
+      </form>
+    </dialog>
+
+    <!-- Premium (S1, S8) -->
+    <dialog class="hoja" id="hoja-premium">
+      <form method="dialog" id="form-premium">
+        <h3 data-t>Monasafer Premium</h3>
+        <p id="premium-motivo"></p>
+        <ul class="premium-lista">
+          <li data-t>🎙️ Mona carga tus gastos por chat o por voz</li>
+          <li data-t>📊 Métricas: en qué se va tu plata, cómo cambian tus meses y cuánto vas a ahorrar</li>
+          <li data-t>🙈 Sin avisos</li>
+        </ul>
+        <p class="precio" id="premium-precio"></p>
+        <label class="campo"><span data-t>Email de tu cuenta de Mercado Pago</span><input name="emailPago" type="email" autocomplete="email" /></label>
+        <p class="error" id="error-premium" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Ahora no</button>
+          <button type="submit" class="boton principal" id="boton-suscribir" data-t>Suscribirme</button>
+        </div>
+        <p class="legal" data-t>Se cobra todos los meses con Mercado Pago. La cancelás cuando quieras desde ⚙️ y seguís con Premium hasta el final del mes pagado.</p>
+        <p class="legal"><a href="/terminos.html" data-t>Términos</a> · <a href="mailto:hola@monasafer.com?subject=Bot%C3%B3n%20de%20arrepentimiento" data-t>Botón de arrepentimiento</a></p>
       </form>
     </dialog>
 

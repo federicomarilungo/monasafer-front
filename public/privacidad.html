@@ -19,9 +19,10 @@
 <ul>
   <li><strong>Tu cuenta:</strong> email, nombre (si lo ponés) y tu contraseña guardada de forma cifrada (nunca la vemos). Si entrás con Google, recibimos de Google tu email, tu nombre y un identificador de tu cuenta; no recibimos tu contraseña de Google.</li>
   <li><strong>Lo que cargás:</strong> saldo, ingreso mensual, gastos, reservas, pagos y usos de reservas, con sus montos y fechas.</li>
+  <li><strong>Premium:</strong> si te suscribís, el estado de tu suscripción (activa, cancelada, próximo cobro) y el email de tu cuenta de Mercado Pago. Si usás el chat, guardamos cuántos mensajes mandaste por día, no lo que escribiste.</li>
   <li><strong>Datos técnicos:</strong> usamos la dirección IP de cada pedido por seguridad (por ejemplo, para frenar intentos de adivinar contraseñas) y nuestros proveedores de servidores pueden registrarla con la fecha. No la usamos para otra cosa.</li>
 </ul>
-<p>No pedimos ni guardamos datos de tarjetas, cuentas bancarias ni documentos. Monasafer no se conecta con tu banco.</p>
+<p>No guardamos datos de tarjetas, cuentas bancarias ni documentos. Monasafer no se conecta con tu banco.</p>
 
 <h2>Para qué los usamos</h2>
 <ul>
@@ -38,6 +39,8 @@
   <li>MongoDB Atlas (base de datos donde se guarda tu cuenta y lo que cargás).</li>
   <li>Google (si elegís entrar con Google).</li>
   <li>Resend (envío de los emails de la cuenta).</li>
+  <li>Anthropic (el modelo de IA del chat con Mona): solo si usás el chat, recibe tus mensajes y la lista de tus gastos activos para poder proponerte cambios. No los usa para entrenar sus modelos.</li>
+  <li>Mercado Pago (si te suscribís a Premium): procesa el pago. Los datos de tu tarjeta los carga y guarda Mercado Pago, nunca pasan por Monasafer; nosotros solo recibimos el estado de la suscripción.</li>
 </ul>
 <p>Estos proveedores pueden guardar los datos fuera de Argentina. También podríamos tener que compartir datos si lo pide una autoridad con una orden válida.</p>
 

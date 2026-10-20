@@ -7,6 +7,8 @@ import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
+import { htmlMetricas } from './metricas.js';
+import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
@@ -31,6 +33,8 @@ async function entrarConGoogle(credencial) {
   mostrarError('error-entrada', null);
   try {
     const r = await api('POST', '/auth/google', { credencial });
+    guardarToken(r.token);
+    if (r.nuevo && idiomaActual() !== 'es') await api('PATCH', '/perfil', { idioma: idiomaActual() }).catch(() => {});
     await entrarConToken(r.token);
   } catch (err) {
     mostrarError('error-entrada', err.message);
@@ -49,7 +53,7 @@ document.querySelectorAll('.pestana').forEach((b) =>
     modoEntrada = b.dataset.modo;
     document.querySelectorAll('.pestana').forEach((x) => x.classList.toggle('activa', x === b));
     $('campo-nombre').hidden = modoEntrada !== 'registro';
-    $('boton-entrada').textContent = modoEntrada === 'registro' ? 'Crear cuenta' : 'Entrar';
+    $('boton-entrada').textContent = modoEntrada === 'registro' ? t('Crear cuenta') : t('Entrar');
     $('form-entrada').clave.autocomplete = modoEntrada === 'registro' ? 'new-password' : 'current-password';
   }),
 );
@@ -61,11 +65,11 @@ $('form-entrada').addEventListener('submit', async (e) => {
   $('boton-entrada').disabled = true;
   try {
     const cuerpo = { email: f.email.value, clave: f.clave.value };
-    if (modoEntrada === 'registro') cuerpo.nombre = f.nombre.value;
+    if (modoEntrada === 'registro') Object.assign(cuerpo, { nombre: f.nombre.value, idioma: idiomaActual() });
     const r = await api('POST', `/auth/${modoEntrada}`, cuerpo);
     await entrarConToken(r.token);
   } catch (err) {
-    const msg = err instanceof ErrorApi && err.status === 404 ? 'Las cuentas todavía no están activas. Mientras, mirá la demo.' : err.message;
+    const msg = err instanceof ErrorApi && err.status === 404 ? t('Las cuentas todavía no están activas. Mientras, mirá la demo.') : err.message;
     mostrarError('error-entrada', msg);
   } finally {
     $('boton-entrada').disabled = false;
@@ -134,6 +138,7 @@ $('hoja-recuperar').addEventListener('close', () => history.replaceState(null, '
 $('boton-cuenta').addEventListener('click', () => {
   const f = $('form-cuenta');
   $('cuenta-email').textContent = estado.perfil?.email ?? '';
+  pintarCuenta();
   f.confirmacion.value = '';
   f.querySelector('details').open = false;
   mostrarError('error-cuenta', null);
@@ -164,10 +169,12 @@ function entrarApp() {
   $('pantalla-entrada').hidden = true;
   $('pantalla-app').hidden = false;
   $('demo').hidden = estado.modo !== 'demo';
-  $('boton-salir').textContent = estado.modo === 'demo' ? 'Entrar' : 'Salir';
+  $('boton-salir').textContent = estado.modo === 'demo' ? t('Entrar') : t('Salir');
   $('boton-cuenta').hidden = estado.modo !== 'real';
+  cargarConfigPremium();
   configurarMoneda(estado.perfil?.moneda ?? 'USD');
   estado.mesVisto = mesActual;
+  chat.length = 0;
   const nuevo = estado.modo === 'real' && estado.datos.gastos.length === 0 && estado.datos.perfil.saldo === 0 && !estado.datos.perfil.ingresoMensual;
   if (nuevo) return empezarOnboarding();
   pintar();
@@ -198,6 +205,10 @@ async function cargar() {
   const [datos, perfil] = await Promise.all([api('GET', '/datos'), api('GET', '/perfil')]);
   estado.datos = datos;
   estado.perfil = perfil;
+  if (perfil.idioma && perfil.idioma !== idiomaActual()) {
+    cambiarIdioma(perfil.idioma);
+    pintarIdioma();
+  }
 }
 
 // ---------- Acciones (real: API y recarga · demo: en memoria) ----------
@@ -265,8 +276,8 @@ function animarNumero(el, desde, hasta, formato = plata, dura = 600) {
     return;
   }
   const inicio = performance.now();
-  const paso = (t) => {
-    const p = Math.min(1, (t - inicio) / dura);
+  const paso = (ahora) => {
+    const p = Math.min(1, (ahora - inicio) / dura);
     el.textContent = formato(Math.round(desde + (hasta - desde) * (1 - Math.pow(1 - p, 3))));
     if (p < 1) requestAnimationFrame(paso);
   };
@@ -309,9 +320,9 @@ function golpe(el) {
 function etiquetaTipo(l, g) {
   const corto = (m) => nombreMes(m).split(' ')[0].toLowerCase();
   const soloEste = l.tipo === 'puntual' || (l.tipo === 'reserva' && !g?.recurrente);
-  const duracion = soloEste ? 'solo este mes' : g?.mesFin ? `hasta ${corto(g.mesFin)}` : 'todos los meses';
+  const duracion = soloEste ? t('solo este mes') : g?.mesFin ? t('hasta {mes}', { mes: corto(g.mesFin) }) : t('todos los meses');
   if (l.tipo !== 'reserva') return duracion;
-  return `reserva · ${g?.modoReserva === 'manual' ? 'cargás los usos' : 'baja con los días'} · ${duracion}`;
+  return `${t('reserva')} · ${g?.modoReserva === 'manual' ? t('cargás los usos') : t('baja con los días')} · ${duracion}`;
 }
 
 function filaGasto(l) {
@@ -335,9 +346,9 @@ function filaGasto(l) {
     </div>
     <div class="montos">
       <p class="monto">${l.tipo === 'reserva' ? (pasada ? `−${plata(-quedaReal)}` : plata(quedaReal)) : plata(l.monto)}</p>
-      ${l.tipo === 'reserva' ? `<p class="de">${pasada ? 'te pasaste de' : 'de'} ${plata(l.monto)}</p>` : ''}
+      ${l.tipo === 'reserva' ? `<p class="de">${pasada ? t('te pasaste de') : t('de')} ${plata(l.monto)}</p>` : ''}
     </div>
-    ${puedePagar ? `<button class="check" aria-label="${l.pagado ? 'Desmarcar pagado' : 'Marcar pagado'}">${l.pagado ? '✓' : ''}</button>` : ''}`;
+    ${puedePagar ? `<button class="check" aria-label="${l.pagado ? t('Desmarcar pagado') : t('Marcar pagado')}">${l.pagado ? '✓' : ''}</button>` : ''}`;
   li.querySelector('.nombre').textContent = l.nombre;
   li.querySelector('.check')?.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -379,7 +390,7 @@ document.addEventListener('pointermove', (e) => {
 let cosquilla = 0;
 $('mono').addEventListener('click', () => {
   sonar(cosquilla % 3 === 2 ? 'fanfarria' : 'pop');
-  $('frase').textContent = cosquillas[cosquilla++ % cosquillas.length];
+  $('frase').textContent = t(cosquillas[cosquilla++ % cosquillas.length]);
   $('mono').animate(
     [{ transform: 'rotate(0) scale(1)' }, { transform: 'rotate(-12deg) scale(1.1)' }, { transform: 'rotate(10deg) scale(1.05)' }, { transform: 'rotate(0) scale(1)' }],
     { duration: 520, easing: 'ease-out' },
@@ -396,13 +407,13 @@ function saltoMono() {
 function pintar(direccion = 0) {
   const d = estado.datos;
   const r = resumenDelMes(d, hoy, estado.mesVisto);
-  $('titulo-mes').textContent = estado.mesVisto === mesActual ? `${nombreMes(estado.mesVisto)} · hoy` : nombreMes(estado.mesVisto);
+  $('titulo-mes').textContent = estado.mesVisto === mesActual ? `${nombreMes(estado.mesVisto)} · ${t('hoy')}` : nombreMes(estado.mesVisto);
   $('mes-anterior').disabled = estado.mesVisto <= mesActual;
 
   const animo = animoPara(r.balance, d.perfil.ingresoMensual?.monto ?? 0);
   $('mono').innerHTML = svgMono(animo);
   const opciones = frases[animo];
-  $('frase').textContent = opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length];
+  $('frase').textContent = t(opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length]);
   $('tarjeta-balance').dataset.animo = animo;
   animarNumero($('balance'), estado.balanceMostrado, r.balance);
   estado.balanceMostrado = r.balance;
@@ -411,9 +422,9 @@ function pintar(direccion = 0) {
   // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).
   const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
   $('resumen').innerHTML = `
-    <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? 'Saldo hoy ✎' : 'Arrancás con'}</p><p id="valor-saldo"></p></button>
-    <div class="celda"><p class="etiqueta">Ingreso</p><p class="mas">+${plata(r.ingreso)}</p></div>
-    <div class="celda" id="celda-gastar"><p class="etiqueta">Por gastar</p><p class="menos" id="valor-gastar"></p></div>`;
+    <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? t('Saldo hoy ✎') : t('Arrancás con')}</p><p id="valor-saldo"></p></button>
+    <div class="celda"><p class="etiqueta">${t('Ingreso')}</p><p class="mas">+${plata(r.ingreso)}</p></div>
+    <div class="celda" id="celda-gastar"><p class="etiqueta">${t('Por gastar')}</p><p class="menos" id="valor-gastar"></p></div>`;
   $('celda-saldo').addEventListener('click', abrirPlata);
   animarNumero($('valor-saldo'), previo.inicio, r.inicio, plata, 900);
   animarNumero($('valor-gastar'), previo.totalPendiente, r.totalPendiente, (c) => `−${plata(c)}`, 900);
@@ -425,8 +436,9 @@ function pintar(direccion = 0) {
   const ingreso = d.perfil.ingresoMensual;
   const cobrar = esActual && ingreso && d.perfil.ingresoCobradoMes !== mesActual && hoy.getDate() >= ingreso.diaCobro;
   $('aviso-cobro').hidden = !cobrar;
-  if (cobrar) $('aviso-cobro').textContent = `¿Ya cobraste los ${plata(ingreso.monto)} de este mes? Tocá para sumarlos al saldo 🍌`;
+  if (cobrar) $('aviso-cobro').textContent = t('¿Ya cobraste los {monto} de este mes? Tocá para sumarlos al saldo 🍌', { monto: plata(ingreso.monto) });
 
+  pintarAviso();
   const lista = $('gastos');
   lista.replaceChildren(...r.gastos.map(filaGasto));
   $('vacio').hidden = r.gastos.length > 0;
@@ -472,8 +484,14 @@ function pintarSugerencias(esActual) {
     const nuevo = Math.ceil(usado / 1000) * 1000;
     const tarjeta = document.createElement('div');
     tarjeta.className = 'sugerencia';
-    tarjeta.innerHTML = `<p>🐒 En ${nombreMes(anterior).split(' ')[0].toLowerCase()} usaste <b>${plata(usado)}</b> en ${g.emoji || ''} <b></b> y habías reservado ${plata(g.monto)}. ¿La subimos a <b>${plata(nuevo)}</b>?</p>
-      <div class="acciones"><button class="boton" data-no>Así está bien</button><button class="boton principal" data-si>Subir</button></div>`;
+    tarjeta.innerHTML = `<p>${t('🐒 En {mes} usaste <b>{usado}</b> en {emoji} <b></b> y habías reservado {reservado}. ¿La subimos a <b>{nuevo}</b>?', {
+      mes: nombreMes(anterior).split(' ')[0].toLowerCase(),
+      usado: plata(usado),
+      emoji: g.emoji || '',
+      reservado: plata(g.monto),
+      nuevo: plata(nuevo),
+    })}</p>
+      <div class="acciones"><button class="boton" data-no>${t('Así está bien')}</button><button class="boton principal" data-si>${t('Subir')}</button></div>`;
     tarjeta.querySelectorAll('b')[1].textContent = g.nombre;
     tarjeta.querySelector('[data-no]').addEventListener('click', () => {
       descartar(clave);
@@ -593,7 +611,7 @@ function pintarForma() {
   $('meses-elegir').hidden = !varios;
   $('meses-rapidos').hidden = !varios;
   $('meses-n').textContent = forma.meses;
-  $('meses-palabra').textContent = forma.meses === 1 ? 'mes' : 'meses';
+  $('meses-palabra').textContent = forma.meses === 1 ? t('mes') : t('meses');
   $('meses-menos').disabled = forma.meses <= 2;
   document.querySelectorAll('[data-meses]').forEach((b) => b.classList.toggle('activo', Number(b.dataset.meses) === forma.meses));
   $('es-reserva').checked = forma.reserva;
@@ -604,16 +622,17 @@ function pintarForma() {
   const monto = centavos($('form-gasto').monto.value) ?? 0;
   const inicio = mesInicioDelForm();
   const mesCorto = (m) => nombreMes(m).toLowerCase();
-  const cuanto = monto ? plata(monto) : 'Este gasto';
-  const verbo = forma.reserva ? 'se reservan' : 'se descuentan';
+  const cuanto = monto ? plata(monto) : t('Este gasto');
+  const verbo = forma.reserva ? t('se reservan') : t('se descuentan');
+  const v = { cuanto, verbo, inicio: mesCorto(inicio) };
   let texto;
-  if (forma.duracion === 'mes') texto = `${cuanto} ${verbo} solo en ${mesCorto(inicio)}.`;
-  else if (forma.duracion === 'siempre') texto = `${cuanto} ${verbo} todos los meses desde ${mesCorto(inicio)}, hasta que lo borres.`;
+  if (forma.duracion === 'mes') texto = t('{cuanto} {verbo} solo en {inicio}.', v);
+  else if (forma.duracion === 'siempre') texto = t('{cuanto} {verbo} todos los meses desde {inicio}, hasta que lo borres.', v);
   else {
-    const fin = sumarMeses(inicio, forma.meses - 1);
-    texto = `${cuanto} ${verbo} por mes de ${mesCorto(inicio)} a ${mesCorto(fin)}. Último mes: ${mesCorto(fin)}.`;
+    const fin = mesCorto(sumarMeses(inicio, forma.meses - 1));
+    texto = t('{cuanto} {verbo} por mes de {inicio} a {fin}. Último mes: {fin}.', { ...v, fin });
   }
-  if (forma.reserva) texto += forma.modo === 'manual' ? ' Vas cargando cada uso.' : ' Baja sola a medida que pasan los días.';
+  if (forma.reserva) texto += ' ' + (forma.modo === 'manual' ? t('Vas cargando cada uso.') : t('Baja sola a medida que pasan los días.'));
   $('resumen-gasto').textContent = texto;
 }
 
@@ -687,7 +706,7 @@ function abrirGasto(g = null) {
   const f = $('form-gasto');
   f.reset();
   mostrarError('error-gasto', null);
-  $('titulo-hoja-gasto').textContent = g ? 'Editar gasto' : 'Nuevo gasto';
+  $('titulo-hoja-gasto').textContent = g ? t('Editar gasto') : t('Nuevo gasto');
   $('boton-borrar-gasto').hidden = !g;
   f.monto.value = g ? String(g.monto / 100) : '';
   f.nombre.value = g?.nombre ?? '';
@@ -706,7 +725,7 @@ $('boton-nuevo').addEventListener('click', () => {
 
 function pintarBotonSonido() {
   $('boton-sonido').textContent = estaSilenciado() ? '🔇' : '🔊';
-  $('boton-sonido').setAttribute('aria-label', estaSilenciado() ? 'Activar sonidos' : 'Silenciar sonidos');
+  $('boton-sonido').setAttribute('aria-label', estaSilenciado() ? t('Activar sonidos') : t('Silenciar sonidos'));
 }
 $('boton-sonido').addEventListener('click', () => {
   alternarSilencio();
@@ -718,7 +737,7 @@ $('form-gasto').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const monto = centavos(f.monto.value);
-  if (monto === null) return mostrarError('error-gasto', 'Poné un monto válido');
+  if (monto === null) return mostrarError('error-gasto', t('Poné un monto válido'));
   const g = { nombre: f.nombre.value.trim(), emoji: emojiElegido, monto, ...gastoDesdeForma() };
   if (!gastoEditado) g.mesInicio = estado.mesVisto;
   try {
@@ -757,9 +776,9 @@ async function abrirReserva(l, g) {
   $('frasco-reserva').style.width = `${l.monto ? (Math.max(0, queda) / l.monto) * 100 : 0}%`;
   $('texto-reserva').textContent = esActual
     ? queda < 0
-      ? `Te pasaste por ${plata(-queda)} (usaste ${plata(l.usado)} de ${plata(l.monto)}). Ya salió de tu saldo, así que el balance está bien; capaz conviene subir la reserva.`
-      : `Quedan ${plata(queda)} de ${plata(l.monto)}. ${manual ? 'Cargá cada uso y Mona lo resta.' : 'Baja sola con los días del mes; si gastaste distinto, ajustá tu saldo.'}`
-    : `En ${nombreMes(estado.mesVisto)} vas a tener ${plata(l.monto)} reservados.`;
+      ? t('Te pasaste por {pasado} (usaste {usado} de {monto}). Ya salió de tu saldo, así que el balance está bien; capaz conviene subir la reserva.', { pasado: plata(-queda), usado: plata(l.usado), monto: plata(l.monto) })
+      : `${t('Quedan {queda} de {monto}.', { queda: plata(queda), monto: plata(l.monto) })} ${manual ? t('Cargá cada uso y Mona lo resta.') : t('Baja sola con los días del mes; si gastaste distinto, ajustá tu saldo.')}`
+    : t('En {mes} vas a tener {monto} reservados.', { mes: nombreMes(estado.mesVisto), monto: plata(l.monto) });
   $('carga-uso').hidden = !(manual && esActual);
   $('boton-usar').hidden = !(manual && esActual);
   $('lista-usos').replaceChildren();
@@ -769,7 +788,7 @@ async function abrirReserva(l, g) {
     $('lista-usos').replaceChildren(
       ...usos.map((u) => {
         const li = document.createElement('li');
-        li.textContent = `${u.nota || 'Uso'} · ${plata(u.monto)}`;
+        li.textContent = `${u.nota || t('Uso')} · ${plata(u.monto)}`;
         return li;
       }),
     );
@@ -779,7 +798,7 @@ async function abrirReserva(l, g) {
 $('form-uso').addEventListener('submit', async (e) => {
   e.preventDefault();
   const monto = centavos(e.target.monto.value);
-  if (!monto) return mostrarError('error-uso', 'Poné cuánto usaste');
+  if (!monto) return mostrarError('error-uso', t('Poné cuánto usaste'));
   try {
     await acciones.usar(reservaAbierta.l.gastoId, monto, e.target.nota.value.trim());
     $('hoja-reserva').close();
@@ -810,9 +829,9 @@ $('form-plata').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const saldo = centavos(f.saldo.value, true);
-  if (saldo === null) return mostrarError('error-plata', 'Poné tu saldo');
+  if (saldo === null) return mostrarError('error-plata', t('Poné tu saldo'));
   const ingreso = f.ingreso.value.trim() ? centavos(f.ingreso.value) : 0;
-  if (ingreso === null) return mostrarError('error-plata', 'Ingreso inválido');
+  if (ingreso === null) return mostrarError('error-plata', t('Ingreso inválido'));
   const dia = Number(f.dia.value || 1);
   try {
     await acciones.guardarPlata(saldo, ingreso ? { monto: ingreso, diaCobro: Math.min(31, Math.max(1, dia)) } : null);
@@ -823,12 +842,332 @@ $('form-plata').addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- Idioma y moneda ----------
+
+const MONEDAS = {
+  USD: 'Dólar (USD)',
+  ARS: 'Peso argentino (ARS)',
+  EUR: 'Euro (EUR)',
+  MXN: 'Peso mexicano (MXN)',
+  CLP: 'Peso chileno (CLP)',
+  COP: 'Peso colombiano (COP)',
+  UYU: 'Peso uruguayo (UYU)',
+  PEN: 'Sol peruano (PEN)',
+  BRL: 'Real brasileño (BRL)',
+};
+
+function pintarIdioma() {
+  aplicarIdioma();
+  $('boton-idioma-entrada').textContent = idiomaActual() === 'es' ? 'English' : 'Español';
+  $('boton-entrada').textContent = modoEntrada === 'registro' ? t('Crear cuenta') : t('Entrar');
+  $('boton-salir').textContent = estado.modo === 'demo' ? t('Entrar') : t('Salir');
+  configurarMoneda();
+  pintarBotonSonido();
+  if (!$('pantalla-app').hidden && estado.datos) pintar();
+}
+
+$('boton-idioma-entrada').addEventListener('click', () => {
+  cambiarIdioma(idiomaActual() === 'es' ? 'en' : 'es');
+  sonar('toque');
+  pintarIdioma();
+});
+
+$('elegir-moneda').addEventListener('change', async (e) => {
+  try {
+    await api('PATCH', '/perfil', { moneda: e.target.value });
+    await cargar();
+    configurarMoneda(estado.perfil.moneda);
+    sonar('pop');
+    pintar();
+  } catch (err) {
+    avisar(err);
+  }
+});
+
+$('elegir-idioma').addEventListener('change', async (e) => {
+  cambiarIdioma(e.target.value);
+  pintarIdioma();
+  await api('PATCH', '/perfil', { idioma: e.target.value }).catch(avisar);
+  if (estado.perfil) estado.perfil.idioma = e.target.value;
+  pintarCuenta();
+});
+
+function pintarCuenta() {
+  const p = estado.perfil;
+  $('elegir-moneda').innerHTML = Object.entries(MONEDAS)
+    .map(([c, n]) => `<option value="${c}" ${c === p?.moneda ? 'selected' : ''}>${t(n)}</option>`)
+    .join('');
+  $('elegir-idioma').innerHTML = Object.entries(IDIOMAS)
+    .map(([c, n]) => `<option value="${c}" ${c === idiomaActual() ? 'selected' : ''}>${n}</option>`)
+    .join('');
+  const caja = $('premium-caja');
+  const prem = p?.premium;
+  if (prem?.activo) {
+    caja.innerHTML = `<p>⭐ <b>${t('Sos Premium')}</b> · ${t('hasta el {fecha}', { fecha: new Date(prem.hasta).toLocaleDateString(locale()) })}</p>
+      <button type="button" class="boton enlace chico" id="boton-cancelar-premium">${t('Cancelar la renovación')}</button>`;
+    caja.querySelector('#boton-cancelar-premium').addEventListener('click', async () => {
+      try {
+        await api('POST', '/premium/cancelar');
+        alertaSuave(t('Listo, no se renueva más. Seguís con Premium hasta el final del mes pagado.'));
+      } catch (err) {
+        avisar(err);
+      }
+    });
+  } else {
+    caja.innerHTML = `<button type="button" class="boton principal" id="boton-ir-premium">⭐ ${t('Hacete Premium')}</button>`;
+    caja.querySelector('#boton-ir-premium').addEventListener('click', () => {
+      $('hoja-cuenta').close();
+      abrirPremium('');
+    });
+  }
+}
+
+// ---------- Premium (S1, S2, S5, S8) ----------
+
+let configPremium = { pagos: false, asistente: false, precio: null };
+async function cargarConfigPremium() {
+  configPremium = await api('GET', '/premium/config').catch(() => configPremium);
+}
+const esPremium = () => estado.modo === 'real' && !!estado.perfil?.premium?.activo;
+
+function abrirPremium(motivo) {
+  const f = $('form-premium');
+  mostrarError('error-premium', null);
+  $('premium-motivo').textContent = motivo;
+  $('premium-motivo').hidden = !motivo;
+  const precio = configPremium.precio;
+  $('premium-precio').innerHTML = precio
+    ? t('<b>{precio}</b> por mes', { precio: new Intl.NumberFormat(locale(), { style: 'currency', currency: precio.moneda, maximumFractionDigits: 0 }).format(precio.monto) })
+    : '';
+  f.emailPago.value = estado.perfil?.email ?? '';
+  $('boton-suscribir').disabled = estado.modo !== 'real';
+  $('hoja-premium').showModal();
+}
+
+$('form-premium').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  mostrarError('error-premium', null);
+  if (!configPremium.pagos) return mostrarError('error-premium', t('Los pagos se activan en estos días. ¡Gracias por querer sumarte!'));
+  $('boton-suscribir').disabled = true;
+  try {
+    const r = await api('POST', '/premium/suscribir', { emailPago: e.target.emailPago.value || undefined });
+    location.href = r.url;
+  } catch (err) {
+    mostrarError('error-premium', err.message);
+    $('boton-suscribir').disabled = false;
+  }
+});
+
+/** Al volver de Mercado Pago (#premium): se pregunta el estado sin esperar la notificación. */
+async function volverDePago() {
+  if (location.hash !== '#premium' || estado.modo !== 'real') return;
+  history.replaceState(null, '', location.pathname);
+  try {
+    const r = await api('POST', '/premium/sincronizar');
+    await cargar();
+    pintar();
+    if (r.premium) {
+      sonar('fanfarria');
+      saltoMono();
+      alertaSuave(t('¡Ya sos Premium! Mona está feliz 🍌'));
+    } else alertaSuave(t('Todavía no nos llegó el pago. Si ya pagaste, en unos minutos se activa.'));
+  } catch (err) {
+    avisar(err);
+  }
+}
+
+// S5: un solo aviso liviano, propio, que se va con Premium o al cerrarlo (vuelve al otro día).
+const CLAVE_AVISO = 'monasafer.aviso-cerrado';
+function pintarAviso() {
+  let cerrado = null;
+  try {
+    cerrado = localStorage.getItem(CLAVE_AVISO);
+  } catch {
+    /* sin storage */
+  }
+  $('aviso-premium').hidden = esPremium() || cerrado === hoy.toDateString();
+}
+$('aviso-cerrar').addEventListener('click', () => {
+  try {
+    localStorage.setItem(CLAVE_AVISO, hoy.toDateString());
+  } catch {
+    /* sin storage */
+  }
+  sonar('toque');
+  $('aviso-premium').hidden = true;
+});
+$('aviso-probar').addEventListener('click', () => abrirChat());
+
+// S2: métricas. Gratis 3 veces, después Premium. En la demo se ven siempre.
+$('boton-metricas').addEventListener('click', async () => {
+  sonar('toque');
+  let quedan = null;
+  if (estado.modo === 'real') {
+    try {
+      const r = await api('POST', '/premium/usar', { funcion: 'metricas' });
+      if (!r.permitido) return abrirPremium(t('Ya usaste tus vistas gratis de las métricas.'));
+      quedan = r.quedan;
+    } catch (err) {
+      return avisar(err);
+    }
+  }
+  $('metricas').innerHTML =
+    htmlMetricas(estado.datos, hoy, estado.mesVisto) +
+    (quedan !== null ? `<p class="quedan-aviso">${t('Te quedan {n} vistas gratis.', { n: quedan })}</p>` : '');
+  $('hoja-metricas').showModal();
+});
+
+// ---------- Chat con Mona (S3) y voz (S4) ----------
+
+const chat = [];
+function pintarChat() {
+  const caja = $('chat');
+  caja.replaceChildren(
+    ...chat.map((m) => {
+      const d = document.createElement('div');
+      d.className = `burbuja ${m.rol}`;
+      if (m.texto) {
+        const p = document.createElement('p');
+        p.textContent = m.texto;
+        d.append(p);
+      }
+      for (const prop of m.propuestas ?? []) d.append(tarjetaPropuesta(prop));
+      return d;
+    }),
+  );
+  caja.scrollTop = caja.scrollHeight;
+}
+
+function textoPropuesta(p) {
+  if (p.accion === 'pagar') return t('Marcar pagado: {nombre} ({mes})', { nombre: p.nombre, mes: nombreMes(p.mes) });
+  if (p.accion === 'usar_reserva') return t('Usar {monto} de {nombre}', { monto: plata(p.monto), nombre: p.nombre });
+  const g = p.gasto;
+  const cuando =
+    g.tipo === 'puntual'
+      ? nombreMes(g.mesInicio)
+      : g.mesFin
+        ? t('de {desde} a {hasta}', { desde: nombreMes(g.mesInicio), hasta: nombreMes(g.mesFin) })
+        : t('todos los meses');
+  return `${g.emoji || '💸'} ${g.nombre} · ${plata(g.monto)}${g.tipo === 'puntual' ? '' : ` ${t('por mes')}`} · ${cuando}${g.tipo === 'reserva' ? ` · ${t('reserva')}` : ''}`;
+}
+
+function tarjetaPropuesta(p) {
+  const div = document.createElement('div');
+  div.className = 'propuesta';
+  const txt = document.createElement('p');
+  txt.textContent = textoPropuesta(p);
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'boton principal chico';
+  b.textContent = p.hecha ? `✓ ${t('Listo')}` : p.accion === 'crear_gasto' ? t('Agregar') : t('Confirmar');
+  b.disabled = !!p.hecha;
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      if (p.accion === 'crear_gasto') await acciones.guardarGasto(null, p.gasto);
+      else if (p.accion === 'pagar') {
+        const l = { gastoId: p.gastoId, monto: estado.datos.gastos.find((g) => g.id === p.gastoId)?.monto ?? 0 };
+        estado.mesVisto = p.mes;
+        await acciones.pagar(l, true);
+        sonar('moneda');
+      } else await acciones.usar(p.gastoId, p.monto, p.nota);
+      p.hecha = true;
+      sonar('pop');
+      saltoMono();
+      pintarChat();
+    } catch (err) {
+      b.disabled = false;
+      avisar(err);
+    }
+  });
+  div.append(txt, b);
+  return div;
+}
+
+function abrirChat() {
+  if (!chat.length) chat.push({ rol: 'mona', texto: t('¡Hola! Contame qué gastaste o qué vas a gastar y lo cargo por vos. Por ejemplo: "compré una campera en 6 cuotas".') });
+  pintarChat();
+  const q = estado.perfil?.usosGratis?.asistente;
+  $('chat-quedan').textContent = estado.modo === 'real' && !esPremium() && q != null ? t('{n} mensajes gratis', { n: q }) : '';
+  $('boton-mic').hidden = !Reconocimiento;
+  $('hoja-chat').showModal();
+  $('form-chat').texto.focus();
+}
+$('boton-chat').addEventListener('click', () => {
+  sonar('toque');
+  abrirChat();
+});
+
+$('form-chat').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = e.target.texto;
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = '';
+  chat.push({ rol: 'usuario', texto });
+  if (estado.modo !== 'real') {
+    chat.push({ rol: 'mona', texto: t('En la demo no puedo cargar nada. Creá tu cuenta y probame gratis 🐒') });
+    return pintarChat();
+  }
+  const pensando = { rol: 'mona', texto: '…' };
+  chat.push(pensando);
+  pintarChat();
+  try {
+    const r = await api('POST', '/asistente', {
+      mensajes: chat.filter((m) => m !== pensando && m.texto && m.texto !== '…').map((m) => ({ rol: m.rol, texto: m.texto })),
+    });
+    chat.pop();
+    if (r.requierePremium) {
+      chat.push({ rol: 'mona', texto: t('Se terminaron los mensajes gratis. Con Premium seguimos charlando todo lo que quieras.') });
+      pintarChat();
+      $('hoja-chat').close();
+      return abrirPremium(t('Se terminaron tus mensajes gratis con Mona.'));
+    }
+    chat.push({ rol: 'mona', texto: r.texto, propuestas: r.propuestas });
+    if (r.quedan != null && estado.perfil?.usosGratis) {
+      estado.perfil.usosGratis.asistente = r.quedan;
+      $('chat-quedan').textContent = t('{n} mensajes gratis', { n: r.quedan });
+    }
+    sonar('pop');
+  } catch (err) {
+    chat.pop();
+    chat.push({ rol: 'mona', texto: `🙈 ${err.message}` });
+    sonar('error');
+  }
+  pintarChat();
+});
+
+const Reconocimiento = window.SpeechRecognition || window.webkitSpeechRecognition;
+let escuchando = null;
+$('boton-mic').addEventListener('click', () => {
+  if (!Reconocimiento) return;
+  if (escuchando) return escuchando.stop();
+  const rec = new Reconocimiento();
+  rec.lang = idiomaActual() === 'en' ? 'en-US' : 'es-AR';
+  rec.interimResults = true;
+  rec.onresult = (ev) => {
+    $('form-chat').texto.value = Array.from(ev.results).map((r) => r[0].transcript).join(' ');
+    if (ev.results[ev.results.length - 1].isFinal) $('form-chat').requestSubmit();
+  };
+  rec.onend = () => {
+    escuchando = null;
+    $('boton-mic').classList.remove('escuchando');
+  };
+  rec.onerror = () => alertaSuave(t('No te escuché bien. Probá de nuevo o escribilo.'));
+  escuchando = rec;
+  $('boton-mic').classList.add('escuchando');
+  sonar('toque');
+  rec.start();
+});
+
 // ---------- Arranque ----------
 
 // PWA (C7): instalable y abre sin señal. Solo en prod, para no pelear con el dev server.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
+
+pintarIdioma();
 
 (async () => {
   if (codigoRecupero()) {
@@ -840,7 +1179,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     try {
       estado.modo = 'real';
       await cargar();
-      return entrarApp();
+      entrarApp();
+      return volverDePago();
     } catch (err) {
       if (err instanceof ErrorApi && err.status === 401) guardarToken(null);
     }

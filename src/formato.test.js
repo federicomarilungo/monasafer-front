@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { centavos } from './formato.js';
+import { cambiarIdioma } from './i18n.js';
+
+cambiarIdioma('es');
 
 test('lee montos como los escribe la gente', () => {
   assert.equal(centavos('60'), 6000);
@@ -11,4 +14,11 @@ test('lee montos como los escribe la gente', () => {
   assert.equal(centavos('abc'), null);
   assert.equal(centavos('-5'), null);
   assert.equal(centavos('-5', true), -500);
+});
+
+test('en inglés la coma es de miles', () => {
+  cambiarIdioma('en');
+  assert.equal(centavos('1,234.50'), 123450);
+  assert.equal(centavos('60'), 6000);
+  cambiarIdioma('es');
 });

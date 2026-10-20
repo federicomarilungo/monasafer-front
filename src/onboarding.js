@@ -2,6 +2,7 @@
 import { svgMono } from './mono.js';
 import { centavos, plata } from './formato.js';
 import { sonar } from './sonidos.js';
+import { t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -85,15 +86,15 @@ export function iniciarOnboarding(op) {
 
   let saldo = 0;
   function pasoSaldo() {
-    decir(`¡Hola${op.nombre ? ` ${op.nombre}` : ''}! Soy Mona y te voy a cuidar la plata 🍌 Para arrancar: ¿cuánta plata tenés hoy en tu cuenta?`);
-    form.innerHTML = `<label class="campo monto-campo">Saldo de hoy<input name="saldo" inputmode="decimal" placeholder="0" required /></label>
-      <p class="ayuda">Lo que tenés en el banco o en efectivo ahora. Después lo podés corregir tocando "Saldo hoy".</p>`;
-    botones('Seguir');
+    decir(t('¡Hola{nombre}! Soy Mona y te voy a cuidar la plata 🍌 Para arrancar: ¿cuánta plata tenés hoy en tu cuenta?', { nombre: op.nombre ? ` ${op.nombre}` : '' }));
+    form.innerHTML = `<label class="campo monto-campo">${t('Saldo de hoy')}<input name="saldo" inputmode="decimal" placeholder="0" required /></label>
+      <p class="ayuda">${t('Lo que tenés en el banco o en efectivo ahora. Después lo podés corregir tocando "Saldo hoy".')}</p>`;
+    botones(t('Seguir'));
     form.saldo.focus();
     form.onsubmit = (e) => {
       e.preventDefault();
       const c = centavos(form.saldo.value, true);
-      if (c === null) return error('Poné un número, aunque sea 0');
+      if (c === null) return error(t('Poné un número, aunque sea 0'));
       saldo = c;
       sonar('pop');
       ir(1);
@@ -101,10 +102,10 @@ export function iniciarOnboarding(op) {
   }
 
   function pasoIngreso() {
-    decir('¿Cobrás algo todos los meses? Así puedo calcular cómo te va a ir en los meses que vienen.');
-    form.innerHTML = `<label class="campo monto-campo">Ingreso por mes<input name="ingreso" inputmode="decimal" placeholder="0" /></label>
-      <label class="campo">¿Qué día cobrás?<input name="dia" type="number" min="1" max="31" placeholder="1" /></label>`;
-    botones('Seguir', { texto: 'No tengo fijo', accion: () => guardar(null) });
+    decir(t('¿Cobrás algo todos los meses? Así puedo calcular cómo te va a ir en los meses que vienen.'));
+    form.innerHTML = `<label class="campo monto-campo">${t('Ingreso por mes')}<input name="ingreso" inputmode="decimal" placeholder="0" /></label>
+      <label class="campo">${t('¿Qué día cobrás?')}<input name="dia" type="number" min="1" max="31" placeholder="1" /></label>`;
+    botones(t('Seguir'), { texto: t('No tengo fijo'), accion: () => guardar(null) });
     form.ingreso.focus();
     async function guardar(ingreso) {
       try {
@@ -118,7 +119,7 @@ export function iniciarOnboarding(op) {
     form.onsubmit = (e) => {
       e.preventDefault();
       const c = centavos(form.ingreso.value);
-      if (!c) return error('Poné cuánto cobrás, o tocá "No tengo fijo"');
+      if (!c) return error(t('Poné cuánto cobrás, o tocá "No tengo fijo"'));
       const dia = Math.min(31, Math.max(1, Number(form.dia.value || 1)));
       guardar({ monto: c, diaCobro: dia });
     };
@@ -130,7 +131,7 @@ export function iniciarOnboarding(op) {
     const cargados = [];
     form.innerHTML = `<p class="ayuda">${ayuda}</p><div class="chips onb-chips"></div>
       <div class="onb-monto" hidden><label class="campo monto-campo"><span class="onb-que"></span><input name="monto" inputmode="decimal" placeholder="0" /></label>
-      <div class="acciones"><button type="button" class="boton" data-cancelar>Cancelar</button><button type="button" class="boton principal" data-agregar>Agregar</button></div></div>
+      <div class="acciones"><button type="button" class="boton" data-cancelar>${t('Cancelar')}</button><button type="button" class="boton principal" data-agregar>${t('Agregar')}</button></div></div>
       <ul class="onb-cargados"></ul>`;
     const chips = form.querySelector('.onb-chips');
     const caja = form.querySelector('.onb-monto');
@@ -139,13 +140,13 @@ export function iniciarOnboarding(op) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'chip';
-      b.textContent = `${item.emoji} ${item.nombre}`;
+      b.textContent = `${item.emoji} ${t(item.nombre)}`;
       b.addEventListener('click', () => {
         if (b.classList.contains('activo')) return;
         elegido = { item, boton: b };
         sonar('toque');
         caja.hidden = false;
-        form.querySelector('.onb-que').textContent = `¿Cuánto es ${item.nombre.toLowerCase()} por mes?`;
+        form.querySelector('.onb-que').textContent = t('¿Cuánto es {que} por mes?', { que: t(item.nombre).toLowerCase() });
         form.monto.value = '';
         form.monto.focus();
       });
@@ -157,23 +158,23 @@ export function iniciarOnboarding(op) {
     });
     async function agregar() {
       const c = centavos(form.monto.value);
-      if (!c || !elegido) return error('Poné un monto');
+      if (!c || !elegido) return error(t('Poné un monto'));
       try {
         await crear(elegido.item, c);
-        cargados.push(`${elegido.item.emoji} ${elegido.item.nombre} · ${plata(c)}`);
+        cargados.push(`${elegido.item.emoji} ${t(elegido.item.nombre)} · ${plata(c)}`);
         elegido.boton.classList.add('activo');
         form.querySelector('.onb-cargados').innerHTML = cargados.map((t) => `<li>${t}</li>`).join('');
         caja.hidden = true;
         elegido = null;
         form.querySelector('.error')?.remove();
         sonar('pop');
-        decir(`¡Anotado! Te sobran ${plata(op.balance())} a fin de mes. ¿Algo más?`, op.balance() < 0 ? 'panico' : 'feliz');
+        decir(t('¡Anotado! Te sobran {monto} a fin de mes. ¿Algo más?', { monto: plata(op.balance()) }), op.balance() < 0 ? 'panico' : 'feliz');
       } catch (err) {
         error(err.message);
       }
     }
     form.querySelector('[data-agregar]').addEventListener('click', agregar);
-    botones('Seguir', { texto: 'Saltear', accion: siguiente });
+    botones(t('Seguir'), { texto: t('Saltear'), accion: siguiente });
     form.onsubmit = (e) => {
       e.preventDefault();
       if (!caja.hidden && form.monto.value) return agregar();
@@ -184,9 +185,9 @@ export function iniciarOnboarding(op) {
   function pasoFijos() {
     elegirVarios({
       lista: FIJOS_COMUNES,
-      texto: 'Ahora tus gastos fijos, los que pagás todos los meses. Tocá los que tengas.',
-      ayuda: 'Los que no estén acá los cargás después con el botón +.',
-      crear: (item, monto) => op.crearGasto({ nombre: item.nombre, emoji: item.emoji, monto, tipo: 'fijo', mesInicio: op.mes, mesFin: null }),
+      texto: t('Ahora tus gastos fijos, los que pagás todos los meses. Tocá los que tengas.'),
+      ayuda: t('Los que no estén acá los cargás después con el botón +.'),
+      crear: (item, monto) => op.crearGasto({ nombre: t(item.nombre), emoji: item.emoji, monto, tipo: 'fijo', mesInicio: op.mes, mesFin: null }),
       siguiente: () => ir(3),
     });
   }
@@ -194,10 +195,10 @@ export function iniciarOnboarding(op) {
   function pasoReservas() {
     elegirVarios({
       lista: RESERVAS_COMUNES,
-      texto: 'Último: las reservas. Es plata que apartás para cosas difíciles de calcular, como el súper, y la vas gastando.',
-      ayuda: 'Se repiten todos los meses y bajan solas con los días. Después podés cambiar a "cargo cada uso".',
+      texto: t('Último: las reservas. Es plata que apartás para cosas difíciles de calcular, como el súper, y la vas gastando.'),
+      ayuda: t('Se repiten todos los meses y bajan solas con los días. Después podés cambiar a "cargo cada uso".'),
       crear: (item, monto) =>
-        op.crearGasto({ nombre: item.nombre, emoji: item.emoji, monto, tipo: 'reserva', modoReserva: 'proporcional', recurrente: true, mesInicio: op.mes, mesFin: null }),
+        op.crearGasto({ nombre: t(item.nombre), emoji: item.emoji, monto, tipo: 'reserva', modoReserva: 'proporcional', recurrente: true, mesInicio: op.mes, mesFin: null }),
       siguiente: () => ir(4),
     });
   }
@@ -207,12 +208,12 @@ export function iniciarOnboarding(op) {
     sonar(b >= 0 ? 'fanfarria' : 'error');
     decir(
       b >= 0
-        ? `¡Listo! Con lo que cargaste, a fin de mes te sobran ${plata(b)}. Ese es tu ahorro y mi trabajo es que crezca 🐒`
-        : `Uy, con lo que cargaste te faltan ${plata(-b)} para llegar a fin de mes. Tranqui, lo vamos a ordenar juntos.`,
+        ? t('¡Listo! Con lo que cargaste, a fin de mes te sobran {monto}. Ese es tu ahorro y mi trabajo es que crezca 🐒', { monto: plata(b) })
+        : t('Uy, con lo que cargaste te faltan {monto} para llegar a fin de mes. Tranqui, lo vamos a ordenar juntos.', { monto: plata(-b) }),
       b >= 0 ? 'feliz' : 'nervioso',
     );
-    form.innerHTML = `<p class="ayuda">Tip: cuando pagues algo, tocá el círculo al lado del gasto. Mona lo descuenta del saldo y el balance no se mueve.</p>`;
-    botones('¡Vamos!');
+    form.innerHTML = `<p class="ayuda">${t('Tip: cuando pagues algo, tocá el círculo al lado del gasto. Mona lo descuenta del saldo y el balance no se mueve.')}</p>`;
+    botones(t('¡Vamos!'));
     form.onsubmit = (e) => {
       e.preventDefault();
       $('pantalla-onboarding').hidden = true;

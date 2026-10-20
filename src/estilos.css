@@ -254,3 +254,57 @@ body {
 .onb-monto { display: grid; gap: 10px; animation: subir 0.2s ease-out; }
 .onb-cargados { list-style: none; padding: 0; display: grid; gap: 4px; font-weight: 700; }
 .onb-cargados li { background: var(--fondo); border-radius: 10px; padding: 6px 10px; }
+
+/* ---- Premium: aviso, chat, métricas (S2-S5) ---- */
+.campo select {
+  font: inherit; font-size: 1rem; font-weight: 600; color: var(--texto); background: var(--fondo);
+  border: 2px solid var(--borde); border-radius: 14px; padding: 10px 12px;
+}
+.boton.chico { padding: 6px 12px; font-size: 0.85rem; }
+.boton-chat {
+  right: auto; left: max(16px, calc(50% - 224px)); background: var(--selva); color: #fff; font-size: 1.8rem;
+  box-shadow: 0 6px 0 var(--selva-oscura), 0 10px 24px rgba(0,0,0,.18);
+}
+.aviso-premium {
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; margin: 12px 0;
+  background: var(--tarjeta); border: 2px solid var(--borde); border-radius: 16px; padding: 10px 12px; font-size: 0.85rem;
+}
+.aviso-premium > span { font-size: 1.4rem; }
+.aviso-premium small { color: var(--suave); }
+.cerrar-aviso { border: 0; background: none; color: var(--suave); font-size: 1.3rem; cursor: pointer; padding: 0 4px; }
+.premium-caja { display: grid; gap: 6px; }
+.premium-lista { padding-left: 0; list-style: none; display: grid; gap: 8px; font-weight: 600; }
+.precio { font-size: 1.1rem; text-align: center; }
+.precio b { font-family: 'Baloo 2', sans-serif; font-size: 1.8rem; color: var(--selva); }
+.hoja-chat form { max-height: 92vh; }
+.hoja h3 .quedan { font-family: 'Nunito', sans-serif; font-size: 0.8rem; color: var(--suave); font-weight: 600; }
+.chat { display: grid; gap: 8px; max-height: 50vh; min-height: 160px; overflow-y: auto; padding: 4px; align-content: start; }
+.burbuja { max-width: 85%; padding: 10px 12px; border-radius: 18px; display: grid; gap: 8px; font-weight: 600; animation: subir 0.2s ease-out; }
+.burbuja.mona { background: var(--fondo); border: 2px solid var(--borde); border-bottom-left-radius: 4px; justify-self: start; }
+.burbuja.usuario { background: var(--selva); color: #fff; border-bottom-right-radius: 4px; justify-self: end; }
+.burbuja p { white-space: pre-wrap; }
+.propuesta { background: var(--tarjeta); border: 2px dashed var(--banana); border-radius: 14px; padding: 8px 10px; display: grid; gap: 8px; color: var(--texto); }
+.chat-entrada { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.chat-entrada input {
+  font: inherit; font-size: 1rem; color: var(--texto); background: var(--fondo); border: 2px solid var(--borde);
+  border-radius: 99px; padding: 10px 14px; min-width: 0;
+}
+.chat-entrada .boton { border-radius: 50%; width: 46px; height: 46px; padding: 0; }
+.chat-entrada .boton-mic[hidden] + input { grid-column: 1 / 3; }
+.boton-mic { border: 0; background: var(--banana); border-radius: 50%; width: 46px; height: 46px; font-size: 1.3rem; cursor: pointer; }
+.boton-mic.escuchando { animation: latido 0.8s ease-in-out infinite; background: var(--rojo); }
+.metrica-destacada { text-align: center; display: grid; gap: 2px; background: var(--fondo); border-radius: 18px; padding: 14px; }
+.metrica-destacada b { font-family: 'Baloo 2', sans-serif; font-size: 2rem; }
+.metrica-destacada small { color: var(--suave); font-weight: 600; }
+#metricas { display: grid; gap: 10px; }
+#metricas h4 { font-family: 'Baloo 2', sans-serif; font-size: 1.05rem; margin-top: 6px; }
+.grafico { width: 100%; height: auto; }
+.grafico rect.pos { fill: var(--selva); }
+.grafico rect.neg { fill: var(--rojo); }
+.grafico text { font-size: 9px; fill: var(--suave); font-weight: 700; }
+.grafico .eje { stroke: var(--borde); stroke-width: 2; }
+.top-gastos { list-style: none; padding: 0; display: grid; gap: 8px; }
+.top-gastos li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-weight: 600; font-size: 0.9rem; }
+.top-gastos i { grid-column: 1; height: 8px; border-radius: 99px; background: var(--banana); }
+.top-gastos small { color: var(--suave); }
+.quedan-aviso { text-align: center; color: var(--suave); font-weight: 700; font-size: 0.85rem; }
