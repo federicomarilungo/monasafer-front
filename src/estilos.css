@@ -49,11 +49,14 @@ body {
   background: var(--selva); color: #fff; box-shadow: 0 8px 0 var(--selva-oscura);
   transition: background 0.4s, box-shadow 0.4s;
 }
+.tarjeta-balance[data-animo='rico'] { background: linear-gradient(135deg, var(--selva), #1f8a8a); }
 .tarjeta-balance[data-animo='nervioso'] { background: #e8a33a; box-shadow: 0 8px 0 #b97a1c; }
 .tarjeta-balance[data-animo='panico'] { background: var(--rojo); box-shadow: 0 8px 0 #a8282c; }
 .mono { width: 110px; flex-shrink: 0; }
 .mono-svg { width: 100%; display: block; }
-.mono-feliz { animation: balanceo 3s ease-in-out infinite; transform-origin: 50% 90%; }
+.mono-feliz, .mono-rico { animation: balanceo 3s ease-in-out infinite; transform-origin: 50% 90%; }
+.mono { cursor: pointer; }
+.pupilas { transition: transform 0.08s linear; }
 .mono-nervioso { animation: temblor 0.5s ease-in-out infinite; }
 .mono-panico { animation: temblor 0.18s linear infinite; }
 .mono-svg .ojos { animation: parpadeo 4s infinite; transform-origin: 50% 48%; }

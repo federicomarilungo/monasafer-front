@@ -1,6 +1,6 @@
 import './estilos.css';
 import { mesDe, resumenDelMes, sumarMeses } from './motor.js';
-import { animoPara, frases, svgMono } from './mono.js';
+import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
@@ -270,6 +270,29 @@ function filaGasto(l) {
   });
   return li;
 }
+
+// D1: Mona sigue el dedo o el mouse con los ojos y reacciona cuando la tocás.
+document.addEventListener('pointermove', (e) => {
+  for (const pupilas of document.querySelectorAll('.pupilas')) {
+    const r = pupilas.closest('svg').getBoundingClientRect();
+    if (!r.width) continue;
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy) || 1;
+    const k = Math.min(1, d / 200) * 4;
+    pupilas.setAttribute('transform', `translate(${((dx / d) * k).toFixed(1)} ${((dy / d) * k).toFixed(1)})`);
+  }
+});
+
+let cosquilla = 0;
+$('mono').addEventListener('click', () => {
+  sonar(cosquilla % 3 === 2 ? 'fanfarria' : 'pop');
+  $('frase').textContent = cosquillas[cosquilla++ % cosquillas.length];
+  $('mono').animate(
+    [{ transform: 'rotate(0) scale(1)' }, { transform: 'rotate(-12deg) scale(1.1)' }, { transform: 'rotate(10deg) scale(1.05)' }, { transform: 'rotate(0) scale(1)' }],
+    { duration: 520, easing: 'ease-out' },
+  );
+});
 
 function saltoMono() {
   $('mono').animate(
