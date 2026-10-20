@@ -16,6 +16,10 @@ export function datosDemo(hoy = new Date()) {
       { id: 'sup', nombre: 'Súper', emoji: '🛒', monto: USD(350), tipo: 'reserva', mesInicio: sumarMeses(mes, -3), recurrente: true, modoReserva: 'manual' },
     ],
     estados: [{ gastoId: 'alq', mes, pagado: true }],
-    usos: [{ gastoId: 'sup', mes, monto: USD(120) }],
+    usos: [
+      { gastoId: 'sup', mes, monto: USD(120) },
+      // El mes pasado el súper se pasó: dispara la sugerencia de subir la reserva (M2).
+      { gastoId: 'sup', mes: sumarMeses(mes, -1), monto: USD(412) },
+    ],
   };
 }

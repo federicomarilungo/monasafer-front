@@ -4,13 +4,14 @@ import { animoPara, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
+import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
 const mesActual = mesDe(hoy);
 
 // modo: 'real' (API) o 'demo' (todo en memoria, mismas reglas)
-const estado = { modo: 'demo', datos: null, perfil: null, mesVisto: mesActual, balanceMostrado: 0 };
+const estado = { modo: 'demo', datos: null, perfil: null, mesVisto: mesActual, balanceMostrado: 0, resumenMostrado: null };
 
 // ---------- Entrada ----------
 
@@ -142,14 +143,51 @@ const acciones = {
 
 // ---------- Pantalla del mes ----------
 
-function animarNumero(desde, hasta) {
+function animarNumero(el, desde, hasta, formato = plata, dura = 600) {
+  if (desde === hasta) {
+    el.textContent = formato(hasta);
+    return;
+  }
   const inicio = performance.now();
   const paso = (t) => {
-    const p = Math.min(1, (t - inicio) / 600);
-    $('balance').textContent = plata(Math.round(desde + (hasta - desde) * (1 - Math.pow(1 - p, 3))));
+    const p = Math.min(1, (t - inicio) / dura);
+    el.textContent = formato(Math.round(desde + (hasta - desde) * (1 - Math.pow(1 - p, 3))));
     if (p < 1) requestAnimationFrame(paso);
   };
   requestAnimationFrame(paso);
+}
+
+/** Un "−US$ 60" que vuela desde la fila hasta el número que cambia (M3). */
+function volarMonto(desde, hacia, texto) {
+  if (!desde || !hacia) return;
+  const a = desde.getBoundingClientRect();
+  const b = hacia.getBoundingClientRect();
+  const chip = document.createElement('div');
+  chip.className = 'monto-volador';
+  chip.textContent = texto;
+  document.body.append(chip);
+  const x0 = a.left + a.width - 90;
+  const y0 = a.top + a.height / 2 - 14;
+  const x1 = b.left + b.width / 2 - 40;
+  const y1 = b.top + b.height / 2 - 14;
+  chip
+    .animate(
+      [
+        { transform: `translate(${x0}px, ${y0}px) scale(0.6)`, opacity: 0 },
+        { transform: `translate(${x0}px, ${y0 - 30}px) scale(1.15)`, opacity: 1, offset: 0.25 },
+        { transform: `translate(${x1}px, ${y1}px) scale(0.9)`, opacity: 1, offset: 0.85 },
+        { transform: `translate(${x1}px, ${y1}px) scale(0.4)`, opacity: 0 },
+      ],
+      { duration: 750, easing: 'cubic-bezier(.5,0,.3,1)' },
+    )
+    .finished.then(() => chip.remove());
+}
+
+function golpe(el) {
+  el?.animate(
+    [{ transform: 'scale(1)' }, { transform: 'scale(1.18)', color: 'var(--selva)' }, { transform: 'scale(1)' }],
+    { duration: 420, easing: 'ease-out' },
+  );
 }
 
 function etiquetaTipo(l, g) {
@@ -163,7 +201,12 @@ function filaGasto(l) {
   const li = document.createElement('li');
   li.className = `gasto gasto-${l.tipo}${l.pagado ? ' pagado' : ''}`;
   li.tabIndex = 0;
-  const frasco = l.tipo === 'reserva' ? `<div class="frasco"><span style="width:${l.monto ? (l.pendiente / l.monto) * 100 : 0}%"></span></div>` : '';
+  // M1: con usos cargados a mano, si te pasaste lo que queda se muestra en negativo.
+  // El balance no cambia: lo usado ya salió del saldo y la reserva no resta menos de 0.
+  const quedaReal = l.tipo === 'reserva' && g?.modoReserva === 'manual' ? l.monto - (l.usado ?? 0) : l.pendiente;
+  const pasada = l.tipo === 'reserva' && quedaReal < 0;
+  if (pasada) li.classList.add('pasada');
+  const frasco = l.tipo === 'reserva' ? `<div class="frasco"><span style="width:${l.monto ? (Math.max(0, quedaReal) / l.monto) * 100 : 0}%"></span></div>` : '';
   const puedePagar = l.tipo !== 'reserva';
   li.innerHTML = `
     <span class="emoji">${g?.emoji || '💸'}</span>
@@ -173,17 +216,32 @@ function filaGasto(l) {
       ${frasco}
     </div>
     <div class="montos">
-      <p class="monto">${plata(l.tipo === 'reserva' ? l.pendiente : l.monto)}</p>
-      ${l.tipo === 'reserva' ? `<p class="de">de ${plata(l.monto)}</p>` : ''}
+      <p class="monto">${l.tipo === 'reserva' ? (pasada ? `−${plata(-quedaReal)}` : plata(quedaReal)) : plata(l.monto)}</p>
+      ${l.tipo === 'reserva' ? `<p class="de">${pasada ? 'te pasaste de' : 'de'} ${plata(l.monto)}</p>` : ''}
     </div>
     ${puedePagar ? `<button class="check" aria-label="${l.pagado ? 'Desmarcar pagado' : 'Marcar pagado'}">${l.pagado ? '✓' : ''}</button>` : ''}`;
   li.querySelector('.nombre').textContent = l.nombre;
-  li.querySelector('.check')?.addEventListener('click', (e) => {
+  li.querySelector('.check')?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (!l.pagado) saltoMono();
-    acciones.pagar(l, !l.pagado).catch(avisar);
+    const pagar = !l.pagado;
+    if (pagar) {
+      // M3: la moneda vuela de la fila al saldo y a "por gastar", suena y el mono la atrapa.
+      sonar('moneda');
+      volarMonto(li, $('valor-saldo'), `−${plata(l.monto)}`);
+      setTimeout(() => volarMonto(li, $('valor-gastar'), `−${plata(l.monto)}`), 120);
+      saltoMono();
+    } else sonar('toque');
+    try {
+      await acciones.pagar(l, pagar);
+    } catch (err) {
+      avisar(err);
+    }
   });
-  li.addEventListener('click', () => (l.tipo === 'reserva' ? abrirReserva(l, g) : abrirGasto(g)));
+  li.addEventListener('click', () => {
+    sonar('toque');
+    if (l.tipo === 'reserva') abrirReserva(l, g);
+    else abrirGasto(g);
+  });
   return li;
 }
 
@@ -205,15 +263,23 @@ function pintar(direccion = 0) {
   const opciones = frases[animo];
   $('frase').textContent = opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length];
   $('tarjeta-balance').dataset.animo = animo;
-  animarNumero(estado.balanceMostrado, r.balance);
+  animarNumero($('balance'), estado.balanceMostrado, r.balance);
   estado.balanceMostrado = r.balance;
 
   const esActual = estado.mesVisto === mesActual;
+  // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).
+  const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
   $('resumen').innerHTML = `
-    <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? 'Saldo hoy ✎' : 'Arrancás con'}</p><p>${plata(r.inicio)}</p></button>
+    <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? 'Saldo hoy ✎' : 'Arrancás con'}</p><p id="valor-saldo"></p></button>
     <div class="celda"><p class="etiqueta">Ingreso</p><p class="mas">+${plata(r.ingreso)}</p></div>
-    <div class="celda"><p class="etiqueta">Por gastar</p><p class="menos">−${plata(r.totalPendiente)}</p></div>`;
+    <div class="celda" id="celda-gastar"><p class="etiqueta">Por gastar</p><p class="menos" id="valor-gastar"></p></div>`;
   $('celda-saldo').addEventListener('click', abrirPlata);
+  animarNumero($('valor-saldo'), previo.inicio, r.inicio, plata, 900);
+  animarNumero($('valor-gastar'), previo.totalPendiente, r.totalPendiente, (c) => `−${plata(c)}`, 900);
+  if (previo.inicio !== r.inicio) golpe($('valor-saldo'));
+  if (previo.totalPendiente !== r.totalPendiente) golpe($('valor-gastar'));
+  estado.resumenMostrado = { mes: r.mes, inicio: r.inicio, totalPendiente: r.totalPendiente };
+  pintarSugerencias(esActual);
 
   const ingreso = d.perfil.ingresoMensual;
   const cobrar = esActual && ingreso && d.perfil.ingresoCobradoMes !== mesActual && hoy.getDate() >= ingreso.diaCobro;
@@ -228,12 +294,65 @@ function pintar(direccion = 0) {
   }
 }
 
-$('aviso-cobro').addEventListener('click', () => acciones.cobrar().then(saltoMono).catch(avisar));
+$('aviso-cobro').addEventListener('click', () => {
+  sonar('fanfarria');
+  acciones.cobrar().then(saltoMono).catch(avisar);
+});
+
+// M2: si una reserva se pasó el mes anterior, sugerir subirla.
+const CLAVE_DESCARTES = 'monasafer.sugerencias-descartadas';
+function descartadas() {
+  try {
+    return JSON.parse(localStorage.getItem(CLAVE_DESCARTES) || '[]');
+  } catch {
+    return [];
+  }
+}
+function descartar(clave) {
+  try {
+    localStorage.setItem(CLAVE_DESCARTES, JSON.stringify([...descartadas(), clave].slice(-50)));
+  } catch {
+    /* sin storage: vuelve a aparecer al recargar */
+  }
+}
+
+function pintarSugerencias(esActual) {
+  const caja = $('sugerencias');
+  caja.replaceChildren();
+  if (!esActual) return;
+  const anterior = sumarMeses(mesActual, -1);
+  const ya = descartadas();
+  for (const g of estado.datos.gastos) {
+    if (g.tipo !== 'reserva' || !g.recurrente) continue;
+    const usado = estado.datos.usos.filter((u) => u.gastoId === g.id && u.mes === anterior).reduce((s, u) => s + u.monto, 0);
+    const clave = `${g.id}:${anterior}`;
+    if (usado <= g.monto || ya.includes(clave)) continue;
+    // Redondeado para arriba a 10 unidades: si gastaste 263, sugerimos 270.
+    const nuevo = Math.ceil(usado / 1000) * 1000;
+    const tarjeta = document.createElement('div');
+    tarjeta.className = 'sugerencia';
+    tarjeta.innerHTML = `<p>🐒 En ${nombreMes(anterior).split(' ')[0].toLowerCase()} usaste <b>${plata(usado)}</b> en ${g.emoji || ''} <b></b> y habías reservado ${plata(g.monto)}. ¿La subimos a <b>${plata(nuevo)}</b>?</p>
+      <div class="acciones"><button class="boton" data-no>Así está bien</button><button class="boton principal" data-si>Subir</button></div>`;
+    tarjeta.querySelectorAll('b')[1].textContent = g.nombre;
+    tarjeta.querySelector('[data-no]').addEventListener('click', () => {
+      descartar(clave);
+      sonar('toque');
+      tarjeta.remove();
+    });
+    tarjeta.querySelector('[data-si]').addEventListener('click', () => {
+      descartar(clave);
+      sonar('pop');
+      acciones.guardarGasto(g.id, { monto: nuevo }).catch(avisar);
+    });
+    caja.append(tarjeta);
+  }
+}
 
 function moverMes(n) {
   const nuevo = sumarMeses(estado.mesVisto, n);
   if (nuevo < mesActual || $('pantalla-app').hidden || document.querySelector('dialog[open]')) return;
   estado.mesVisto = nuevo;
+  sonar('pasar');
   pintar(n);
 }
 
@@ -263,6 +382,7 @@ document.querySelectorAll('dialog').forEach((d) =>
 );
 
 function mostrarError(id, msg) {
+  if (msg) sonar('error');
   $(id).hidden = !msg;
   $(id).textContent = msg ?? '';
 }
@@ -273,6 +393,7 @@ function avisar(err) {
     mostrarEntrada();
     return;
   }
+  sonar('error');
   alertaSuave(err.message);
 }
 
@@ -355,7 +476,20 @@ function abrirGasto(g = null) {
   if (!g) f.monto.focus();
 }
 
-$('boton-nuevo').addEventListener('click', () => abrirGasto());
+$('boton-nuevo').addEventListener('click', () => {
+  sonar('toque');
+  abrirGasto();
+});
+
+function pintarBotonSonido() {
+  $('boton-sonido').textContent = estaSilenciado() ? '🔇' : '🔊';
+  $('boton-sonido').setAttribute('aria-label', estaSilenciado() ? 'Activar sonidos' : 'Silenciar sonidos');
+}
+$('boton-sonido').addEventListener('click', () => {
+  alternarSilencio();
+  pintarBotonSonido();
+});
+pintarBotonSonido();
 
 $('form-gasto').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -372,6 +506,7 @@ $('form-gasto').addEventListener('submit', async (e) => {
   try {
     await acciones.guardarGasto(gastoEditado?.id, g);
     $('hoja-gasto').close();
+    sonar('pop');
     saltoMono();
   } catch (err) {
     mostrarError('error-gasto', err.message);
@@ -383,6 +518,7 @@ $('boton-borrar-gasto').addEventListener('click', async () => {
   try {
     await acciones.borrarGasto(gastoEditado.id);
     $('hoja-gasto').close();
+    sonar('caer');
   } catch (err) {
     mostrarError('error-gasto', err.message);
   }
@@ -397,11 +533,14 @@ async function abrirReserva(l, g) {
   f.reset();
   mostrarError('error-uso', null);
   $('titulo-reserva').textContent = `${g?.emoji ?? ''} ${l.nombre}`;
-  $('frasco-reserva').style.width = `${l.monto ? (l.pendiente / l.monto) * 100 : 0}%`;
   const manual = g?.modoReserva === 'manual';
   const esActual = estado.mesVisto === mesActual;
+  const queda = manual ? l.monto - (l.usado ?? 0) : l.pendiente;
+  $('frasco-reserva').style.width = `${l.monto ? (Math.max(0, queda) / l.monto) * 100 : 0}%`;
   $('texto-reserva').textContent = esActual
-    ? `Quedan ${plata(l.pendiente)} de ${plata(l.monto)}. ${manual ? 'Cargá cada uso y Mona lo resta.' : 'Baja sola con los días del mes; si gastaste distinto, ajustá tu saldo.'}`
+    ? queda < 0
+      ? `Te pasaste por ${plata(-queda)} (usaste ${plata(l.usado)} de ${plata(l.monto)}). Ya salió de tu saldo, así que el balance está bien; capaz conviene subir la reserva.`
+      : `Quedan ${plata(queda)} de ${plata(l.monto)}. ${manual ? 'Cargá cada uso y Mona lo resta.' : 'Baja sola con los días del mes; si gastaste distinto, ajustá tu saldo.'}`
     : `En ${nombreMes(estado.mesVisto)} vas a tener ${plata(l.monto)} reservados.`;
   $('carga-uso').hidden = !(manual && esActual);
   $('boton-usar').hidden = !(manual && esActual);
@@ -426,6 +565,7 @@ $('form-uso').addEventListener('submit', async (e) => {
   try {
     await acciones.usar(reservaAbierta.l.gastoId, monto, e.target.nota.value.trim());
     $('hoja-reserva').close();
+    sonar('plop');
     saltoMono();
   } catch (err) {
     mostrarError('error-uso', err.message);
@@ -459,6 +599,7 @@ $('form-plata').addEventListener('submit', async (e) => {
   try {
     await acciones.guardarPlata(saldo, ingreso ? { monto: ingreso, diaCobro: Math.min(31, Math.max(1, dia)) } : null);
     $('hoja-plata').close();
+    sonar('pop');
   } catch (err) {
     mostrarError('error-plata', err.message);
   }

@@ -31,7 +31,7 @@ body {
 .cabecera { display: flex; align-items: center; justify-content: space-between; }
 .marca { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1.9rem; color: var(--selva); letter-spacing: -0.5px; }
 .marca span { color: var(--banana); -webkit-text-stroke: 1px var(--selva-oscura); }
-.demo { font-size: 0.75rem; background: var(--banana); color: #2b1d10; padding: 4px 10px; border-radius: 99px; font-weight: 800; }
+.demo { white-space: nowrap; font-size: 0.7rem; background: var(--banana); color: #2b1d10; padding: 4px 10px; border-radius: 99px; font-weight: 800; }
 
 .navegador-mes { display: flex; align-items: center; justify-content: space-between; }
 .navegador-mes h2 { font-family: 'Baloo 2', sans-serif; font-size: 1.3rem; }
@@ -174,4 +174,19 @@ body {
 .tostada {
   position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); background: var(--texto); color: var(--fondo);
   padding: 10px 16px; border-radius: 14px; font-weight: 800; z-index: 10; max-width: calc(100% - 32px);
+}
+
+/* ---- M1-M4 ---- */
+.boton-sonido { border: 0; background: transparent; font-size: 1.3rem; cursor: pointer; padding: 4px; }
+.gasto.pasada .monto { color: var(--rojo); }
+.gasto.pasada .frasco { background: color-mix(in srgb, var(--rojo) 25%, var(--borde)); }
+.monto-volador {
+  position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none; background: var(--banana); color: #2b1d10;
+  font-family: 'Baloo 2', sans-serif; font-weight: 800; padding: 2px 10px; border-radius: 99px; box-shadow: 0 3px 0 #e0b520;
+}
+#valor-saldo, #valor-gastar { display: inline-block; }
+.sugerencias { display: grid; gap: 10px; }
+.sugerencia {
+  background: var(--tarjeta); border: 2px dashed var(--banana); border-radius: 18px; padding: 12px; display: grid; gap: 10px;
+  font-weight: 600; animation: subir 0.3s ease-out;
 }
