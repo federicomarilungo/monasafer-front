@@ -710,6 +710,11 @@ $('form-plata').addEventListener('submit', async (e) => {
 
 // ---------- Arranque ----------
 
+// PWA (C7): instalable y abre sin señal. Solo en prod, para no pelear con el dev server.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
+
 (async () => {
   if (hayToken()) {
     try {
