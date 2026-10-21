@@ -42,7 +42,7 @@ export async function api(metodo, ruta, cuerpo) {
   const datos = await r.json().catch(() => null);
   if (!r.ok) {
     const msg = Array.isArray(datos?.message) ? datos.message.join(', ') : datos?.message;
-    throw new ErrorApi(r.status, msg || `Error ${r.status}`);
+    throw new ErrorApi(r.status, msg || (r.status >= 500 ? 'El servidor no respondió. Probá de nuevo en un rato.' : `Error ${r.status}`));
   }
   return datos;
 }

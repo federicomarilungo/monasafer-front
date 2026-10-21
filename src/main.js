@@ -1110,6 +1110,11 @@ $('form-chat').addEventListener('submit', async (e) => {
     chat.push({ rol: 'mona', texto: t('En la demo no puedo cargar nada. Creá tu cuenta y probame gratis 🐒') });
     return pintarChat();
   }
+  // Sin ANTHROPIC_API_KEY en el back, /premium/config lo dice: no llamamos para no mostrar un error crudo.
+  if (!configPremium.asistente) {
+    chat.push({ rol: 'mona', texto: t('Todavía estoy aprendiendo a charlar 🙈 El asistente se activa muy pronto.') });
+    return pintarChat();
+  }
   const pensando = { rol: 'mona', texto: '…' };
   chat.push(pensando);
   pintarChat();

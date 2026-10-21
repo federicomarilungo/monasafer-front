@@ -196,6 +196,7 @@ export const EN = {
     'Hi! Tell me what you spent or are going to spend and I\'ll add it for you. For example: "I bought a jacket in 6 installments".',
   '{n} mensajes gratis': '{n} free messages',
   'En la demo no puedo cargar nada. Creá tu cuenta y probame gratis 🐒': "I can't add anything in the demo. Sign up and try me for free 🐒",
+  'Todavía estoy aprendiendo a charlar 🙈 El asistente se activa muy pronto.': "I'm still learning to chat 🙈 The assistant turns on very soon.",
   'Se terminaron los mensajes gratis. Con Premium seguimos charlando todo lo que quieras.':
     "You're out of free messages. With Premium we can keep chatting as much as you want.",
   'Se terminaron tus mensajes gratis con Mona.': "You're out of free messages with Mona.",
