@@ -715,7 +715,8 @@ function abrirGasto(g = null) {
   formaDesdeGasto(g);
   pintarForma();
   $('hoja-gasto').showModal();
-  if (!g) f.monto.focus();
+  // Primero el nombre (Fede, 21/10): con él se adivina el ícono y después va el monto.
+  if (!g) f.nombre.focus();
 }
 
 $('boton-nuevo').addEventListener('click', () => {
