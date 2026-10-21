@@ -941,7 +941,6 @@ async function cargarConfigPremium() {
 const esPremium = () => estado.modo === 'real' && !!estado.perfil?.premium?.activo;
 
 function abrirPremium(motivo) {
-  const f = $('form-premium');
   mostrarError('error-premium', null);
   $('premium-mono').innerHTML = svgMono('rico');
   $('premium-motivo').textContent = motivo || t('Con Premium te cuido la plata el doble 🍌');
@@ -949,8 +948,6 @@ function abrirPremium(motivo) {
   $('premium-precio').innerHTML = precio
     ? t('<b>{precio}</b> por mes', { precio: new Intl.NumberFormat(locale(), { style: 'currency', currency: precio.moneda, maximumFractionDigits: 0 }).format(precio.monto) })
     : '';
-  f.emailPago.value = estado.perfil?.email ?? '';
-  f.querySelector('details').open = false;
   $('boton-suscribir').disabled = estado.modo !== 'real';
   $('hoja-premium').showModal();
 }
@@ -960,7 +957,7 @@ $('form-premium').addEventListener('submit', async (e) => {
   mostrarError('error-premium', null);
   $('boton-suscribir').disabled = true;
   try {
-    const r = await api('POST', '/premium/suscribir', { emailPago: e.target.emailPago.value || undefined });
+    const r = await api('POST', '/premium/suscribir');
     if (r.url) {
       location.href = r.url;
       return;
