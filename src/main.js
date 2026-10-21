@@ -556,10 +556,10 @@ function avisar(err) {
   alertaSuave(err.message);
 }
 
-function alertaSuave(texto) {
+function alertaSuave(texto, emoji = '🙈') {
   const t = document.createElement('div');
   t.className = 'tostada';
-  t.textContent = `🙈 ${texto}`;
+  t.textContent = emoji ? `${emoji} ${texto}` : texto;
   document.body.append(t);
   setTimeout(() => t.remove(), 3500);
 }
@@ -934,13 +934,14 @@ const esPremium = () => estado.modo === 'real' && !!estado.perfil?.premium?.acti
 function abrirPremium(motivo) {
   const f = $('form-premium');
   mostrarError('error-premium', null);
-  $('premium-motivo').textContent = motivo;
-  $('premium-motivo').hidden = !motivo;
+  $('premium-mono').innerHTML = svgMono('rico');
+  $('premium-motivo').textContent = motivo || t('Con Premium te cuido la plata el doble 🍌');
   const precio = configPremium.precio;
   $('premium-precio').innerHTML = precio
     ? t('<b>{precio}</b> por mes', { precio: new Intl.NumberFormat(locale(), { style: 'currency', currency: precio.moneda, maximumFractionDigits: 0 }).format(precio.monto) })
     : '';
   f.emailPago.value = estado.perfil?.email ?? '';
+  f.querySelector('details').open = false;
   $('boton-suscribir').disabled = estado.modo !== 'real';
   $('hoja-premium').showModal();
 }
@@ -948,15 +949,23 @@ function abrirPremium(motivo) {
 $('form-premium').addEventListener('submit', async (e) => {
   e.preventDefault();
   mostrarError('error-premium', null);
-  if (!configPremium.pagos) return mostrarError('error-premium', t('Los pagos se activan en estos días. ¡Gracias por querer sumarte!'));
   $('boton-suscribir').disabled = true;
   try {
     const r = await api('POST', '/premium/suscribir', { emailPago: e.target.emailPago.value || undefined });
-    location.href = r.url;
+    if (r.url) {
+      location.href = r.url;
+      return;
+    }
+    // Si no se pudo iniciar el cobro, el back reinicia los usos gratis: no bloqueamos a nadie.
+    if (r.regalo && estado.perfil) estado.perfil.usosGratis = r.usosGratis;
+    $('hoja-premium').close();
+    sonar('fanfarria');
+    saltoMono();
+    alertaSuave(t('No pudimos abrir el pago, así que te regalo más usos de Premium 🍌'), '');
   } catch (err) {
     mostrarError('error-premium', err.message);
-    $('boton-suscribir').disabled = false;
   }
+  $('boton-suscribir').disabled = false;
 });
 
 /** Al volver de Mercado Pago (#premium): se pregunta el estado sin esperar la notificación. */
@@ -970,7 +979,7 @@ async function volverDePago() {
     if (r.premium) {
       sonar('fanfarria');
       saltoMono();
-      alertaSuave(t('¡Ya sos Premium! Mona está feliz 🍌'));
+      alertaSuave(t('¡Ya sos Premium! Mona está feliz 🍌'), '');
     } else alertaSuave(t('Todavía no nos llegó el pago. Si ya pagaste, en unos minutos se activa.'));
   } catch (err) {
     avisar(err);

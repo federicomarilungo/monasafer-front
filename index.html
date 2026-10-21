@@ -258,21 +258,25 @@
 
     <!-- Premium (S1, S8) -->
     <dialog class="hoja" id="hoja-premium">
-      <form method="dialog" id="form-premium">
-        <h3 data-t>Monasafer Premium</h3>
-        <p id="premium-motivo"></p>
-        <ul class="premium-lista">
-          <li data-t>🎙️ Mona carga tus gastos por chat o por voz</li>
-          <li data-t>📊 Métricas: en qué se va tu plata, cómo cambian tus meses y cuánto vas a ahorrar</li>
-          <li data-t>🙈 Sin avisos</li>
-        </ul>
-        <p class="precio" id="premium-precio"></p>
-        <label class="campo"><span data-t>Email de tu cuenta de Mercado Pago</span><input name="emailPago" type="email" autocomplete="email" /></label>
-        <p class="error" id="error-premium" hidden></p>
-        <div class="acciones">
-          <button type="button" class="boton" data-cerrar data-t>Ahora no</button>
-          <button type="submit" class="boton principal" id="boton-suscribir" data-t>Suscribirme</button>
+      <form method="dialog" id="form-premium" class="premium">
+        <div class="premium-hero">
+          <div class="premium-mono" id="premium-mono"></div>
+          <p class="premium-globo" id="premium-motivo"></p>
         </div>
+        <h3 class="premium-titulo"><span data-t>Monasafer</span> <b>Premium</b> 👑</h3>
+        <ul class="premium-lista">
+          <li><span class="premium-icono">🎙️</span><span><b data-t>Mona carga tus gastos</b><small data-t>Le contás por chat o por voz y ella lo anota.</small></span></li>
+          <li><span class="premium-icono">📊</span><span><b data-t>Métricas sin límite</b><small data-t>En qué se va tu plata, cómo cambian tus meses y cuánto vas a ahorrar.</small></span></li>
+          <li><span class="premium-icono">🙈</span><span><b data-t>Sin avisos</b><small data-t>Nada entre vos y tus números.</small></span></li>
+        </ul>
+        <p class="premium-precio" id="premium-precio"></p>
+        <p class="error" id="error-premium" hidden></p>
+        <button type="submit" class="boton principal premium-cta" id="boton-suscribir" data-t>Quiero Premium 🍌</button>
+        <details class="premium-email">
+          <summary data-t>¿Pagás con otro email de Mercado Pago?</summary>
+          <label class="campo"><span data-t>Email de tu cuenta de Mercado Pago</span><input name="emailPago" type="email" autocomplete="email" /></label>
+        </details>
+        <button type="button" class="premium-ahora-no" data-cerrar data-t>Ahora no</button>
         <p class="legal" data-t>Se cobra todos los meses con Mercado Pago. La cancelás cuando quieras desde ⚙️ y seguís con Premium hasta el final del mes pagado.</p>
         <p class="legal"><a href="/terminos.html" data-t>Términos</a> · <a href="mailto:hola@monasafer.com?subject=Bot%C3%B3n%20de%20arrepentimiento" data-t>Botón de arrepentimiento</a></p>
       </form>
