@@ -34,8 +34,10 @@ export async function mostrarBotonGoogle(contenedor, alEntrar) {
       cancel_on_tap_outside: true,
     });
     contenedor.innerHTML = '';
+    // Con la app en oscuro, el botón negro; en claro, el blanco con borde (pautas de Google).
+    const oscuro = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
     window.google.accounts.id.renderButton(contenedor, {
-      theme: 'filled_black',
+      theme: oscuro ? 'filled_black' : 'outline',
       size: 'large',
       shape: 'pill',
       text: 'continue_with',

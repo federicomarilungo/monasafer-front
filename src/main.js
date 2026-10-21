@@ -245,6 +245,15 @@ const acciones = {
       () => api('DELETE', `/gastos/${id}`),
       (d) => (d.gastos = d.gastos.filter((x) => x.id !== id)),
     ),
+  montoDelMes: (gastoId, mes, montoDelMes) =>
+    ejecutar(
+      () => api('PUT', `/gastos/${gastoId}/meses/${mes}`, { montoDelMes }),
+      (d) => {
+        const e = d.estados.find((x) => x.gastoId === gastoId && x.mes === mes);
+        if (e) e.montoDelMes = montoDelMes;
+        else d.estados.push({ gastoId, mes, pagado: false, montoDelMes });
+      },
+    ),
   usar: (gastoId, monto, nota) =>
     ejecutar(
       () => api('POST', `/gastos/${gastoId}/usos`, { mes: mesActual, monto, nota }),
@@ -1051,6 +1060,19 @@ function pintarChat() {
 function textoPropuesta(p) {
   if (p.accion === 'pagar') return t('Marcar pagado: {nombre} ({mes})', { nombre: p.nombre, mes: nombreMes(p.mes) });
   if (p.accion === 'usar_reserva') return t('Usar {monto} de {nombre}', { monto: plata(p.monto), nombre: p.nombre });
+  if (p.accion === 'editar_gasto') {
+    const c = p.cambios;
+    const partes = [c.emoji && c.nombre ? `${c.emoji} ${c.nombre}` : c.nombre || c.emoji, c.monto != null && plata(c.monto)].filter(Boolean);
+    return t('Cambiar {nombre}: {cambios}', { nombre: p.nombre, cambios: partes.join(' · ') });
+  }
+  if (p.accion === 'monto_del_mes')
+    return p.monto === 0
+      ? t('Sacar {nombre} solo de {mes}', { nombre: p.nombre, mes: nombreMes(p.mes) })
+      : t('{nombre} en {mes}: {monto}', { nombre: p.nombre, mes: nombreMes(p.mes), monto: plata(p.monto) });
+  if (p.accion === 'terminar_gasto') return t('{nombre} hasta {mes} y después no va más', { nombre: p.nombre, mes: nombreMes(p.mesFin) });
+  if (p.accion === 'borrar_gasto') return t('Borrar {nombre}', { nombre: p.nombre });
+  if (p.accion === 'cambiar_saldo') return t('Saldo de hoy: {monto}', { monto: plata(p.saldo) });
+  if (p.accion === 'cambiar_ingreso') return t('Ingreso: {monto} por mes, cobrás el día {dia}', { monto: plata(p.monto), dia: p.diaCobro });
   const g = p.gasto;
   const cuando =
     g.tipo === 'puntual'
@@ -1069,7 +1091,7 @@ function tarjetaPropuesta(p) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'boton principal chico';
-  b.textContent = p.hecha ? `✓ ${t('Listo')}` : p.accion === 'crear_gasto' ? t('Agregar') : t('Confirmar');
+  b.textContent = p.hecha ? `✓ ${t('Listo')}` : p.accion === 'crear_gasto' ? t('Agregar') : p.accion === 'borrar_gasto' ? t('Borrar') : t('Confirmar');
   b.disabled = !!p.hecha;
   b.addEventListener('click', async () => {
     b.disabled = true;
@@ -1080,7 +1102,13 @@ function tarjetaPropuesta(p) {
         estado.mesVisto = p.mes;
         await acciones.pagar(l, true);
         sonar('moneda');
-      } else await acciones.usar(p.gastoId, p.monto, p.nota);
+      } else if (p.accion === 'usar_reserva') await acciones.usar(p.gastoId, p.monto, p.nota);
+      else if (p.accion === 'editar_gasto') await acciones.guardarGasto(p.gastoId, p.cambios);
+      else if (p.accion === 'monto_del_mes') await acciones.montoDelMes(p.gastoId, p.mes, p.monto);
+      else if (p.accion === 'terminar_gasto') await acciones.guardarGasto(p.gastoId, { mesFin: p.mesFin });
+      else if (p.accion === 'borrar_gasto') await acciones.borrarGasto(p.gastoId);
+      else if (p.accion === 'cambiar_saldo') await acciones.guardarPlata(p.saldo, estado.datos.perfil.ingresoMensual ?? null);
+      else if (p.accion === 'cambiar_ingreso') await acciones.guardarPlata(estado.datos.perfil.saldo, { monto: p.monto, diaCobro: p.diaCobro });
       p.hecha = true;
       sonar('pop');
       saltoMono();
