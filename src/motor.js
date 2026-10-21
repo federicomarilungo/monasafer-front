@@ -68,3 +68,28 @@ export function resumenDelMes(datos, hoy, mes) {
   const p = proyectar(datos, hoy, mes);
   return p[p.length - 1];
 }
+
+/**
+ * Lo gastado en meses pasados (mismo historial() del back, que es el que usa la cuenta
+ * real vía GET /historial; acá sirve para la demo). Monto del mes, reservas manuales por
+ * lo usado y gastos borrados hasta el mes en que se borraron.
+ */
+export function historial(datos, desde, hasta) {
+  const meses = [];
+  for (let mes = desde; mes <= hasta; mes = sumarMeses(mes, 1)) {
+    const gastos = [];
+    for (const g of datos.gastos) {
+      if (!vigente(g, mes)) continue;
+      if (g.mesArchivo && mes > g.mesArchivo) continue;
+      const estado = datos.estados.find((e) => e.gastoId === g.id && e.mes === mes);
+      const pagado = !!estado?.pagado;
+      const usado = datos.usos.filter((u) => u.gastoId === g.id && u.mes === mes).reduce((s, u) => s + u.monto, 0);
+      if (g.mesArchivo === mes && !pagado && !usado) continue;
+      const monto = g.tipo === 'reserva' && g.modoReserva === 'manual' && !pagado ? usado : (estado?.montoDelMes ?? g.monto);
+      if (monto <= 0) continue;
+      gastos.push({ gastoId: g.id, nombre: g.nombre, emoji: g.emoji ?? '', tipo: g.tipo, monto, pagado });
+    }
+    meses.push({ mes, gastos, total: gastos.reduce((s, l) => s + l.monto, 0) });
+  }
+  return meses;
+}

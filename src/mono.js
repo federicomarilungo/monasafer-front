@@ -23,7 +23,15 @@ const cejas = {
   panico: '<path d="M68 84 L88 74 M132 84 L112 74" stroke="#4a2a14" stroke-width="5" stroke-linecap="round"/>',
 };
 
-export function svgMono(animo) {
+// Premium: Mona con corona (y brillito).
+const corona = `<g class="corona">
+    <path d="M70 38 L74 8 L88 24 L100 2 L112 24 L126 8 L130 38 Z" fill="#ffd23f" stroke="#c98a00" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="68" y="34" width="64" height="9" rx="4" fill="#f5b800" stroke="#c98a00" stroke-width="3"/>
+    <circle cx="100" cy="24" r="5" fill="#e5484d"/><circle cx="84" cy="30" r="3.5" fill="#2f9e6b"/><circle cx="116" cy="30" r="3.5" fill="#2f9e6b"/>
+    <path class="brillo" d="M80 14 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#fff"/>
+  </g>`;
+
+export function svgMono(animo, conCorona = false) {
   return `
 <svg viewBox="0 0 200 200" class="mono-svg mono-${animo}" role="img" aria-label="Mona está ${animo}">
   <circle cx="34" cy="96" r="24" fill="#8b5a2b"/><circle cx="34" cy="96" r="13" fill="#f2c9a0"/>
@@ -43,6 +51,7 @@ export function svgMono(animo) {
   <ellipse cx="92" cy="116" rx="3" ry="2" fill="#4a2a14"/><ellipse cx="108" cy="116" rx="3" ry="2" fill="#4a2a14"/>
   ${bocas[animo]}
   ${animo === 'panico' ? '<path d="M150 60 q6 10 0 16 q-6 -6 0 -16Z" fill="#7cc6ff"/>' : ''}
+  ${conCorona ? corona : ''}
 </svg>`;
 }
 

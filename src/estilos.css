@@ -342,3 +342,55 @@ body {
 .top-gastos i { grid-column: 1; height: 8px; border-radius: 99px; background: var(--banana); }
 .top-gastos small { color: var(--suave); }
 .quedan-aviso { text-align: center; color: var(--suave); font-weight: 700; font-size: 0.85rem; }
+
+/* Premium en la home: sello dorado, Mona con corona y la tarjeta con borde que brilla */
+.sello-premium {
+  font: inherit; font-weight: 800; color: #5a3b00; cursor: pointer; border: 2px solid #e0a800;
+  border-radius: 99px; padding: 1px 7px; box-shadow: 0 2px 0 #c98a00; white-space: nowrap; letter-spacing: 0;
+  font-family: 'Nunito', sans-serif; text-transform: uppercase; font-size: 0.6rem;
+  position: absolute; right: -18px; top: -10px; transform: rotate(8deg);
+  background: linear-gradient(110deg, #ffd23f 20%, #fff3b0 40%, #ffd23f 60%) 0 0 / 250% 100%;
+  animation: brillo-sello 3s linear infinite;
+}
+.marca { position: relative; }
+.sello-premium:active { transform: rotate(8deg) translateY(2px); box-shadow: none; }
+@keyframes brillo-sello { to { background-position: -250% 0; } }
+.mono-svg .corona { transform-origin: 100px 40px; animation: corona 4s ease-in-out infinite; }
+.mono-svg .corona .brillo { transform-origin: 80px 21px; animation: destello 2.2s ease-in-out infinite; }
+@keyframes corona { 50% { transform: rotate(-4deg) translateY(-2px); } }
+@keyframes destello { 0%, 70%, 100% { transform: scale(0); } 85% { transform: scale(1.2); } }
+.tarjeta-balance { position: relative; }
+.tarjeta-balance.premium { outline: 3px solid #ffd23f; outline-offset: -3px; }
+.tarjeta-balance.premium::before, .tarjeta-balance.premium::after {
+  content: '✦'; position: absolute; color: #ffd23f; pointer-events: none; animation: titilar 2.4s ease-in-out infinite;
+}
+.tarjeta-balance.premium::before { top: 8px; right: 14px; font-size: 1.1rem; }
+.tarjeta-balance.premium::after { bottom: 10px; right: 40px; font-size: 0.8rem; animation-delay: 1.2s; }
+@keyframes titilar { 0%, 100% { opacity: 0.2; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1.15) rotate(20deg); } }
+.estrellita { position: fixed; z-index: 50; pointer-events: none; color: #ffd23f; font-size: 1.1rem; text-shadow: 0 0 6px #fff3b0; }
+
+/* Métricas */
+.grafico-scroll { overflow-x: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.grafico g[data-mes] { cursor: pointer; }
+.grafico rect.toque { fill: transparent; }
+.grafico rect.pasado { opacity: 0.45; }
+.grafico rect.elegido { stroke: var(--banana); stroke-width: 3; }
+.grafico text.hoy { fill: var(--texto); font-weight: 900; }
+.fichas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fichas div { background: var(--fondo); border-radius: 14px; padding: 10px 6px; display: grid; gap: 2px; text-align: center; }
+.fichas small, .fichas span { color: var(--suave); font-weight: 700; font-size: 0.72rem; }
+.fichas b { font-family: 'Baloo 2', sans-serif; font-size: 1.05rem; }
+.categorias.tocables li { cursor: pointer; border-radius: 10px; padding: 4px 6px; margin: 0 -6px; }
+.categorias li.elegida { background: var(--fondo); }
+#metricas .chips { gap: 6px; }
+#metricas .chip { padding: 6px 10px; font-size: 0.85rem; }
+.sello-mini { font-size: 0.9rem; }
+.candado { border: 2px dashed #e0a800; border-radius: 18px; padding: 14px; display: grid; gap: 8px; background: linear-gradient(135deg, #fff7d1, var(--tarjeta)); color: var(--texto); }
+.candado ul { margin: 0; padding-left: 20px; font-weight: 600; font-size: 0.9rem; }
+.aviso-metricas { display: grid; grid-template-columns: 64px 1fr; gap: 6px 10px; align-items: center; background: var(--fondo); border: 2px solid var(--banana); border-radius: 18px; padding: 10px; animation: subir 0.3s ease-out; }
+.aviso-metricas p { font-weight: 700; font-size: 0.9rem; }
+.aviso-metricas .boton { grid-column: 1 / -1; }
+.mono-chico { width: 64px; }
+@media (prefers-color-scheme: dark) {
+  .candado { background: linear-gradient(135deg, #3a2f14, var(--tarjeta)); }
+}
