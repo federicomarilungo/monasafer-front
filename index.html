@@ -151,6 +151,25 @@
       </form>
     </dialog>
 
+    <!-- Hoja: borrar un gasto que se repite (qué meses se tocan) -->
+    <dialog class="hoja" id="hoja-borrar">
+      <form method="dialog">
+        <h3 id="titulo-borrar"></h3>
+        <p class="ayuda" id="ayuda-borrar"></p>
+        <div class="opciones-borrar" id="opciones-borrar"></div>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Deshacer: popover para quedar arriba de cualquier hoja abierta -->
+    <div class="deshacer" id="deshacer" popover="manual">
+      <span id="texto-deshacer"></span>
+      <button type="button" id="boton-deshacer" data-t>Deshacer</button>
+      <i id="barra-deshacer"></i>
+    </div>
+
     <!-- Hoja: usos de una reserva -->
     <dialog class="hoja" id="hoja-reserva">
       <form method="dialog" id="form-uso">

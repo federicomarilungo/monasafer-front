@@ -245,6 +245,11 @@ const acciones = {
       () => api('DELETE', `/gastos/${id}`),
       (d) => (d.gastos = d.gastos.filter((x) => x.id !== id)),
     ),
+  restaurarGasto: (g) =>
+    ejecutar(
+      () => api('POST', `/gastos/${g.id}/restaurar`),
+      (d) => d.gastos.push(g),
+    ),
   montoDelMes: (gastoId, mes, montoDelMes) =>
     ejecutar(
       () => api('PUT', `/gastos/${gastoId}/meses/${mes}`, { montoDelMes }),
@@ -330,6 +335,7 @@ function etiquetaTipo(l, g) {
   const corto = (m) => nombreMes(m).split(' ')[0].toLowerCase();
   const soloEste = l.tipo === 'puntual' || (l.tipo === 'reserva' && !g?.recurrente);
   const duracion = soloEste ? t('solo este mes') : g?.mesFin ? t('hasta {mes}', { mes: corto(g.mesFin) }) : t('todos los meses');
+  if (!soloEste && l.monto === 0 && g?.monto) return t('salteado este mes');
   if (l.tipo !== 'reserva') return duracion;
   return `${t('reserva')} · ${g?.modoReserva === 'manual' ? t('cargás los usos') : t('baja con los días')} · ${duracion}`;
 }
@@ -760,16 +766,154 @@ $('form-gasto').addEventListener('submit', async (e) => {
   }
 });
 
-$('boton-borrar-gasto').addEventListener('click', async () => {
+$('boton-borrar-gasto').addEventListener('click', () => {
   if (!gastoEditado) return;
+  $('hoja-gasto').close();
+  pedirBorrar(gastoEditado, estado.mesVisto);
+});
+
+// ---------- Borrar sin perder el pasado, y Deshacer ----------
+
+const DURA_DESHACER = 6000;
+let deshacerPendiente = null;
+
+/** Un aviso abajo con "Deshacer" durante unos segundos, por si pifiaste. */
+function ofrecerDeshacer(texto, deshacer) {
+  const el = $('deshacer');
+  // Adentro de la hoja abierta (el chat, por ejemplo): fuera de ella el botón no se puede tocar.
+  const padre = document.querySelector('dialog[open]') ?? document.body;
+  if (el.parentElement !== padre) padre.append(el);
+  if (el.matches(':popover-open')) el.hidePopover();
+  clearTimeout(deshacerPendiente?.timer);
+  $('texto-deshacer').textContent = `🗑️ ${texto}`;
+  el.showPopover();
+  $('barra-deshacer').animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: DURA_DESHACER });
+  deshacerPendiente = { deshacer, timer: setTimeout(cerrarDeshacer, DURA_DESHACER) };
+}
+
+function cerrarDeshacer() {
+  clearTimeout(deshacerPendiente?.timer);
+  deshacerPendiente = null;
+  const el = $('deshacer');
+  if (el.matches(':popover-open')) el.hidePopover();
+}
+
+$('boton-deshacer').addEventListener('click', async () => {
+  const p = deshacerPendiente;
+  cerrarDeshacer();
+  if (!p) return;
   try {
-    await acciones.borrarGasto(gastoEditado.id);
-    $('hoja-gasto').close();
-    sonar('caer');
+    await p.deshacer();
+    sonar('pop');
+    saltoMono();
+    $('frase').textContent = t('¡Uf! Ya está como antes.');
+    if ($('hoja-chat').open) pintarChat();
   } catch (err) {
-    mostrarError('error-gasto', err.message);
+    avisar(err);
   }
 });
+
+/** Fijos y reservas recurrentes aparecen en varios meses: borrarlos pregunta cuáles. */
+function seRepite(g) {
+  return g.tipo === 'fijo' || (g.tipo === 'reserva' && !!g.recurrente);
+}
+
+/**
+ * Qué se puede hacer al borrar un gasto que se repite, mirando el mes `mes`. Lo sugerido
+ * es terminarlo (mesFin): los meses que ya pasaron quedan como estaban y no mienten.
+ * Si ese mes ya se pagó (o tiene usos), termina después de ese mes, porque esa plata ya
+ * salió del saldo.
+ */
+function opcionesBorrar(g, mes) {
+  const d = estado.datos;
+  const estadoMes = d.estados.find((e) => e.gastoId === g.id && e.mes === mes);
+  const empezado = !!estadoMes?.pagado || d.usos.some((u) => u.gastoId === g.id && u.mes === mes);
+  const { nombre } = g;
+  // Copiado antes: en la demo guardarGasto cambia el mismo objeto.
+  const finAntes = g.mesFin ?? null;
+  const opciones = [];
+  const ultimo = empezado ? mes : sumarMeses(mes, -1);
+  if (ultimo >= g.mesInicio)
+    opciones.push({
+      titulo: empezado ? t('Que {mes} sea el último', { mes: nombreMes(mes) }) : t('Terminarlo desde {mes}', { mes: nombreMes(mes) }),
+      detalle: t('No aparece más desde {mes}. Los meses anteriores quedan como estaban.', { mes: nombreMes(sumarMeses(ultimo, 1)) }),
+      sugerida: true,
+      hacer: () => acciones.guardarGasto(g.id, { mesFin: ultimo }),
+      deshacer: () => acciones.guardarGasto(g.id, { mesFin: finAntes }),
+      aviso: t('{nombre} ya no está desde {mes}', { nombre, mes: nombreMes(sumarMeses(ultimo, 1)) }),
+    });
+  if (!empezado)
+    opciones.push({
+      titulo: t('Solo en {mes}', { mes: nombreMes(mes) }),
+      detalle: t('Ese mes no va. Los demás quedan igual.'),
+      hacer: () => acciones.montoDelMes(g.id, mes, 0),
+      deshacer: () => acciones.montoDelMes(g.id, mes, estadoMes?.montoDelMes ?? null),
+      aviso: t('Sacaste {nombre} de {mes}', { nombre, mes: nombreMes(mes) }),
+    });
+  const hayPasado = g.mesInicio < mes;
+  opciones.push({
+    titulo: t('Borrar de todos los meses'),
+    detalle: hayPasado
+      ? t('También desaparece de los meses anteriores, desde {mes}. Para algo que cargaste por error.', { mes: nombreMes(g.mesInicio) })
+      : t('Desaparece de todos los meses.'),
+    peligro: hayPasado,
+    sugerida: !opciones.some((o) => o.sugerida),
+    hacer: () => acciones.borrarGasto(g.id),
+    deshacer: () => acciones.restaurarGasto(g),
+    aviso: t('Borraste {nombre}', { nombre }),
+  });
+  return opciones;
+}
+
+async function hacerConDeshacer(o) {
+  await o.hacer();
+  sonar('caer');
+  ofrecerDeshacer(o.aviso, o.deshacer);
+}
+
+/**
+ * Borra un gasto. Si es de un solo mes lo borra y ofrece deshacer; si se repite, pregunta
+ * qué meses sacar. Devuelve true si se borró algo.
+ */
+function pedirBorrar(g, mes) {
+  if (!seRepite(g)) {
+    const o = { hacer: () => acciones.borrarGasto(g.id), deshacer: () => acciones.restaurarGasto(g), aviso: t('Borraste {nombre}', { nombre: g.nombre }) };
+    return hacerConDeshacer(o).then(
+      () => true,
+      (err) => (avisar(err), false),
+    );
+  }
+  const hoja = $('hoja-borrar');
+  $('titulo-borrar').textContent = t('¿Qué hacemos con {nombre}?', { nombre: `${g.emoji || '💸'} ${g.nombre}` });
+  $('ayuda-borrar').textContent = t('Se repite en varios meses. Elegí qué sacar: lo que ya pasó no tiene por qué perderse.');
+  const lista = $('opciones-borrar');
+  lista.replaceChildren();
+  return new Promise((listo) => {
+    let elegida = false;
+    for (const o of opcionesBorrar(g, mes)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `opcion-borrar${o.sugerida ? ' sugerida' : ''}${o.peligro ? ' peligro' : ''}`;
+      b.innerHTML = '<b></b><small></small>';
+      b.querySelector('b').textContent = o.titulo;
+      b.querySelector('small').textContent = o.detalle;
+      b.addEventListener('click', async () => {
+        elegida = true;
+        hoja.close();
+        try {
+          await hacerConDeshacer(o);
+          listo(true);
+        } catch (err) {
+          avisar(err);
+          listo(false);
+        }
+      });
+      lista.append(b);
+    }
+    hoja.addEventListener('close', () => elegida || listo(false), { once: true });
+    hoja.showModal();
+  });
+}
 
 // Reserva
 let reservaAbierta = null;
@@ -1102,8 +1246,18 @@ function tarjetaPropuesta(p) {
       } else if (p.accion === 'usar_reserva') await acciones.usar(p.gastoId, p.monto, p.nota);
       else if (p.accion === 'editar_gasto') await acciones.guardarGasto(p.gastoId, p.cambios);
       else if (p.accion === 'monto_del_mes') await acciones.montoDelMes(p.gastoId, p.mes, p.monto);
-      else if (p.accion === 'terminar_gasto') await acciones.guardarGasto(p.gastoId, { mesFin: p.mesFin });
-      else if (p.accion === 'borrar_gasto') await acciones.borrarGasto(p.gastoId);
+      else if (p.accion === 'terminar_gasto') {
+        const finAntes = estado.datos.gastos.find((x) => x.id === p.gastoId)?.mesFin ?? null;
+        await acciones.guardarGasto(p.gastoId, { mesFin: p.mesFin });
+        ofrecerDeshacer(t('{nombre} ya no está desde {mes}', { nombre: p.nombre, mes: nombreMes(sumarMeses(p.mesFin, 1)) }), () => acciones.guardarGasto(p.gastoId, { mesFin: finAntes }));
+      } else if (p.accion === 'borrar_gasto') {
+        // Mismo camino que el botón Borrar: si se repite, pregunta qué meses sacar.
+        const g = estado.datos.gastos.find((x) => x.id === p.gastoId);
+        if (!g || !(await pedirBorrar(g, mesActual))) {
+          b.disabled = false;
+          return;
+        }
+      }
       else if (p.accion === 'cambiar_saldo') await acciones.guardarPlata(p.saldo, estado.datos.perfil.ingresoMensual ?? null);
       else if (p.accion === 'cambiar_ingreso') await acciones.guardarPlata(estado.datos.perfil.saldo, { monto: p.monto, diaCobro: p.diaCobro });
       p.hecha = true;
