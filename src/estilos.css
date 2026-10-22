@@ -417,3 +417,55 @@ body {
 @media (prefers-color-scheme: dark) {
   .candado { background: linear-gradient(135deg, #3a2f14, var(--tarjeta)); }
 }
+
+/* ---- Cajón de bananas (K1) ---- */
+.boton-ahorrar {
+  font: inherit; font-weight: 800; font-size: 0.9rem; margin-top: 8px; border: 0; border-radius: 99px; padding: 6px 14px;
+  background: var(--banana); color: #2b1d10; box-shadow: 0 3px 0 #e0b520; cursor: pointer;
+}
+.boton-ahorrar:active { transform: translateY(3px); box-shadow: none; }
+.acumulado { background: var(--tarjeta); border: 2px solid var(--borde); border-radius: 20px; padding: 12px; display: grid; gap: 8px; }
+.acumulado-fila { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.acumulado .etiqueta { color: var(--suave); }
+.valor-acumulado { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1.1; }
+.total-mes { color: var(--suave); font-weight: 700; font-size: 0.85rem; }
+.cajon-boton {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--texto);
+  background: color-mix(in srgb, var(--banana) 22%, var(--tarjeta)); border: 2px dashed #e0b520; border-radius: 16px;
+  padding: 10px 12px; cursor: pointer;
+}
+.cajon-icono { font-size: 1.6rem; }
+.cajon-texto { flex: 1; min-width: 0; display: grid; }
+.cajon-texto small { color: var(--suave); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cajon-cuenta { background: var(--fondo); border-radius: 14px; padding: 10px 12px; font-weight: 700; font-size: 0.9rem; }
+.cajon-cuenta.alerta { color: var(--rojo); }
+.cajon-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.cajon-opcion {
+  font: inherit; color: var(--texto); background: var(--fondo); border: 2px solid var(--borde); border-radius: 16px;
+  padding: 10px 6px; display: grid; justify-items: center; gap: 2px; cursor: pointer; box-shadow: 0 3px 0 var(--borde);
+}
+.cajon-opcion > span { font-size: 1.6rem; }
+.cajon-opcion small { color: var(--suave); font-weight: 700; }
+.cajon-opcion.activo { background: var(--banana); border-color: #e0b520; color: #2b1d10; }
+.cajon-opcion.nueva { border-style: dashed; }
+.cajon-opcion:active { transform: translateY(3px); box-shadow: none; }
+.cajon-emojis { max-height: 96px; }
+.centro { text-align: center; }
+.chip.peligro { color: var(--rojo); }
+.bolsillos, .historial { list-style: none; padding: 0; display: grid; gap: 8px; }
+.bolsillo, .movimiento {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; font: inherit; color: var(--texto); cursor: pointer;
+}
+.bolsillo { background: var(--fondo); border: 2px solid var(--borde); border-radius: 18px; padding: 12px; box-shadow: var(--sombra); }
+.bolsillo.generico { border-style: dashed; border-color: #e0b520; }
+.bolsillo-emoji { font-size: 1.8rem; }
+.bolsillo-info { flex: 1; display: grid; min-width: 0; }
+.bolsillo-info small { color: var(--suave); font-weight: 700; }
+.bolsillo-cantidad { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 1.3rem; white-space: nowrap; }
+.movimiento { background: none; border: 0; border-bottom: 2px dashed var(--borde); padding: 6px 2px; font-weight: 800; }
+.movimiento-info { flex: 1; display: grid; min-width: 0; font-size: 0.9rem; }
+.movimiento-info small { color: var(--suave); font-weight: 600; }
+.cajon h4.subtitulo { margin: 4px 0 0; }
+.banana-voladora { position: fixed; left: 0; top: 0; z-index: 20; font-size: 1.6rem; pointer-events: none; }
+.cajon-tostada { display: flex; align-items: center; gap: 12px; }
+.cajon-tostada button { font: inherit; font-weight: 800; border: 0; background: var(--banana); color: #2b1d10; border-radius: 99px; padding: 4px 12px; cursor: pointer; }

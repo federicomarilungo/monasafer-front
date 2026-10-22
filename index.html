@@ -71,10 +71,28 @@
       <section class="tarjeta-balance" id="tarjeta-balance">
         <div class="mono" id="mono" aria-hidden="true"></div>
         <div class="balance">
-          <p class="etiqueta" data-t>Te sobra a fin de mes</p>
+          <p class="etiqueta" data-t>Balance del mes</p>
           <p class="monto-grande" id="balance">0</p>
           <p class="frase" id="frase"></p>
+          <button class="boton-ahorrar" id="ahorrar-mes" type="button" hidden data-t>Ahorrar 🍌</button>
         </div>
+      </section>
+
+      <!-- Cajón de bananas (K1): lo que viene de meses anteriores y adonde se guarda -->
+      <section class="acumulado">
+        <div class="acumulado-fila">
+          <div>
+            <p class="etiqueta" id="etiqueta-acumulado">Acumulado de meses anteriores</p>
+            <p class="valor-acumulado" id="valor-acumulado"></p>
+          </div>
+          <button class="boton chico" id="ahorrar-acumulado" type="button" hidden data-t>Ahorrar 🍌</button>
+        </div>
+        <p class="total-mes" id="total-mes"></p>
+        <button class="cajon-boton" id="boton-cajon" type="button">
+          <span class="cajon-icono" aria-hidden="true">🍌</span>
+          <span class="cajon-texto"><b data-t>Cajón de bananas</b><small id="resumen-cajon"></small></span>
+          <span aria-hidden="true">›</span>
+        </button>
       </section>
 
       <section class="resumen" id="resumen"></section>

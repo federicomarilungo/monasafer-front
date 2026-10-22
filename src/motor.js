@@ -97,11 +97,23 @@ export function historial(datos, desde, hasta) {
       const pagado = !!estado?.pagado;
       const usado = datos.usos.filter((u) => u.gastoId === g.id && u.mes === mes).reduce((s, u) => s + u.monto, 0);
       if (g.mesArchivo === mes && !pagado && !usado) continue;
-      const monto = g.tipo === 'reserva' && g.modoReserva === 'manual' && !pagado ? usado : (estado?.montoDelMes ?? g.monto);
+      const monto = g.tipo === 'reserva' && g.modoReserva === 'manual' && !pagado ? usado : (estado?.montoDelMes ?? montoBase(g, mes));
       if (monto <= 0) continue;
       gastos.push({ gastoId: g.id, nombre: g.nombre, emoji: g.emoji ?? '', tipo: g.tipo, monto, pagado });
     }
     meses.push({ mes, gastos, total: gastos.reduce((s, l) => s + l.monto, 0) });
   }
   return meses;
+}
+
+/**
+ * Parte el balance de un mes: lo que da el mes solo (ingreso menos gastos enteros y lo
+ * ahorrado "del mes") y el acumulado que viene de antes. Igual que motor/ahorro.ts del back.
+ */
+export function partirBalance(datos, r, ahorros = []) {
+  const ingreso = datos.perfil.ingresoMensual?.monto ?? 0;
+  const gastos = r.gastos.reduce((s, l) => s + (l.tipo === 'reserva' ? Math.max(l.monto, l.usado ?? 0) : l.monto), 0);
+  const ahorrado = ahorros.filter((a) => a.mes === r.mes && a.origen === 'mes').reduce((s, a) => s + a.monto, 0);
+  const delMes = ingreso - gastos - ahorrado;
+  return { delMes, acumulado: r.balance - delMes, total: r.balance };
 }
