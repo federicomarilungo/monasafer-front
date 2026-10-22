@@ -15,7 +15,7 @@ const hoy = new Date();
 const mesActual = mesDe(hoy);
 
 // modo: 'real' (API) o 'demo' (todo en memoria, mismas reglas)
-const estado = { modo: 'demo', datos: null, perfil: null, mesVisto: mesActual, balanceMostrado: 0, resumenMostrado: null };
+const estado = { modo: 'demo', datos: null, perfil: null, mesVisto: mesActual, balanceMostrado: 0, resumenMostrado: null, filas: [] };
 
 // ---------- Entrada ----------
 
@@ -365,29 +365,38 @@ function filaGasto(l) {
     </div>
     ${puedePagar ? `<button class="check" aria-label="${l.pagado ? t('Desmarcar pagado') : t('Marcar pagado')}">${l.pagado ? '✓' : ''}</button>` : ''}`;
   li.querySelector('.nombre').textContent = l.nombre;
-  li.querySelector('.check')?.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const pagar = !l.pagado;
-    if (pagar) {
-      // M3: la moneda vuela de la fila al saldo y a "por gastar", suena y el mono la atrapa.
-      sonar('moneda');
-      volarMonto(li, $('valor-saldo'), `−${plata(l.monto)}`);
-      setTimeout(() => volarMonto(li, $('valor-gastar'), `−${plata(l.monto)}`), 120);
-      saltoMono();
-    } else sonar('toque');
-    try {
-      await acciones.pagar(l, pagar);
-    } catch (err) {
-      avisar(err);
-    }
-  });
-  li.addEventListener('click', () => {
+  li.dataset.fila = estado.filas.length;
+  estado.filas.push(l);
+  return li;
+}
+
+// Un solo listener en la lista (delegación): las filas se rehacen en cada pintar() y al
+// cambiar de mes dejaban de responder; así el click no depende de la fila que lo recibe.
+$('gastos').addEventListener('click', async (e) => {
+  const li = e.target.closest('.gasto');
+  const l = li && estado.filas[li.dataset.fila];
+  if (!l) return;
+  const g = estado.datos.gastos.find((x) => x.id === l.gastoId);
+  if (!e.target.closest('.check')) {
     sonar('toque');
     if (l.tipo === 'reserva') abrirReserva(l, g);
     else abrirGasto(g);
-  });
-  return li;
-}
+    return;
+  }
+  const pagar = !l.pagado;
+  if (pagar) {
+    // M3: la moneda vuela de la fila al saldo y a "por gastar", suena y el mono la atrapa.
+    sonar('moneda');
+    volarMonto(li, $('valor-saldo'), `−${plata(l.monto)}`);
+    setTimeout(() => volarMonto(li, $('valor-gastar'), `−${plata(l.monto)}`), 120);
+    saltoMono();
+  } else sonar('toque');
+  try {
+    await acciones.pagar(l, pagar);
+  } catch (err) {
+    avisar(err);
+  }
+});
 
 // D1: Mona sigue el dedo o el mouse con los ojos y reacciona cuando la tocás.
 document.addEventListener('pointermove', (e) => {
@@ -482,6 +491,7 @@ function pintar(direccion = 0) {
 
   pintarAviso();
   const lista = $('gastos');
+  estado.filas = [];
   lista.replaceChildren(...r.gastos.map(filaGasto));
   $('vacio').hidden = r.gastos.length > 0;
   if (direccion) {
