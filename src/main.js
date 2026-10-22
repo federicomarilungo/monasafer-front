@@ -1,5 +1,5 @@
 import './estilos.css';
-import { mesDe, resumenDelMes, sumarMeses } from './motor.js';
+import { mesDe, montoBase, resumenDelMes, sumarMeses } from './motor.js';
 import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
@@ -723,7 +723,8 @@ function abrirGasto(g = null) {
   mostrarError('error-gasto', null);
   $('titulo-hoja-gasto').textContent = g ? t('Editar gasto') : t('Nuevo gasto');
   $('boton-borrar-gasto').hidden = !g;
-  f.monto.value = g ? String(g.monto / 100) : '';
+  // El monto del mes que estás mirando: si cambió desde algún mes, el que rige ahí.
+  f.monto.value = g ? String(montoEn(g, estado.mesVisto) / 100) : '';
   f.nombre.value = g?.nombre ?? '';
   elegirEmoji(g?.emoji || '💸');
   emojiAMano = !!g;
@@ -757,7 +758,13 @@ $('form-gasto').addEventListener('submit', async (e) => {
   const g = { nombre: f.nombre.value.trim(), emoji: emojiElegido, monto, ...gastoDesdeForma() };
   if (!gastoEditado) g.mesInicio = estado.mesVisto;
   try {
-    await acciones.guardarGasto(gastoEditado?.id, g);
+    const directos = gastoEditado ? cambiosDirectos(gastoEditado, estado.mesVisto, g) : g;
+    if (!directos) {
+      $('hoja-gasto').close();
+      if (await pedirEditar(gastoEditado, estado.mesVisto, g)) saltoMono();
+      return;
+    }
+    await acciones.guardarGasto(gastoEditado?.id, directos);
     $('hoja-gasto').close();
     sonar('pop');
     saltoMono();
@@ -778,14 +785,14 @@ const DURA_DESHACER = 6000;
 let deshacerPendiente = null;
 
 /** Un aviso abajo con "Deshacer" durante unos segundos, por si pifiaste. */
-function ofrecerDeshacer(texto, deshacer) {
+function ofrecerDeshacer(texto, deshacer, icono = '🗑️') {
   const el = $('deshacer');
   // Adentro de la hoja abierta (el chat, por ejemplo): fuera de ella el botón no se puede tocar.
   const padre = document.querySelector('dialog[open]') ?? document.body;
   if (el.parentElement !== padre) padre.append(el);
   if (el.matches(':popover-open')) el.hidePopover();
   clearTimeout(deshacerPendiente?.timer);
-  $('texto-deshacer').textContent = `🗑️ ${texto}`;
+  $('texto-deshacer').textContent = `${icono} ${texto}`;
   el.showPopover();
   $('barra-deshacer').animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: DURA_DESHACER });
   deshacerPendiente = { deshacer, timer: setTimeout(cerrarDeshacer, DURA_DESHACER) };
@@ -867,8 +874,99 @@ function opcionesBorrar(g, mes) {
 
 async function hacerConDeshacer(o) {
   await o.hacer();
-  sonar('caer');
-  ofrecerDeshacer(o.aviso, o.deshacer);
+  sonar(o.sonido ?? 'caer');
+  ofrecerDeshacer(o.aviso, o.deshacer, o.icono);
+}
+
+/** Monto de un gasto en un mes, con el monto del mes si lo hay (lo que muestra la fila). */
+function montoEn(g, mes) {
+  const e = estado.datos.estados.find((x) => x.gastoId === g.id && x.mes === mes);
+  return e?.montoDelMes ?? montoBase(g, mes);
+}
+
+/** Lo que se guarda sin preguntar, o null si cambia el monto de un gasto que se repite. */
+function cambiosDirectos(g, mes, cambios) {
+  const { monto, ...resto } = cambios;
+  if (monto === undefined || monto === montoEn(g, mes)) return resto;
+  if (!seRepite(g) || !seRepite({ ...g, ...resto })) return { ...resto, monto, cambiosMonto: [] };
+  return null;
+}
+
+/**
+ * Editar un gasto. Si se repite y cambia el monto, pregunta a qué meses aplica: solo
+ * este, de este en adelante (sugerido; los anteriores no se tocan, regla de Fede del
+ * 22/10) o todos. Nombre, ícono y duración se cambian en el gasto entero.
+ */
+function pedirEditar(g, mes, cambios) {
+  const directos = cambiosDirectos(g, mes, cambios);
+  if (directos)
+    return acciones.guardarGasto(g.id, directos).then(
+      () => (sonar('pop'), true),
+      (err) => (avisar(err), false),
+    );
+  const { monto, ...resto } = cambios;
+  const estadoMes = estado.datos.estados.find((x) => x.gastoId === g.id && x.mes === mes);
+
+  // Para deshacer: lo que había antes en los campos que se tocan.
+  const previo = { monto: g.monto, cambiosMonto: [...(g.cambiosMonto ?? [])] };
+  for (const k of Object.keys(resto)) {
+    if (k === 'mesFin') previo.mesFin = g.mesFin ?? null;
+    else if (g[k] !== undefined && g[k] !== null) previo[k] = g[k];
+  }
+  const mdmAntes = estadoMes?.montoDelMes ?? null;
+  const deshacer = async () => {
+    await acciones.guardarGasto(g.id, previo);
+    if ((estado.datos.estados.find((x) => x.gastoId === g.id && x.mes === mes)?.montoDelMes ?? null) !== mdmAntes)
+      await acciones.montoDelMes(g.id, mes, mdmAntes);
+  };
+  // Si ese mes tenía un monto propio, le ganaría al cambio: se saca.
+  const sacarMontoDelMes = () => (mdmAntes !== null ? acciones.montoDelMes(g.id, mes, null) : null);
+  const hayPasado = g.mesInicio < mes;
+  const nombre = g.nombre;
+  const comun = { deshacer, sonido: 'pop', icono: '✏️' };
+  const opciones = [];
+  if (hayPasado)
+    opciones.push({
+      ...comun,
+      titulo: t('De {mes} en adelante', { mes: nombreMes(mes) }),
+      detalle: t('Los meses anteriores quedan con {monto}.', { monto: plata(montoBase(g, sumarMeses(mes, -1))) }),
+      sugerida: true,
+      hacer: async () => {
+        const tramos = (g.cambiosMonto ?? []).filter((c) => c.desde < mes);
+        await acciones.guardarGasto(g.id, { ...resto, cambiosMonto: [...tramos, { desde: mes, monto }] });
+        await sacarMontoDelMes();
+      },
+      aviso: t('{nombre}: {monto} desde {mes}', { nombre, monto: plata(monto), mes: nombreMes(mes) }),
+    });
+  opciones.push({
+    ...comun,
+    titulo: t('Solo en {mes}', { mes: nombreMes(mes) }),
+    detalle: t('Los otros meses siguen con su monto.'),
+    hacer: async () => {
+      if (Object.keys(resto).length) await acciones.guardarGasto(g.id, resto);
+      await acciones.montoDelMes(g.id, mes, monto);
+    },
+    aviso: t('{nombre}: {monto} solo en {mes}', { nombre, monto: plata(monto), mes: nombreMes(mes) }),
+  });
+  opciones.push({
+    ...comun,
+    titulo: t('Todos los meses'),
+    detalle: hayPasado
+      ? t('También cambia los meses anteriores, desde {mes}. Para corregir algo mal cargado.', { mes: nombreMes(g.mesInicio) })
+      : t('Cambia en todos sus meses.'),
+    peligro: hayPasado,
+    sugerida: !hayPasado,
+    hacer: async () => {
+      await acciones.guardarGasto(g.id, { ...resto, monto, cambiosMonto: [] });
+      await sacarMontoDelMes();
+    },
+    aviso: t('{nombre}: {monto} en todos los meses', { nombre, monto: plata(monto) }),
+  });
+  return elegirOpcion(
+    t('¿Desde cuándo vale {monto}?', { monto: plata(monto) }),
+    t('{nombre} se repite en varios meses. Lo que ya pasó no tiene por qué cambiar.', { nombre: `${g.emoji || '💸'} ${nombre}` }),
+    opciones,
+  );
 }
 
 /**
@@ -883,14 +981,23 @@ function pedirBorrar(g, mes) {
       (err) => (avisar(err), false),
     );
   }
+  return elegirOpcion(
+    t('¿Qué hacemos con {nombre}?', { nombre: `${g.emoji || '💸'} ${g.nombre}` }),
+    t('Se repite en varios meses. Elegí qué sacar: lo que ya pasó no tiene por qué perderse.'),
+    opcionesBorrar(g, mes),
+  );
+}
+
+/** Hoja con opciones grandes (borrar, editar). Devuelve true si se eligió y salió bien. */
+function elegirOpcion(titulo, ayuda, opciones) {
   const hoja = $('hoja-borrar');
-  $('titulo-borrar').textContent = t('¿Qué hacemos con {nombre}?', { nombre: `${g.emoji || '💸'} ${g.nombre}` });
-  $('ayuda-borrar').textContent = t('Se repite en varios meses. Elegí qué sacar: lo que ya pasó no tiene por qué perderse.');
+  $('titulo-borrar').textContent = titulo;
+  $('ayuda-borrar').textContent = ayuda;
   const lista = $('opciones-borrar');
   lista.replaceChildren();
   return new Promise((listo) => {
     let elegida = false;
-    for (const o of opcionesBorrar(g, mes)) {
+    for (const o of opciones) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = `opcion-borrar${o.sugerida ? ' sugerida' : ''}${o.peligro ? ' peligro' : ''}`;
@@ -1244,7 +1351,14 @@ function tarjetaPropuesta(p) {
         await acciones.pagar(l, true);
         sonar('moneda');
       } else if (p.accion === 'usar_reserva') await acciones.usar(p.gastoId, p.monto, p.nota);
-      else if (p.accion === 'editar_gasto') await acciones.guardarGasto(p.gastoId, p.cambios);
+      else if (p.accion === 'editar_gasto') {
+        // Si cambia el monto de uno que se repite, la misma pregunta que al editar a mano.
+        const g = estado.datos.gastos.find((x) => x.id === p.gastoId);
+        if (!g || !(await pedirEditar(g, mesActual, p.cambios))) {
+          b.disabled = false;
+          return;
+        }
+      }
       else if (p.accion === 'monto_del_mes') await acciones.montoDelMes(p.gastoId, p.mes, p.monto);
       else if (p.accion === 'terminar_gasto') {
         const finAntes = estado.datos.gastos.find((x) => x.id === p.gastoId)?.mesFin ?? null;

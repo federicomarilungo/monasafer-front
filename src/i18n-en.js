@@ -167,6 +167,20 @@ export const EN = {
   'Se repite en varios meses. Elegí qué sacar: lo que ya pasó no tiene por qué perderse.':
     "It repeats over several months. Pick what to remove: what already happened doesn't have to be lost.",
   'salteado este mes': 'skipped this month',
+  // Editar el monto de un gasto que se repite
+  'De {mes} en adelante': 'From {mes} on',
+  'Los meses anteriores quedan con {monto}.': 'Earlier months stay at {monto}.',
+  '{nombre}: {monto} desde {mes}': '{nombre}: {monto} from {mes}',
+  'Los otros meses siguen con su monto.': 'The other months keep their amount.',
+  '{nombre}: {monto} solo en {mes}': '{nombre}: {monto} only in {mes}',
+  'Todos los meses': 'Every month',
+  'También cambia los meses anteriores, desde {mes}. Para corregir algo mal cargado.':
+    'It also changes earlier months, since {mes}. For fixing something entered wrong.',
+  'Cambia en todos sus meses.': 'It changes in every month.',
+  '{nombre}: {monto} en todos los meses': '{nombre}: {monto} in every month',
+  '¿Desde cuándo vale {monto}?': 'From when is it {monto}?',
+  '{nombre} se repite en varios meses. Lo que ya pasó no tiene por qué cambiar.':
+    "{nombre} repeats over several months. What already happened doesn't have to change.",
   '{nombre} en {mes}: {monto}': '{nombre} in {mes}: {monto}',
   '{nombre} hasta {mes} y después no va más': '{nombre} until {mes}, then it stops',
   'Borrar {nombre}': 'Delete {nombre}',

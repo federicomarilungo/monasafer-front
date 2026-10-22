@@ -24,6 +24,18 @@ export function vigente(g, mes) {
   return !g.mesFin || mes <= g.mesFin;
 }
 
+/** Monto de un gasto en un mes: el último cambio que ya rige (cambiosMonto), o el monto con que nació. */
+export function montoBase(g, mes) {
+  let vigenteDesde = '';
+  let monto = g.monto;
+  for (const c of g.cambiosMonto ?? [])
+    if (c.desde <= mes && c.desde > vigenteDesde) {
+      vigenteDesde = c.desde;
+      monto = c.monto;
+    }
+  return monto;
+}
+
 export function restanteReserva(monto, modo, usado, mes, hoy) {
   if (mes !== mesDe(hoy) || modo === 'manual') return Math.max(0, monto - usado);
   const dias = diasDelMes(mes);
@@ -35,7 +47,7 @@ function lineas(datos, mes, hoy) {
     .filter((g) => vigente(g, mes))
     .map((g) => {
       const estado = datos.estados.find((e) => e.gastoId === g.id && e.mes === mes);
-      const monto = estado?.montoDelMes ?? g.monto;
+      const monto = estado?.montoDelMes ?? montoBase(g, mes);
       const pagado = !!estado?.pagado;
       if (g.tipo !== 'reserva') {
         return { gastoId: g.id, nombre: g.nombre, emoji: g.emoji, tipo: g.tipo, mesFin: g.mesFin, monto, pagado, pendiente: pagado ? 0 : monto };
