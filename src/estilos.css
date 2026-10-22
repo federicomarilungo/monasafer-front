@@ -199,6 +199,27 @@ body {
   padding: 10px 16px; border-radius: 14px; font-weight: 800; z-index: 10; max-width: calc(100% - 32px);
 }
 
+/* ---- Borrar un gasto que se repite y Deshacer ---- */
+.opciones-borrar { display: grid; gap: 8px; }
+.opcion-borrar {
+  font: inherit; text-align: left; display: grid; gap: 2px; padding: 12px 14px; border-radius: 16px; cursor: pointer;
+  border: 2px solid var(--borde); background: var(--fondo); color: var(--texto);
+}
+.opcion-borrar b { font-size: 1rem; }
+.opcion-borrar small { color: var(--suave); }
+.opcion-borrar.sugerida { border-color: var(--selva); }
+.opcion-borrar.sugerida b::after { content: ' ✓'; color: var(--selva); }
+.opcion-borrar.peligro b { color: var(--rojo); }
+.opcion-borrar:active { transform: translateY(2px); }
+.deshacer[popover] {
+  inset: auto auto 100px 50%; transform: translateX(-50%); margin: 0; border: 0; overflow: hidden;
+  display: none; align-items: center; gap: 12px; background: var(--texto); color: var(--fondo);
+  padding: 10px 10px 12px 16px; border-radius: 14px; font-weight: 800; max-width: calc(100% - 32px); width: max-content;
+}
+.deshacer[popover]:popover-open { display: flex; }
+.deshacer button { font: inherit; font-weight: 800; border: 0; border-radius: 10px; padding: 6px 12px; background: var(--banana); color: #2b1d10; cursor: pointer; }
+.deshacer i { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--banana); transform-origin: left; }
+
 /* ---- M1-M4 ---- */
 .boton-sonido { border: 0; background: transparent; font-size: 1.3rem; cursor: pointer; padding: 4px; }
 .gasto.pasada .monto { color: var(--rojo); }

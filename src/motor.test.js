@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { historial, proyectar, restanteReserva, sumarMeses } from './motor.js';
+import { historial, montoBase, proyectar, restanteReserva, sumarMeses } from './motor.js';
 
 const USD = (n) => Math.round(n * 100);
 const hoy = new Date(2026, 9, 15);
@@ -47,4 +47,35 @@ test('historial: mismos números que el motor del back', () => {
   };
   const h = historial(datos, '2026-05', '2026-09');
   assert.deepEqual(h.map((m) => m.total), [0, USD(530), USD(530), USD(520 + 210 + 40), USD(500)]);
+});
+
+test('cambios de monto desde un mes: mismos casos que el back', () => {
+  const tarjeta = {
+    id: 't',
+    nombre: 'Tarjeta',
+    monto: USD(300),
+    tipo: 'fijo',
+    mesInicio: '2026-03',
+    cambiosMonto: [
+      { desde: '2027-02', monto: USD(150) },
+      { desde: '2026-12', monto: USD(200) },
+    ],
+  };
+  assert.equal(montoBase(tarjeta, '2026-05'), USD(300));
+  assert.equal(montoBase(tarjeta, '2026-11'), USD(300));
+  assert.equal(montoBase(tarjeta, '2026-12'), USD(200));
+  assert.equal(montoBase(tarjeta, '2027-01'), USD(200));
+  assert.equal(montoBase(tarjeta, '2027-02'), USD(150));
+  const datos = {
+    perfil: { saldo: USD(1000), ingresoMensual: null },
+    gastos: [tarjeta],
+    estados: [{ gastoId: 't', mes: '2027-01', pagado: false, montoDelMes: USD(250) }],
+    usos: [],
+  };
+  const [oct, nov, dic, ene] = proyectar(datos, hoy, '2027-01');
+  assert.equal(oct.totalPendiente, USD(300));
+  assert.equal(nov.totalPendiente, USD(300));
+  assert.equal(dic.totalPendiente, USD(200));
+  assert.equal(ene.totalPendiente, USD(250));
+  assert.equal(ene.balance, USD(1000 - 300 - 300 - 200 - 250));
 });
