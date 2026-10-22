@@ -7,7 +7,7 @@ import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
-import { htmlMetricas } from './metricas.js';
+import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
 import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -406,6 +406,30 @@ $('mono').addEventListener('click', () => {
   );
 });
 
+// El sello de Premium de la cabecera: Mona festeja y tira estrellitas.
+const FRASES_PREMIUM = ['Sos Premium: te cuido la plata el doble 🍌', 'Corona puesta. Hoy mando yo 👑', 'Premium y con bananas de sobra 😎'];
+let fraseCorona = 0;
+$('sello-premium').addEventListener('click', () => {
+  sonar('fanfarria');
+  $('frase').textContent = t(FRASES_PREMIUM[fraseCorona++ % FRASES_PREMIUM.length]);
+  saltoMono();
+  const caja = $('tarjeta-balance').getBoundingClientRect();
+  for (let i = 0; i < 14; i++) {
+    const e = document.createElement('span');
+    e.className = 'estrellita';
+    e.textContent = i % 3 ? '✦' : '🍌';
+    e.style.left = `${caja.left + caja.width * 0.18}px`;
+    e.style.top = `${caja.top + caja.height * 0.3}px`;
+    document.body.append(e);
+    const ang = (Math.PI * 2 * i) / 14;
+    const dist = 60 + Math.random() * 50;
+    e.animate(
+      [{ transform: 'translate(0,0) scale(0.4)', opacity: 1 }, { transform: `translate(${Math.cos(ang) * dist}px, ${Math.sin(ang) * dist}px) scale(1.1)`, opacity: 0 }],
+      { duration: 800 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.3,1)' },
+    ).onfinish = () => e.remove();
+  }
+});
+
 function saltoMono() {
   $('mono').animate(
     [{ transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-18px) rotate(-8deg)' }, { transform: 'translateY(0) rotate(0)' }],
@@ -420,7 +444,10 @@ function pintar(direccion = 0) {
   $('mes-anterior').disabled = estado.mesVisto <= mesActual;
 
   const animo = animoPara(r.balance, d.perfil.ingresoMensual?.monto ?? 0);
-  $('mono').innerHTML = svgMono(animo);
+  const premium = esPremium();
+  $('mono').innerHTML = svgMono(animo, premium);
+  $('sello-premium').hidden = !premium;
+  $('tarjeta-balance').classList.toggle('premium', premium);
   const opciones = frases[animo];
   $('frase').textContent = t(opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length]);
   $('tarjeta-balance').dataset.animo = animo;
@@ -942,7 +969,7 @@ const esPremium = () => estado.modo === 'real' && !!estado.perfil?.premium?.acti
 
 function abrirPremium(motivo) {
   mostrarError('error-premium', null);
-  $('premium-mono').innerHTML = svgMono('rico');
+  $('premium-mono').innerHTML = svgMono('rico', true);
   $('premium-motivo').textContent = motivo || t('Con Premium te cuido la plata el doble 🍌');
   const precio = configPremium.precio;
   $('premium-precio').innerHTML = precio
@@ -1014,24 +1041,46 @@ $('aviso-cerrar').addEventListener('click', () => {
 });
 $('aviso-probar').addEventListener('click', () => abrirChat());
 
-// S2: métricas. Gratis 3 veces, después Premium. En la demo se ven siempre.
+// S2: métricas. Todos ven las normales (3 meses y categorías); las Premium gastan una vista
+// gratis a quien no paga. Sin vistas se avisa y se ven las normales: nunca se cortan.
 $('boton-metricas').addEventListener('click', async () => {
   sonar('toque');
-  let quedan = null;
-  if (estado.modo === 'real') {
-    try {
-      const r = await api('POST', '/premium/usar', { funcion: 'metricas' });
-      if (!r.permitido) return abrirPremium(t('Ya usaste tus vistas gratis de las métricas.'));
-      quedan = r.quedan;
-    } catch (err) {
-      return avisar(err);
+  let premium = estado.modo !== 'real' || esPremium();
+  let encabezado = '';
+  if (estado.modo === 'real' && !premium) {
+    const r = await api('POST', '/premium/usar', { funcion: 'metricas' }).catch(() => ({ permitido: false, error: true }));
+    if (r.permitido) {
+      premium = true;
+      if (estado.perfil?.usosGratis) estado.perfil.usosGratis.metricas = r.quedan;
+      encabezado =
+        r.quedan > 0
+          ? `<p class="quedan-aviso">👑 ${t('Vista Premium de regalo. Te quedan {n}.', { n: r.quedan })}</p>`
+          : avisoMetricas(t('Esta es tu última vista Premium de regalo. La próxima vez vas a ver las métricas básicas.'), 'nervioso');
+    } else if (!r.error) {
+      encabezado = avisoMetricas(t('Se terminaron tus vistas Premium de regalo. Ves las métricas básicas: 3 meses para atrás y para adelante.'), 'nervioso');
     }
+  } else if (estado.modo !== 'real') {
+    encabezado = `<p class="quedan-aviso">👑 ${t('En la demo ves todo lo de Premium.')}</p>`;
   }
-  $('metricas').innerHTML =
-    htmlMetricas(estado.datos, hoy, estado.mesVisto) +
-    (quedan !== null ? `<p class="quedan-aviso">${t('Te quedan {n} vistas gratis.', { n: quedan })}</p>` : '');
+  const pasados =
+    estado.modo === 'real' ? await api('GET', `/historial?meses=${premium ? MESES_PREMIUM : MESES_NORMAL}`).catch(() => []) : null;
   $('hoja-metricas').showModal();
+  montarMetricas($('metricas'), estado.datos, hoy, estado.mesVisto, {
+    premium,
+    pasados,
+    encabezado,
+    alPremium: () => {
+      $('hoja-metricas').close();
+      abrirPremium(t('Con Premium ves 12 meses para atrás y para adelante y cada categoría en el tiempo.'));
+    },
+  });
 });
+
+function avisoMetricas(texto, animo) {
+  return `<div class="aviso-metricas"><div class="mono-chico">${svgMono(animo)}</div>
+    <p>${texto}</p>
+    <button type="button" class="boton principal chico" data-ir-premium>⭐ ${t('Hacete Premium')}</button></div>`;
+}
 
 // ---------- Chat con Mona (S3) y voz (S4) ----------
 
