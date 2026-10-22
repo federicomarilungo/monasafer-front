@@ -1,5 +1,5 @@
 import './estilos.css';
-import { mesDe, resumenDelMes, sumarMeses } from './motor.js';
+import { mesDe, partirBalance, resumenDelMes, sumarMeses } from './motor.js';
 import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
@@ -9,6 +9,7 @@ import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
 import { htmlMetricas } from './metricas.js';
 import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
+import { abrirAhorrar, abrirCajon, cargarCajon, iniciarCajon, sugerenciaCajon } from './cajon.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
@@ -175,6 +176,7 @@ function entrarApp() {
   configurarMoneda(estado.perfil?.moneda ?? 'USD');
   estado.mesVisto = mesActual;
   chat.length = 0;
+  cargarCajon();
   const nuevo = estado.modo === 'real' && estado.datos.gastos.length === 0 && estado.datos.perfil.saldo === 0 && !estado.datos.perfil.ingresoMensual;
   if (nuevo) return empezarOnboarding();
   pintar();
@@ -424,10 +426,17 @@ function pintar(direccion = 0) {
   const opciones = frases[animo];
   $('frase').textContent = t(opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length]);
   $('tarjeta-balance').dataset.animo = animo;
-  animarNumero($('balance'), estado.balanceMostrado, r.balance);
-  estado.balanceMostrado = r.balance;
-
+  // K1: en grande lo que da el mes solo; abajo lo que viene de antes. Mona mira la suma.
   const esActual = estado.mesVisto === mesActual;
+  const partes = partirBalance(d, r, d.ahorros ?? []);
+  animarNumero($('balance'), estado.balanceMostrado, partes.delMes);
+  estado.balanceMostrado = partes.delMes;
+  $('etiqueta-acumulado').textContent = esActual ? t('Acumulado de meses anteriores') : t('Venís con');
+  $('valor-acumulado').textContent = plata(partes.acumulado);
+  $('total-mes').textContent = t('Te sobra a fin de mes: {monto}', { monto: plata(partes.total) });
+  $('ahorrar-mes').hidden = !esActual || partes.delMes <= 0;
+  $('ahorrar-acumulado').hidden = !esActual || partes.acumulado <= 0;
+
   // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).
   const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
   $('resumen').innerHTML = `
@@ -455,6 +464,28 @@ function pintar(direccion = 0) {
     lista.animate([{ opacity: 0, transform: `translateX(${direccion * 40}px)` }, { opacity: 1, transform: 'none' }], { duration: 280, easing: 'ease-out' });
   }
 }
+
+// ---------- Cajón de bananas (K1) ----------
+
+iniciarCajon({
+  estado,
+  mesActual,
+  recargar: cargar,
+  pintar: () => pintar(),
+  partido: () => partirBalance(estado.datos, resumenDelMes(estado.datos, hoy, mesActual), estado.datos.ahorros ?? []),
+  saltoMono: () => saltoMono(),
+  avisar: (err) => avisar(err),
+  alertaSuave: (texto, emoji) => alertaSuave(texto, emoji),
+});
+$('ahorrar-mes').addEventListener('click', () => {
+  sonar('pop');
+  abrirAhorrar('mes');
+});
+$('ahorrar-acumulado').addEventListener('click', () => {
+  sonar('pop');
+  abrirAhorrar('acumulado');
+});
+$('boton-cajon').addEventListener('click', abrirCajon);
 
 $('aviso-cobro').addEventListener('click', () => {
   sonar('fanfarria');
@@ -484,6 +515,8 @@ function pintarSugerencias(esActual) {
   if (!esActual) return;
   const anterior = sumarMeses(mesActual, -1);
   const ya = descartadas();
+  const cajon = sugerenciaCajon(partirBalance(estado.datos, resumenDelMes(estado.datos, hoy, mesActual), estado.datos.ahorros ?? []).acumulado, ya, descartar);
+  if (cajon) caja.append(cajon);
   for (const g of estado.datos.gastos) {
     if (g.tipo !== 'reserva' || !g.recurrente) continue;
     const usado = estado.datos.usos.filter((u) => u.gastoId === g.id && u.mes === anterior).reduce((s, u) => s + u.monto, 0);

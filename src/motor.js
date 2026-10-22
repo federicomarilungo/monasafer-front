@@ -68,3 +68,15 @@ export function resumenDelMes(datos, hoy, mes) {
   const p = proyectar(datos, hoy, mes);
   return p[p.length - 1];
 }
+
+/**
+ * Parte el balance de un mes: lo que da el mes solo (ingreso menos gastos enteros y lo
+ * ahorrado "del mes") y el acumulado que viene de antes. Igual que motor/ahorro.ts del back.
+ */
+export function partirBalance(datos, r, ahorros = []) {
+  const ingreso = datos.perfil.ingresoMensual?.monto ?? 0;
+  const gastos = r.gastos.reduce((s, l) => s + (l.tipo === 'reserva' ? Math.max(l.monto, l.usado ?? 0) : l.monto), 0);
+  const ahorrado = ahorros.filter((a) => a.mes === r.mes && a.origen === 'mes').reduce((s, a) => s + a.monto, 0);
+  const delMes = ingreso - gastos - ahorrado;
+  return { delMes, acumulado: r.balance - delMes, total: r.balance };
+}

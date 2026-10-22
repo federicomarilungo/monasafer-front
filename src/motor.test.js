@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { proyectar, restanteReserva, sumarMeses } from './motor.js';
+import { partirBalance, proyectar, restanteReserva, sumarMeses } from './motor.js';
 
 const USD = (n) => Math.round(n * 100);
 const hoy = new Date(2026, 9, 15);
@@ -29,4 +29,28 @@ test('mismos números que el motor del back', () => {
   assert.equal(oct.balance, USD(750));
   assert.equal(nov.balance, USD(890));
   assert.equal(dic.balance, USD(1090));
+});
+
+// Mismo caso que src/motor/ahorro.spec.ts del back.
+test('balance partido: mismos números que el motor del back', () => {
+  const datos = {
+    perfil: { saldo: USD(1000), ingresoMensual: { monto: USD(800), diaCobro: 5 }, ingresoCobradoMes: '2026-10' },
+    gastos: [
+      { id: 'alq', nombre: 'Alquiler', monto: USD(400), tipo: 'fijo', mesInicio: '2026-01' },
+      { id: 'cena', nombre: 'Cena', monto: USD(40), tipo: 'puntual', mesInicio: '2026-10' },
+      { id: 'tr', nombre: 'Transporte', monto: USD(200), tipo: 'reserva', mesInicio: '2026-10', recurrente: true, modoReserva: 'manual' },
+    ],
+    estados: [{ gastoId: 'alq', mes: '2026-10', pagado: true }],
+    usos: [{ gastoId: 'tr', mes: '2026-10', monto: USD(50) }],
+  };
+  const [oct, nov] = proyectar(datos, hoy, '2026-11');
+  assert.deepEqual(partirBalance(datos, oct), { delMes: USD(160), acumulado: USD(650), total: USD(810) });
+  assert.deepEqual(partirBalance(datos, nov), { delMes: USD(200), acumulado: oct.balance, total: oct.balance + USD(200) });
+  const ahorrado = { ...datos, perfil: { ...datos.perfil, saldo: USD(1000 - 160 - 300) } };
+  const [octAhorrado] = proyectar(ahorrado, hoy, '2026-10');
+  const ahorros = [
+    { mes: '2026-10', monto: USD(160), origen: 'mes' },
+    { mes: '2026-10', monto: USD(300), origen: 'acumulado' },
+  ];
+  assert.deepEqual(partirBalance(ahorrado, octAhorrado, ahorros), { delMes: 0, acumulado: USD(350), total: USD(350) });
 });
