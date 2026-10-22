@@ -201,6 +201,8 @@ body {
 
 /* ---- M1-M4 ---- */
 .boton-sonido { border: 0; background: transparent; font-size: 1.3rem; cursor: pointer; padding: 4px; }
+.boton-prueba-premium { transition: filter .2s, opacity .2s; }
+.boton-prueba-premium.apagado { filter: grayscale(1); opacity: .45; }
 .gasto.pasada .monto { color: var(--rojo); }
 .gasto.pasada .frasco { background: color-mix(in srgb, var(--rojo) 25%, var(--borde)); }
 .monto-volador {

@@ -423,6 +423,7 @@ function pintar(direccion = 0) {
   $('mono').innerHTML = svgMono(animo);
   const opciones = frases[animo];
   $('frase').textContent = t(opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length]);
+  pintarBotonPruebaPremium();
   $('tarjeta-balance').dataset.animo = animo;
   animarNumero($('balance'), estado.balanceMostrado, r.balance);
   estado.balanceMostrado = r.balance;
@@ -742,6 +743,37 @@ $('boton-sonido').addEventListener('click', () => {
   pintarBotonSonido();
 });
 pintarBotonSonido();
+
+// Solo en las cuentas admin (el back manda perfil.admin y valida): prende y apaga premium para probarlo.
+function pintarBotonPruebaPremium() {
+  const b = $('boton-prueba-premium');
+  b.hidden = estado.modo !== 'real' || !estado.perfil?.admin;
+  b.classList.toggle('apagado', !esPremium());
+  b.setAttribute('aria-pressed', String(esPremium()));
+  b.setAttribute('aria-label', esPremium() ? t('Apagar Premium de prueba') : t('Prender Premium de prueba'));
+}
+$('boton-prueba-premium').addEventListener('click', async () => {
+  const b = $('boton-prueba-premium');
+  b.disabled = true;
+  try {
+    const r = await api('POST', '/premium/prueba', { activo: !esPremium() });
+    estado.perfil.premium = r.premium;
+    estado.perfil.usosGratis = r.usosGratis;
+    pintar();
+    b.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.5) rotate(-15deg)' }, { transform: 'scale(1)' }], { duration: 400, easing: 'ease-out' });
+    if (r.premium.activo) {
+      sonar('fanfarria');
+      saltoMono();
+      alertaSuave(t('Premium de prueba prendido. ¡A probar todo!'), '👑');
+    } else {
+      sonar('toque');
+      alertaSuave(t('Premium apagado. Volvés a tener los usos de regalo.'), '🍌');
+    }
+  } catch (err) {
+    avisar(err);
+  }
+  b.disabled = false;
+});
 
 $('form-gasto').addEventListener('submit', async (e) => {
   e.preventDefault();
