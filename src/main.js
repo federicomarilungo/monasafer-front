@@ -474,11 +474,10 @@ function pintar(direccion = 0) {
   const partes = partirBalance(d, r, d.ahorros ?? []);
   animarNumero($('balance'), estado.balanceMostrado, partes.delMes);
   estado.balanceMostrado = partes.delMes;
-  $('etiqueta-acumulado').textContent = esActual ? t('Acumulado de meses anteriores') : t('Venís con');
-  $('valor-acumulado').textContent = plata(partes.acumulado);
-  $('total-mes').textContent = t('Te sobra a fin de mes: {monto}', { monto: plata(partes.total) });
-  $('ahorrar-mes').hidden = !esActual || partes.delMes <= 0;
-  $('ahorrar-acumulado').hidden = !esActual || partes.acumulado <= 0;
+  $('linea-acumulado').textContent = partes.acumulado
+    ? t(esActual ? '+ {monto} de meses anteriores' : '+ {monto} que traés de antes', { monto: plata(partes.acumulado) })
+    : '';
+  $('ahorrar-mes').hidden = !esActual || (partes.delMes <= 0 && partes.acumulado <= 0);
 
   // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).
   const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
@@ -523,11 +522,7 @@ iniciarCajon({
 });
 $('ahorrar-mes').addEventListener('click', () => {
   sonar('pop');
-  abrirAhorrar('mes');
-});
-$('ahorrar-acumulado').addEventListener('click', () => {
-  sonar('pop');
-  abrirAhorrar('acumulado');
+  abrirAhorrar(partirBalance(estado.datos, resumenDelMes(estado.datos, hoy, mesActual), estado.datos.ahorros ?? []).delMes > 0 ? 'mes' : 'acumulado');
 });
 $('boton-cajon').addEventListener('click', abrirCajon);
 

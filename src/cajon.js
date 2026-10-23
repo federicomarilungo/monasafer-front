@@ -8,11 +8,39 @@ import { sonar } from './sonidos.js';
 
 let ctx = null;
 let cajon = { bolsillos: [], movimientos: [] };
+/** Cotizaciones del día del back: unidades de cada código por 1 USD (null si no hay). */
+let cotizaciones = null;
+const MONEDAS_BASE = ['USD', 'ARS', 'EUR', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN'];
+const GRAMOS_POR_ONZA = 31.1035;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const monedaCuenta = () => ctx.estado.perfil?.moneda ?? 'USD';
 const nombreDe = (b) => (b.generico ? t('Sin asignar') : b.nombre);
 const enMoneda = (b) => b.unidad === monedaCuenta() && b.decimales === 2;
+const monedaBase = () => ctx.estado.perfil?.monedaCajon ?? monedaCuenta();
+
+function porUsd(unidad) {
+  const p = cotizaciones?.porUsd;
+  if (!p) return null;
+  const u = unidad.toUpperCase();
+  // Un bolsillo en gramos se valúa como oro (la cotización es por onza troy).
+  if (u === 'G') return p.XAU ? p.XAU * GRAMOS_POR_ONZA : null;
+  if (u === 'OZ') return p.XAU ?? null;
+  return p[u] ?? null;
+}
+
+/** Cuánto vale una cantidad del bolsillo en la moneda base, en centavos (null: sin cotización). */
+function enBase(cantidad, b) {
+  const base = monedaBase();
+  const n = cantidad / 10 ** b.decimales;
+  if (b.unidad === base) return Math.round(n * 100);
+  const de = porUsd(b.unidad);
+  const a = porUsd(base);
+  return de && a ? Math.round((n / de) * a * 100) : null;
+}
+
+const plataBase = (c) =>
+  new Intl.NumberFormat(locale(), { style: 'currency', currency: monedaBase(), maximumFractionDigits: 0 }).format(c / 100);
 
 // Lo que se ofrece en "¿Dónde lo guardás?". Acciones y plazo fijo se anotan en la moneda
 // de la cuenta (lo que valen), el resto en su unidad.
@@ -51,6 +79,12 @@ export function cantidadTexto(c, b) {
 // ---------- Datos ----------
 
 const llamar = (metodo, ruta, cuerpo) => (ctx.estado.modo === 'real' ? api : demoApi)(metodo, ruta, cuerpo);
+
+async function cargarCotizaciones() {
+  if (cotizaciones && Date.now() - Date.parse(cotizaciones.fecha) < 60 * 60 * 1000) return;
+  // Públicas: la demo también las usa.
+  cotizaciones = await api('GET', '/cajon/cotizaciones').catch(() => cotizaciones);
+}
 
 export async function cargarCajon() {
   try {
@@ -219,16 +253,29 @@ async function enviar(boton, accion) {
 
 /** origen: 'mes' (lo que sobra este mes) o 'acumulado' (lo que viene de antes). */
 export function abrirAhorrar(origen) {
+  flujo = {};
+  elegirOrigen(origen);
+  pasoMonto();
+}
+
+function elegirOrigen(origen) {
   const p = ctx.partido();
   const disponible = Math.max(0, origen === 'mes' ? p.delMes : p.acumulado);
-  flujo = { origen, disponible, monto: disponible };
-  pasoMonto();
+  Object.assign(flujo, { origen, disponible, monto: disponible, ambos: p.delMes > 0 && p.acumulado > 0, partes: p });
 }
 
 function pasoMonto() {
   const saldo = ctx.estado.datos.perfil.saldo;
   paso(
     `<h3>${t('🍌 ¿Cuánto guardás?')}</h3>
+     ${
+       flujo.ambos
+         ? `<div class="segmentos dos" role="radiogroup">
+         <button type="button" class="segmento${flujo.origen === 'mes' ? ' activo' : ''}" data-origen="mes">${t('Del mes')}<small>${plata(flujo.partes.delMes)}</small></button>
+         <button type="button" class="segmento${flujo.origen === 'acumulado' ? ' activo' : ''}" data-origen="acumulado">${t('De meses anteriores')}<small>${plata(flujo.partes.acumulado)}</small></button>
+       </div>`
+         : ''
+     }
      <p class="ayuda">${flujo.origen === 'mes' ? t('Este mes te sobran {monto}.', { monto: plata(flujo.disponible) }) : t('De meses anteriores tenés {monto}.', { monto: plata(flujo.disponible) })}</p>
      <label class="campo monto-campo"><span>${t('Plata que sacás de tu cuenta')}</span><input name="monto" inputmode="decimal" autocomplete="off" /></label>
      <div class="chips"><button type="button" class="chip" data-parte="1">${t('Todo')}</button><button type="button" class="chip" data-parte="0.5">${t('La mitad')}</button></div>
@@ -245,7 +292,14 @@ function pasoMonto() {
           queda < 0
             ? t('Es {pasa} más de lo que te sobra: tu balance queda en {queda}. Si igual lo tenés, dale.', { pasa: plata(-queda), queda: plata(queda) })
             : t('Tu balance queda en {queda}.', { queda: plata(queda) });
-        f.querySelectorAll('[data-parte]').forEach((c) => c.classList.toggle('activo', Math.round(flujo.disponible * Number(c.dataset.parte)) === m));
+        f.querySelectorAll('[data-origen]').forEach((c) =>
+        c.addEventListener('click', () => {
+          sonar('toque');
+          elegirOrigen(c.dataset.origen);
+          pasoMonto();
+        }),
+      );
+      f.querySelectorAll('[data-parte]').forEach((c) => c.classList.toggle('activo', Math.round(flujo.disponible * Number(c.dataset.parte)) === m));
       };
       const ponerMonto = (m) => {
         f.monto.value = paraInput(m);
@@ -453,7 +507,7 @@ export function abrirCajon() {
   sonar('pop');
   pintarCajon();
   document.getElementById('hoja-cajon').showModal();
-  cargarCajon().then(() => document.getElementById('hoja-cajon').open && pintarCajon());
+  Promise.all([cargarCajon(), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
 }
 
 const TIPOS = {
@@ -471,13 +525,14 @@ function pintarCajon() {
   const fecha = (m) => (m.fecha ? new Date(m.fecha).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) : '');
   f.innerHTML = `
     <h3>${t('🍌 Cajón de bananas')}</h3>
+    ${htmlTotal(visibles)}
     <p class="ayuda">${t('Lo que guardaste y en qué. Tocá un bolsillo para editarlo: si lo cambiás, te pregunto en qué se usó.')}</p>
     <ul class="bolsillos">${visibles
       .map(
         (b) => `<li><button type="button" class="bolsillo${b.generico ? ' generico' : ''}" data-b="${b.id}">
           <span class="bolsillo-emoji">${esc(b.emoji)}</span>
           <span class="bolsillo-info"><b>${esc(nombreDe(b))}</b>${b.generico ? `<small>${t('Tocá para repartirlo')}</small>` : ''}</span>
-          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}</span></button></li>`,
+          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`,
       )
       .join('')}</ul>
     ${visibles.length ? '' : `<p class="vacio">${t('Todavía no guardaste nada. Cuando te sobre, tocá Ahorrar y Mona lo trae acá.')}</p>`}
@@ -504,6 +559,7 @@ function pintarCajon() {
       <button type="button" class="boton" data-cerrar-cajon>${t('Cerrar')}</button>
       ${ctx.estado.mesVisto === ctx.mesActual ? `<button type="button" class="boton principal" data-ahorrar>${t('Ahorrar 🍌')}</button>` : ''}
     </div>`;
+  f.querySelector('#cajon-base')?.addEventListener('change', (e) => cambiarBase(e.target.value));
   f.querySelector('[data-cerrar-cajon]').addEventListener('click', () => document.getElementById('hoja-cajon').close());
   f.querySelector('[data-ahorrar]')?.addEventListener('click', () => {
     const p = ctx.partido();
@@ -523,6 +579,35 @@ function pintarCajon() {
   );
   f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => abrirBolsillo(porId.get(el.dataset.b))));
   f.querySelectorAll('[data-m]').forEach((el) => el.addEventListener('click', () => abrirMovimiento(cajon.movimientos.find((m) => m.id === el.dataset.m))));
+}
+
+function htmlTotal(visibles) {
+  if (!visibles.length) return '';
+  const valores = visibles.map((b) => enBase(b.cantidad, b));
+  const total = valores.reduce((s, v) => s + (v ?? 0), 0);
+  const sinCotizar = valores.filter((v) => v === null).length;
+  const hora = cotizaciones ? new Date(cotizaciones.fecha).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }) : '';
+  return `<div class="cajon-total">
+      <small>${t('Tu cajón vale')}</small>
+      <b>≈ ${plataBase(total)}</b>
+      <small>${
+        cotizaciones ? t('Con la cotización de hoy ({hora})', { hora }) : t('Sin cotizaciones ahora: cuento solo lo que está en {moneda}', { moneda: monedaBase() })
+      }${sinCotizar ? ` · ${t('{n} sin cotización', { n: sinCotizar })}` : ''}</small>
+      <label class="cajon-base">${t('Ver en')} <select id="cajon-base">${MONEDAS_BASE.map((m) => `<option${m === monedaBase() ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+    </div>`;
+}
+
+function equivalente(b) {
+  if (b.unidad === monedaBase() || !b.cantidad) return '';
+  const v = enBase(b.cantidad, b);
+  return v === null ? '' : `<small>≈ ${esc(plataBase(v))}</small>`;
+}
+
+async function cambiarBase(moneda) {
+  sonar('toque');
+  ctx.estado.perfil = { ...(ctx.estado.perfil ?? {}), monedaCajon: moneda };
+  pintarCajon();
+  if (ctx.estado.modo === 'real') await api('PATCH', '/perfil', { monedaCajon: moneda }).catch(ctx.avisar);
 }
 
 // ---------- Un bolsillo: editar el total, volver a la cuenta, pasar a otro ----------

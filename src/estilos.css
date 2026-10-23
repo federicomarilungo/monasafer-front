@@ -469,3 +469,19 @@ body {
 .banana-voladora { position: fixed; left: 0; top: 0; z-index: 20; font-size: 1.6rem; pointer-events: none; }
 .cajon-tostada { display: flex; align-items: center; gap: 12px; }
 .cajon-tostada button { font: inherit; font-weight: 800; border: 0; background: var(--banana); color: #2b1d10; border-radius: 99px; padding: 4px 12px; cursor: pointer; }
+.linea-acumulado { font-weight: 800; font-size: 0.9rem; opacity: 0.9; }
+.cajon-total { display: grid; justify-items: center; gap: 2px; text-align: center; background: color-mix(in srgb, var(--banana) 22%, var(--tarjeta)); border: 2px dashed #e0b520; border-radius: 18px; padding: 12px; }
+.cajon-total b { font-family: 'Baloo 2', sans-serif; font-size: 2rem; line-height: 1.1; }
+.cajon-total small { color: var(--suave); font-weight: 700; }
+.cajon-base { font-weight: 800; font-size: 0.85rem; color: var(--suave); }
+.cajon-base select { font: inherit; color: var(--texto); background: var(--fondo); border: 2px solid var(--borde); border-radius: 10px; padding: 2px 6px; }
+.bolsillo-cantidad { display: grid; justify-items: end; }
+.bolsillo-cantidad small { font-family: 'Nunito', sans-serif; font-size: 0.8rem; color: var(--suave); font-weight: 700; }
+.segmentos.dos { grid-template-columns: 1fr 1fr; }
+.segmento small { display: block; font-weight: 700; opacity: 0.8; }
+/* La cabecera tiene varios íconos: en pantallas chicas se achica para que entre todo. */
+@media (max-width: 420px) {
+  .cabecera { gap: 4px; }
+  .cabecera .marca { font-size: 1.5rem; }
+  .boton-sonido { font-size: 1.15rem; padding: 2px; }
+}

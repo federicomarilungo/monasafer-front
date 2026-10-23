@@ -457,4 +457,13 @@ export const EN = {
   'Venís con': 'You start with',
   'Te sobra a fin de mes: {monto}': 'Left at the end of the month: {monto}',
   'Cajón de bananas': 'Banana drawer',
+  '+ {monto} de meses anteriores': '+ {monto} from previous months',
+  '+ {monto} que traés de antes': '+ {monto} carried over',
+  'Tu cajón vale': 'Your drawer is worth',
+  'Con la cotización de hoy ({hora})': "At today's rates ({hora})",
+  'Sin cotizaciones ahora: cuento solo lo que está en {moneda}': "No rates right now: I'm only counting what's in {moneda}",
+  '{n} sin cotización': '{n} without a rate',
+  'Ver en': 'Show in',
+  'Del mes': 'This month',
+  'De meses anteriores': 'Previous months',
 };
