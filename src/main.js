@@ -354,6 +354,8 @@ function filaGasto(l) {
   if (pasada) li.classList.add('pasada');
   const frasco = l.tipo === 'reserva' ? `<div class="frasco"><span style="width:${l.monto ? (Math.max(0, quedaReal) / l.monto) * 100 : 0}%"></span></div>` : '';
   const puedePagar = l.tipo !== 'reserva';
+  // Fede (23/10): a la reserva de "cargo cada uso" se le carga un uso desde la fila, sin abrirla.
+  const puedeCargar = l.tipo === 'reserva' && g?.modoReserva === 'manual' && estado.mesVisto === mesActual;
   li.innerHTML = `
     <span class="emoji">${g?.emoji || '💸'}</span>
     <div class="info">
@@ -365,7 +367,8 @@ function filaGasto(l) {
       <p class="monto">${l.tipo === 'reserva' ? (pasada ? `−${plata(-quedaReal)}` : plata(quedaReal)) : plata(l.monto)}</p>
       ${l.tipo === 'reserva' ? `<p class="de">${pasada ? t('te pasaste de') : t('de')} ${plata(l.monto)}</p>` : ''}
     </div>
-    ${puedePagar ? `<button class="check" aria-label="${l.pagado ? t('Desmarcar pagado') : t('Marcar pagado')}">${l.pagado ? '✓' : ''}</button>` : ''}`;
+    ${puedePagar ? `<button class="check" aria-label="${l.pagado ? t('Desmarcar pagado') : t('Marcar pagado')}">${l.pagado ? '✓' : ''}</button>` : ''}
+    ${puedeCargar ? `<button class="cargar" aria-label="${t('Cargar un uso')}">+</button>` : ''}`;
   li.querySelector('.nombre').textContent = l.nombre;
   li.dataset.fila = estado.filas.length;
   estado.filas.push(l);
@@ -379,6 +382,11 @@ $('gastos').addEventListener('click', async (e) => {
   const l = li && estado.filas[li.dataset.fila];
   if (!l) return;
   const g = estado.datos.gastos.find((x) => x.id === l.gastoId);
+  if (e.target.closest('.cargar')) {
+    sonar('pop');
+    abrirReserva(l, g, true);
+    return;
+  }
   if (!e.target.closest('.check')) {
     sonar('toque');
     if (l.tipo === 'reserva') abrirReserva(l, g);
@@ -1122,7 +1130,7 @@ function elegirOpcion(titulo, ayuda, opciones) {
 // Reserva
 let reservaAbierta = null;
 
-async function abrirReserva(l, g) {
+async function abrirReserva(l, g, aCargar = false) {
   reservaAbierta = { l, g };
   const f = $('form-uso');
   f.reset();
@@ -1135,12 +1143,13 @@ async function abrirReserva(l, g) {
   $('texto-reserva').textContent = esActual
     ? queda < 0
       ? t('Te pasaste por {pasado} (usaste {usado} de {monto}). Ya salió de tu saldo, así que el balance está bien; capaz conviene subir la reserva.', { pasado: plata(-queda), usado: plata(l.usado), monto: plata(l.monto) })
-      : `${t('Quedan {queda} de {monto}.', { queda: plata(queda), monto: plata(l.monto) })} ${manual ? t('Cargá cada uso y Mona lo resta.') : t('Baja sola con los días del mes; si gastaste distinto, ajustá tu saldo.')}`
-    : t('En {mes} vas a tener {monto} reservados.', { mes: nombreMes(estado.mesVisto), monto: plata(l.monto) });
+      : `${t('Quedan {queda} de {monto}.', { queda: plata(queda), monto: plata(l.monto) })} ${manual ? t('Cargá cada uso y Mona lo resta.') : t('Baja sola con los días del mes; si querés cargar cada uso, tocá Editar y elegí "Cargo cada uso".')}`
+    : `${t('En {mes} vas a tener {monto} reservados.', { mes: nombreMes(estado.mesVisto), monto: plata(l.monto) })}${manual ? ' ' + t('Los usos se cargan en el mes de hoy.') : ''}`;
   $('carga-uso').hidden = !(manual && esActual);
   $('boton-usar').hidden = !(manual && esActual);
   $('lista-usos').replaceChildren();
   $('hoja-reserva').showModal();
+  if (aCargar) f.monto.focus();
   if (manual && esActual) {
     const usos = estado.modo === 'real' ? await api('GET', `/gastos/${l.gastoId}/usos?mes=${mesActual}`).catch(() => []) : estado.datos.usos.filter((u) => u.gastoId === l.gastoId && u.mes === mesActual);
     $('lista-usos').replaceChildren(

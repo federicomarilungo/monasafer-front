@@ -110,8 +110,10 @@ export const EN = {
     "You went over by {pasado} (spent {usado} of {monto}). It's already out of your balance, so the total is right; maybe raise the budget.",
   'Quedan {queda} de {monto}.': '{queda} left of {monto}.',
   'Cargá cada uso y Mona lo resta.': 'Log each use and Mona subtracts it.',
-  'Baja sola con los días del mes; si gastaste distinto, ajustá tu saldo.':
-    'It goes down by itself through the month; if you spent differently, adjust your balance.',
+  'Cargar un uso': 'Log a use',
+  'Los usos se cargan en el mes de hoy.': 'Uses are logged in the current month.',
+  'Baja sola con los días del mes; si querés cargar cada uso, tocá Editar y elegí "Cargo cada uso".':
+    'It goes down by itself as the month passes; to log each use, tap Edit and choose "I log each use".',
   'En {mes} vas a tener {monto} reservados.': 'In {mes} you will have {monto} set aside.',
 
   // Plata
