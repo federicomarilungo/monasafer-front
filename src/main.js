@@ -11,6 +11,7 @@ import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
 import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
 import { cambiarTema, TEMAS, temaActual } from './tema.js';
 import { abrirAhorrar, abrirCajon, cargarCajon, iniciarCajon, resumenCajon, sugerenciaCajon } from './cajon.js';
+import { abrirComentarios, iniciarComentarios } from './comentarios.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
@@ -147,6 +148,13 @@ $('boton-cuenta').addEventListener('click', () => {
   $('hoja-cuenta').showModal();
 });
 
+iniciarComentarios();
+$('boton-mejora').addEventListener('click', () => abrirComentarios('inicio'));
+$('cuenta-mejora').addEventListener('click', () => {
+  $('hoja-cuenta').close();
+  abrirComentarios('cuenta');
+});
+
 $('boton-borrar-cuenta').addEventListener('click', async () => {
   mostrarError('error-cuenta', null);
   try {
@@ -173,6 +181,7 @@ function entrarApp() {
   $('demo').hidden = estado.modo !== 'demo';
   $('boton-salir').textContent = estado.modo === 'demo' ? t('Entrar') : t('Salir');
   $('boton-cuenta').hidden = estado.modo !== 'real';
+  $('boton-mejora').hidden = estado.modo !== 'real';
   cargarConfigPremium();
   configurarMoneda(estado.perfil?.moneda ?? 'USD');
   estado.mesVisto = mesActual;

@@ -104,6 +104,7 @@
           <button type="button" class="boton chico" id="aviso-hablar" hidden data-t>Hablar</button>
           <button type="button" class="cerrar-aviso" id="aviso-cerrar" aria-label="Cerrar aviso" data-t-aria>×</button>
         </aside>
+          <button class="boton enlace chico boton-mejora" id="boton-mejora" type="button" hidden data-t>💡 ¿Qué le mejorarías a Monasafer? Contanos</button>
       </div>
 
       <button class="boton-flotante boton-chat" id="boton-chat" aria-label="Hablar con Mona" data-t-aria>💬</button>
@@ -252,6 +253,7 @@
         <label class="campo"><span data-t>Moneda</span><select name="moneda" id="elegir-moneda"></select></label>
         <label class="campo"><span data-t>Idioma</span><select name="idioma" id="elegir-idioma"></select></label>
         <label class="campo"><span data-t>Tema</span><select name="tema" id="elegir-tema"></select></label>
+        <button type="button" class="boton" id="cuenta-mejora" data-t>💡 Proponer una mejora</button>
         <p class="legal"><a href="/terminos.html" data-t>Términos</a> · <a href="/privacidad.html" data-t>Privacidad</a> · <a href="mailto:hola@monasafer.com">hola@monasafer.com</a></p>
         <details class="borrar">
           <summary data-t>Borrar mi cuenta</summary>
@@ -263,6 +265,34 @@
         <div class="acciones">
           <button type="button" class="boton" data-cerrar data-t>Cerrar</button>
         </div>
+      </form>
+    </dialog>
+
+    <!-- Comentarios de mejora -->
+    <dialog class="hoja" id="hoja-comentario">
+      <form method="dialog" id="form-comentario">
+      <div class="premium-hero">
+        <div class="comentario-mono" id="comentario-mono" aria-hidden="true"></div>
+        <p class="premium-globo" id="comentario-globo"></p>
+      </div>
+      <div class="comentario-campos" id="comentario-campos">
+        <h3 data-t>Ayudanos a mejorar Monasafer</h3>
+        <div class="chips" id="tipos-comentario" role="radiogroup">
+          <button type="button" class="chip activo" data-tipo="idea" data-t>💡 Una idea</button>
+          <button type="button" class="chip" data-tipo="error" data-t>🐛 Algo no anda</button>
+          <button type="button" class="chip" data-tipo="otro" data-t>💬 Otra cosa</button>
+        </div>
+        <label class="campo"><span data-t>Tu comentario</span><textarea name="texto" rows="5" maxlength="2000" required placeholder="Estaría bueno que…" data-t-ph></textarea></label>
+        <p class="ayuda" data-t>Lo lee la persona que hace Monasafer. Si hace falta, te responde a tu email.</p>
+        <p class="error" id="error-comentario" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" id="boton-mandar-comentario" data-t>Mandar 🍌</button>
+        </div>
+      </div>
+      <div class="acciones" id="ok-comentario" hidden>
+        <button type="button" class="boton principal" data-cerrar data-t>Cerrar</button>
+      </div>
       </form>
     </dialog>
 

@@ -137,11 +137,12 @@ body {
 
 /* ---- Formularios ---- */
 .campo { display: grid; gap: 4px; font-size: 0.85rem; font-weight: 800; color: var(--suave); }
-.campo input {
+.campo input, .campo textarea {
   font: inherit; font-size: 1rem; font-weight: 600; color: var(--texto); background: var(--fondo);
   border: 2px solid var(--borde); border-radius: 14px; padding: 12px 14px; width: 100%;
 }
-.campo input:focus { outline: none; border-color: var(--selva); }
+.campo textarea { resize: vertical; min-height: 110px; font-family: inherit; }
+.campo input:focus, .campo textarea:focus { outline: none; border-color: var(--selva); }
 .monto-campo input, .nombre-campo input { font-family: 'Baloo 2', sans-serif; font-size: 2rem; font-weight: 800; padding: 6px 14px; }
 .error { color: var(--rojo); font-weight: 800; font-size: 0.9rem; }
 .ok { color: var(--selva); font-weight: 800; font-size: 0.9rem; }
@@ -729,3 +730,9 @@ html, body { overflow-x: clip; }
   .fichas b { font-size: 1.3rem; }
   .top-gastos li { font-size: 1rem; }
 }
+
+/* ---- Comentarios de mejora ---- */
+.comentario-mono { width: 96px; animation: latido 2.4s ease-in-out infinite; }
+.comentario-campos { display: grid; gap: 12px; }
+.comentario-campos[hidden] { display: none; }
+.boton-mejora { display: block; margin: 8px auto 96px; }
