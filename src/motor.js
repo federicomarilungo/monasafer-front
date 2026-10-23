@@ -114,6 +114,7 @@ export function partirBalance(datos, r, ahorros = []) {
   const ingreso = datos.perfil.ingresoMensual?.monto ?? 0;
   const gastos = r.gastos.reduce((s, l) => s + (l.tipo === 'reserva' ? Math.max(l.monto, l.usado ?? 0) : l.monto), 0);
   const ahorrado = ahorros.filter((a) => a.mes === r.mes && a.origen === 'mes').reduce((s, a) => s + a.monto, 0);
-  const delMes = ingreso - gastos - ahorrado;
-  return { delMes, acumulado: r.balance - delMes, total: r.balance };
+  // Nunca negativo: si el mes da más de lo que tenés (gastos sin cargar), todo cuenta del mes.
+  const acumulado = Math.max(0, r.balance - (ingreso - gastos - ahorrado));
+  return { delMes: r.balance - acumulado, acumulado, total: r.balance };
 }

@@ -109,3 +109,9 @@ test('balance partido: mismos números que el motor del back', () => {
   ];
   assert.deepEqual(partirBalance(ahorrado, octAhorrado, ahorros), { delMes: 0, acumulado: USD(350), total: USD(350) });
 });
+
+test('balance partido: con gastos sin cargar el acumulado queda en 0 (igual que el back)', () => {
+  const datos = { perfil: { saldo: USD(495030), ingresoMensual: { monto: USD(5550000), diaCobro: 1 }, ingresoCobradoMes: '2026-10' }, gastos: [], estados: [], usos: [] };
+  const [oct] = proyectar(datos, hoy, '2026-10');
+  assert.deepEqual(partirBalance(datos, oct), { delMes: USD(495030), acumulado: 0, total: USD(495030) });
+});
