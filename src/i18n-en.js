@@ -476,4 +476,15 @@ export const EN = {
   'Vacío: uso la cotización del mercado si hay.': "Empty: I'll use the market rate if there is one.",
   'Con esto el cajón puede sumarlo al total.': 'With this the drawer can add it to the total.',
   'Poné un valor válido': 'Enter a valid value',
+  'Editar bolsillo': 'Edit pocket',
+  '✏️ Nombre, moneda y valor': '✏️ Name, currency and value',
+  '¿Es plata de otro que tenés guardada? Ponela en negativo (-200) y resta del total.':
+    "Holding someone else's money? Enter it as negative (-200) and it comes off the total.",
+  'Lo guardado no cambia: si pasás de una moneda a otra, corregí el total después.':
+    "What you saved doesn't change: if you switch currencies, fix the total afterwards.",
+  'Vacío: uso la cotización del mercado.': "Empty: I'll use the market rate.",
+  '↕️ Ordenar': '↕️ Reorder',
+  '✓ Listo': '✓ Done',
+  Subir: 'Move up',
+  Bajar: 'Move down',
 };

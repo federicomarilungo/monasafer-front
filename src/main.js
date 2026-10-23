@@ -1621,3 +1621,20 @@ pintarIdioma();
   }
   mostrarEntrada();
 })();
+
+// Un monto en 0 se limpia al tocarlo (escribir 100 no deja "0100"). Si te vas sin
+// escribir nada, vuelve el 0.
+const MONTO = 'input[inputmode=decimal], input[inputmode=numeric], input[data-monto]';
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el.matches?.(MONTO) || !/^\s*0+([.,]0*)?\s*$/.test(el.value)) return;
+  el.dataset.cero = el.value;
+  el.value = '';
+});
+document.addEventListener('focusout', (e) => {
+  const el = e.target;
+  if (el.dataset?.cero === undefined) return;
+  if (!el.value.trim()) el.value = el.dataset.cero;
+  delete el.dataset.cero;
+});
+

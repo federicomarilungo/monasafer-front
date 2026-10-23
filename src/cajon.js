@@ -54,25 +54,31 @@ const plataBase = (c) =>
 // de la cuenta (lo que valen), el resto en su unidad.
 const PRESETS = [
   { nombre: 'Dólar', emoji: '💵', unidad: 'USD', decimales: 2 },
-  { nombre: 'Bitcoin', emoji: '₿', unidad: 'BTC', decimales: 8 },
-  { nombre: 'Oro', emoji: '🪙', unidad: 'g', decimales: 2 },
   { nombre: 'Euro', emoji: '💶', unidad: 'EUR', decimales: 2 },
+  { nombre: 'Oro', emoji: '🪙', unidad: 'g', decimales: 2 },
+  { nombre: 'Bitcoin', emoji: '₿', unidad: 'BTC', decimales: 8 },
+  { nombre: 'Ethereum', emoji: '💠', unidad: 'ETH', decimales: 8 },
+  { nombre: 'Solana', emoji: '🟣', unidad: 'SOL', decimales: 8 },
+  { nombre: 'USDT', emoji: '💲', unidad: 'USDT', decimales: 2 },
+  { nombre: 'USDC', emoji: '🔵', unidad: 'USDC', decimales: 2 },
   { nombre: 'Acciones', emoji: '📈', unidad: null, decimales: 2 },
   { nombre: 'Plazo fijo', emoji: '🏦', unidad: null, decimales: 2 },
 ];
-const EMOJIS = ['🐷', '💵', '💶', '₿', '🪙', '📈', '🏦', '✈️', '🏠', '🚗', '🎓', '💍', '🎁', '🆘', '💎', '🍌'];
+const EMOJIS = ['🐷', '💵', '💶', '₿', '💠', '💲', '🪙', '📈', '🏦', '✈️', '🏠', '🚗', '🎓', '💍', '🎁', '🆘', '💎', '🍌'];
 const CRIPTO = /^(BTC|ETH|SOL|XRP|ADA|DOGE|LTC|DOT|AVAX|BNB)$/i;
 
 /** 230 USD → 23000 si la unidad tiene 2 decimales. Mismas reglas que `centavos`. */
-export function leerCantidad(texto, decimales) {
-  let s = String(texto).trim().replace(/\s|\$/g, '');
+export function leerCantidad(texto, decimales, negativo = false) {
+  let s = String(texto).trim().replace(/\s|\$/g, '').replace('−', '-');
+  const menos = negativo && s.startsWith('-');
+  if (menos) s = s.slice(1);
   if (!s) return null;
   if (idiomaActual() === 'en') s = s.replace(/,/g, '');
   else if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
   else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
   const n = Number(s);
   if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 10 ** decimales);
+  return (menos ? -1 : 1) * Math.round(n * 10 ** decimales);
 }
 
 const paraInput = (c, decimales = 2) =>
@@ -153,6 +159,9 @@ async function demoApi(metodo, ruta, c = {}) {
       mov({ bolsilloId: c.desde, tipo: 'traspaso', cantidad: -c.cantidad, grupo, detalle: c.detalle }),
       mov({ bolsilloId: c.hacia, tipo: 'traspaso', cantidad: c.cantidadEntra ?? c.cantidad, grupo, detalle: c.detalle }),
     ];
+  } else if (ruta === '/cajon/orden') {
+    demo.bolsillos.sort((a, b) => (c.ids.indexOf(a.id) + 1 || 999) - (c.ids.indexOf(b.id) + 1 || 999));
+    r = { ok: true };
   } else if (recurso === 'bolsillos' && metodo === 'PATCH') {
     r = Object.assign(demo.bolsillos.find((b) => b.id === id), c);
   } else if (recurso === 'bolsillos' && metodo === 'DELETE') {
@@ -163,7 +172,7 @@ async function demoApi(metodo, ruta, c = {}) {
     const m = demo.movimientos.find((x) => x.id === id);
     if (metodo === 'DELETE') {
       const todos = m.grupo ? demo.movimientos.filter((x) => x.grupo === m.grupo) : [m];
-      if (todos.some((x) => x.cantidad > 0 && cant(x.bolsilloId) < x.cantidad)) throw new Error(t('Ese ahorro ya se usó: el bolsillo quedaría en negativo'));
+      if (todos.some((x) => x.cantidad > 0 && !['gasto', 'ingreso'].includes(x.tipo) && cant(x.bolsilloId) < x.cantidad)) throw new Error(t('Ese ahorro ya se usó: el bolsillo quedaría en negativo'));
       demo.movimientos = demo.movimientos.filter((x) => !todos.includes(x));
       for (const x of todos) d.perfil.saldo += x.tipo === 'ahorro' ? x.monto : x.tipo === 'retiro' ? -x.monto : 0;
       r = { ok: true };
@@ -467,66 +476,88 @@ function tostadaDeshacer(texto, deshacer) {
   document.body.append(el);
 }
 
-// ---------- Crear categoría ----------
+// ---------- Crear o editar un bolsillo ----------
 
-function pasoNuevaCategoria(listo, volver = pasoDonde) {
-  let emoji = '🐷';
-  let unidad = monedaCuenta();
-  const unidades = [...new Set([monedaCuenta(), 'USD', 'EUR', 'BTC', 'g'])];
+// Con `b` edita ese bolsillo: nombre, emoji, unidad y cuánto vale cada unidad.
+function pasoNuevaCategoria(listo, volver = pasoDonde, b = null) {
+  let emoji = b?.emoji ?? '🐷';
+  const unidades = [...new Set([monedaCuenta(), 'USD', 'EUR', 'BTC', 'ETH', 'USDT', 'g'])];
+  let unidad = b ? (unidades.includes(b.unidad) ? b.unidad : null) : monedaCuenta();
   const etiqueta = (u) => (u === 'g' ? t('Oro (g)') : u);
+  // Para lo que no es una moneda se puede poner el valor a mano (si cotiza, es opcional).
+  const conValor = (u) => !MONEDAS_BASE.includes(u);
   paso(
-    `<h3>${t('Nueva categoría')}</h3>
+    `<h3>${b ? t('Editar bolsillo') : t('Nueva categoría')}</h3>
      <label class="campo"><span>${t('¿Cómo se llama?')}</span><input name="nombre" maxlength="40" autocomplete="off" placeholder="${t('Viaje, dólares del colchón, ETH…')}" required /></label>
-     <div class="emojis cajon-emojis">${EMOJIS.map((e) => `<button type="button" class="emoji-boton${e === emoji ? ' activo' : ''}" data-emoji="${e}">${e}</button>`).join('')}</div>
+     <div class="emojis cajon-emojis">${[...new Set([emoji, ...EMOJIS])].map((e) => `<button type="button" class="emoji-boton${e === emoji ? ' activo' : ''}" data-emoji="${esc(e)}">${esc(e)}</button>`).join('')}</div>
      <fieldset class="grupo"><legend>${t('¿En qué lo contás?')}</legend>
-       <div class="chips">${unidades.map((u) => `<button type="button" class="chip${u === unidad ? ' activo' : ''}" data-unidad="${u}">${etiqueta(u)}</button>`).join('')}<button type="button" class="chip" data-otra>${t('Otra')}</button></div>
-       <div hidden id="campo-unidad" class="grupo">
-         <label class="campo"><span>${t('Unidad (ETH, acciones, figuritas…)')}</span><input name="unidad" maxlength="10" autocomplete="off" /></label>
-         ${htmlValorUnidad()}
-       </div>
+       <div class="chips">${unidades.map((u) => `<button type="button" class="chip${u === unidad ? ' activo' : ''}" data-unidad="${u}">${etiqueta(u)}</button>`).join('')}<button type="button" class="chip${unidad ? '' : ' activo'}" data-otra>${t('Otra')}</button></div>
+       <label class="campo" id="campo-unidad"${unidad ? ' hidden' : ''}><span>${t('Unidad (ETH, acciones, figuritas…)')}</span><input name="unidad" maxlength="10" autocomplete="off" /></label>
+       <div id="campo-valor">${htmlValorUnidad(b)}</div>
      </fieldset>
-     <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Seguir')}</button></div>`,
+     ${b?.cantidad ? `<p class="ayuda">${t('Lo guardado no cambia: si pasás de una moneda a otra, corregí el total después.')}</p>` : ''}
+     <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${b ? t('Guardar') : t('Seguir')}</button></div>`,
     (f) => {
+      if (b) {
+        f.nombre.value = b.nombre;
+        if (!unidad) f.unidad.value = b.unidad;
+        if (b.cotizacion) f.valorUnidad.value = paraInput(b.cotizacion.valor);
+      }
+      const elegida = () => (unidad ?? f.unidad.value.trim()).replace(/^G$/, 'g');
+      const mostrarValor = () => {
+        const u = elegida();
+        const caja = document.getElementById('campo-valor');
+        caja.hidden = !u || !conValor(u);
+        if (caja.hidden) return;
+        const mercado = enBase(10 ** 8, { unidad: u, decimales: 8 });
+        caja.querySelector('span').textContent = t('¿Cuánto vale 1 {unidad}?', { unidad: u });
+        f.valorUnidad.placeholder = mercado ? t('Hoy {valor} (mercado)', { valor: plataBase(mercado) }) : '0';
+        caja.querySelector('.ayuda').textContent = mercado ? t('Vacío: uso la cotización del mercado.') : t('Con esto el cajón puede sumarlo al total.');
+      };
+      mostrarValor();
+      f.unidad.addEventListener('input', mostrarValor);
       f.querySelector('[data-atras]').addEventListener('click', volver);
-      f.querySelectorAll('[data-emoji]').forEach((b) =>
-        b.addEventListener('click', () => {
-          emoji = b.dataset.emoji;
-          f.querySelectorAll('[data-emoji]').forEach((x) => x.classList.toggle('activo', x === b));
+      f.querySelectorAll('[data-emoji]').forEach((x) =>
+        x.addEventListener('click', () => {
+          emoji = x.dataset.emoji;
+          f.querySelectorAll('[data-emoji]').forEach((y) => y.classList.toggle('activo', y === x));
         }),
       );
       const chips = f.querySelectorAll('[data-unidad], [data-otra]');
-      chips.forEach((b) =>
-        b.addEventListener('click', () => {
-          chips.forEach((x) => x.classList.toggle('activo', x === b));
-          document.getElementById('campo-unidad').hidden = !('otra' in b.dataset);
-          unidad = b.dataset.unidad ?? null;
+      chips.forEach((x) =>
+        x.addEventListener('click', () => {
+          chips.forEach((y) => y.classList.toggle('activo', y === x));
+          document.getElementById('campo-unidad').hidden = !('otra' in x.dataset);
+          unidad = x.dataset.unidad ?? null;
+          mostrarValor();
           if (!unidad) f.unidad.focus();
         }),
       );
       f.onsubmit = (e) => {
         e.preventDefault();
         const nombre = f.nombre.value.trim();
-        const u = (unidad ?? f.unidad.value.trim()).toUpperCase() === 'G' ? 'g' : unidad ?? f.unidad.value.trim();
+        const u = elegida();
         if (!nombre) return error(t('Ponele un nombre'));
         if (!u) return error(t('Elegí en qué lo contás'));
-        const cotizacion = unidad ? null : leerValorUnidad(f);
+        const cotizacion = conValor(u) ? leerValorUnidad(f) : null;
         if (cotizacion === false) return error(t('Poné un valor válido'));
-        listo({ nombre, emoji, unidad: u, decimales: CRIPTO.test(u) ? 8 : 2, cotizacion });
+        const decimales = CRIPTO.test(u) ? 8 : 2;
+        // Los decimales solo cambian con el bolsillo vacío (si no, cambiaría lo guardado).
+        listo({ nombre, emoji, unidad: u, ...(b?.cantidad ? {} : { decimales }), cotizacion });
       };
     },
   );
 }
 
 // Cuánto vale 1 unidad, puesto a mano (para lo que no cotiza o para usar tu propio valor).
-function htmlValorUnidad(b = null) {
+// Los textos los completa `mostrarValor` según la unidad elegida.
+function htmlValorUnidad(b) {
   const moneda = b?.cotizacion?.moneda ?? monedaBase();
-  const mercado = b && !b.cotizacion ? enBase(10 ** b.decimales, b) : null;
   return `<div class="valor-unidad">
-      <label class="campo"><span>${b ? t('¿Cuánto vale 1 {unidad}?', { unidad: esc(b.unidad) }) : t('¿Cuánto vale 1 unidad? (opcional)')}</span>
-        <input name="valorUnidad" inputmode="decimal" autocomplete="off" placeholder="${mercado ? t('Hoy {valor} (mercado)', { valor: plataBase(mercado) }) : '0'}" /></label>
+      <label class="campo"><span></span><input name="valorUnidad" inputmode="decimal" autocomplete="off" /></label>
       <label class="campo"><span>${t('en')}</span><select name="monedaUnidad">${MONEDAS_BASE.map((m) => `<option${m === moneda ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
     </div>
-    <p class="ayuda">${b ? t('Vacío: uso la cotización del mercado si hay.') : t('Con esto el cajón puede sumarlo al total.')}</p>`;
+    <p class="ayuda"></p>`;
 }
 
 /** null si está vacío, false si es inválido. */
@@ -540,6 +571,7 @@ function leerValorUnidad(f) {
 
 export function abrirCajon() {
   sonar('pop');
+  ordenando = false;
   pintarCajon();
   document.getElementById('hoja-cajon').showModal();
   Promise.all([cargarCajon(), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
@@ -553,6 +585,8 @@ const TIPOS = {
   traspaso: ['↔️', 'Traspaso'],
 };
 
+let ordenando = false;
+
 function pintarCajon() {
   const f = document.getElementById('form-cajon');
   const porId = new Map(cajon.bolsillos.map((b) => [b.id, b]));
@@ -562,12 +596,17 @@ function pintarCajon() {
     <h3>${t('🍌 Cajón de bananas')}</h3>
     ${htmlTotal(visibles)}
     <p class="ayuda">${t('Lo que guardaste y en qué. Tocá un bolsillo para editarlo: si lo cambiás, te pregunto en qué se usó.')}</p>
-    <ul class="bolsillos">${visibles
+    ${visibles.length > 1 ? `<button type="button" class="chip chip-ordenar${ordenando ? ' activo' : ''}" data-ordenar>${ordenando ? t('✓ Listo') : t('↕️ Ordenar')}</button>` : ''}
+    <ul class="bolsillos${ordenando ? ' ordenando' : ''}">${visibles
       .map(
-        (b) => `<li><button type="button" class="bolsillo${b.generico ? ' generico' : ''}" data-b="${b.id}">
+        (b, i) => `<li>${
+          ordenando
+            ? `<span class="bolsillo-mover"><button type="button" class="mover" data-subir="${i}" aria-label="${t('Subir')}"${i ? '' : ' disabled'}>▲</button><button type="button" class="mover" data-bajar="${i}" aria-label="${t('Bajar')}"${i < visibles.length - 1 ? '' : ' disabled'}>▼</button></span>`
+            : ''
+        }<button type="button" class="bolsillo${b.generico ? ' generico' : ''}" data-b="${b.id}">
           <span class="bolsillo-emoji">${esc(b.emoji)}</span>
           <span class="bolsillo-info"><b>${esc(nombreDe(b))}</b>${b.generico ? `<small>${t('Tocá para repartirlo')}</small>` : ''}</span>
-          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`,
+          <span class="bolsillo-cantidad${b.cantidad < 0 ? ' menos' : ''}">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`,
       )
       .join('')}</ul>
     ${visibles.length ? '' : `<p class="vacio">${t('Todavía no guardaste nada. Cuando te sobre, tocá Ahorrar y Mona lo trae acá.')}</p>`}
@@ -612,7 +651,23 @@ function pintarCajon() {
       () => document.getElementById('hoja-ahorro').close(),
     ),
   );
-  f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => abrirBolsillo(porId.get(el.dataset.b))));
+  f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => !ordenando && abrirBolsillo(porId.get(el.dataset.b))));
+  f.querySelector('[data-ordenar]')?.addEventListener('click', () => {
+    sonar('toque');
+    ordenando = !ordenando;
+    pintarCajon();
+  });
+  const mover = (i, j) => {
+    sonar('pop');
+    const ids = visibles.map((b) => b.id);
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    // Se ve al instante; los que no están visibles (un "Sin asignar" vacío) quedan al final.
+    cajon.bolsillos.sort((a, b) => (ids.indexOf(a.id) + 1 || 999) - (ids.indexOf(b.id) + 1 || 999));
+    pintarCajon();
+    llamar('PUT', '/cajon/orden', { ids }).catch(ctx.avisar);
+  };
+  f.querySelectorAll('[data-subir]').forEach((el) => el.addEventListener('click', () => mover(+el.dataset.subir, +el.dataset.subir - 1)));
+  f.querySelectorAll('[data-bajar]').forEach((el) => el.addEventListener('click', () => mover(+el.dataset.bajar, +el.dataset.bajar + 1)));
   f.querySelectorAll('[data-m]').forEach((el) => el.addEventListener('click', () => abrirMovimiento(cajon.movimientos.find((m) => m.id === el.dataset.m))));
 }
 
@@ -652,19 +707,20 @@ function abrirBolsillo(b) {
   if (b.generico) return pasoTraspaso(b);
   paso(
     `<h3>${esc(b.emoji)} ${esc(b.nombre)}</h3>
-     <label class="campo monto-campo"><span>${t('¿Cuánto tenés? ({unidad})', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="decimal" autocomplete="off" /></label>
+     <label class="campo monto-campo"><span>${t('¿Cuánto tenés? ({unidad})', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="text" autocomplete="off" data-monto /></label>
      <p class="ayuda">${t('Si cambiás el total, te pregunto en qué se usó o de dónde salió. Queda en el historial y no toca los gastos del mes.')}</p>
-     ${MONEDAS_BASE.includes(b.unidad) ? '' : htmlValorUnidad(b)}
+     <p class="ayuda">${t('¿Es plata de otro que tenés guardada? Ponela en negativo (-200) y resta del total.')}</p>
      <div class="chips">
-       <button type="button" class="chip" data-retirar>${t('↩️ Volver a la cuenta')}</button>
-       ${cajon.bolsillos.length > 1 ? `<button type="button" class="chip" data-pasar>${t('↔️ Pasar a otro bolsillo')}</button>` : ''}
+       <button type="button" class="chip" data-editar>${t('✏️ Nombre, moneda y valor')}</button>
+       ${b.cantidad > 0 ? `<button type="button" class="chip" data-retirar>${t('↩️ Volver a la cuenta')}</button>` : ''}
+       ${b.cantidad > 0 && cajon.bolsillos.length > 1 ? `<button type="button" class="chip" data-pasar>${t('↔️ Pasar a otro bolsillo')}</button>` : ''}
        ${b.cantidad ? '' : `<button type="button" class="chip peligro" data-borrar>${t('🗑️ Borrar bolsillo')}</button>`}
      </div>
      <div class="acciones"><button type="button" class="boton" data-cerrar-ahorro>${t('Cerrar')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
     (f) => {
       f.cantidad.value = paraInput(b.cantidad, b.decimales);
-      if (f.valorUnidad && b.cotizacion) f.valorUnidad.value = paraInput(b.cotizacion.valor);
-      f.querySelector('[data-retirar]').addEventListener('click', () => pasoRetirar(b));
+      f.querySelector('[data-editar]').addEventListener('click', () => pasoEditarBolsillo(b));
+      f.querySelector('[data-retirar]')?.addEventListener('click', () => pasoRetirar(b));
       f.querySelector('[data-pasar]')?.addEventListener('click', () => pasoTraspaso(b));
       f.querySelector('[data-borrar]')?.addEventListener('click', (e) =>
         enviar(e.target, async () => {
@@ -676,25 +732,26 @@ function abrirBolsillo(b) {
       );
       f.onsubmit = (e) => {
         e.preventDefault();
-        const nueva = leerCantidad(f.cantidad.value, b.decimales);
+        const nueva = leerCantidad(f.cantidad.value, b.decimales, true);
         if (nueva === null) return error(t('Poné cuánto tenés'));
-        const cotizacion = f.valorUnidad ? leerValorUnidad(f) : b.cotizacion ?? null;
-        if (cotizacion === false) return error(t('Poné un valor válido'));
-        const cambioValor = JSON.stringify(cotizacion) !== JSON.stringify(b.cotizacion ?? null);
-        enviar(f.querySelector('[type=submit]'), async () => {
-          if (cambioValor) {
-            await llamar('PATCH', `/cajon/bolsillos/${b.id}`, { cotizacion });
-            b = { ...b, cotizacion };
-          }
-          if (nueva !== b.cantidad) return pasoDetalle(b, nueva);
-          document.getElementById('hoja-ahorro').close();
-          if (cambioValor) {
-            sonar('pop');
-            await refrescar(false);
-          }
-        });
+        if (nueva !== b.cantidad) return pasoDetalle(b, nueva);
+        document.getElementById('hoja-ahorro').close();
       };
     },
+  );
+}
+
+function pasoEditarBolsillo(b) {
+  pasoNuevaCategoria(
+    (cambios) =>
+      enviar(document.querySelector('#form-ahorro [type=submit]'), async () => {
+        await llamar('PATCH', `/cajon/bolsillos/${b.id}`, cambios);
+        document.getElementById('hoja-ahorro').close();
+        sonar('pop');
+        await refrescar(false);
+      }),
+    () => abrirBolsillo(b),
+    b,
   );
 }
 

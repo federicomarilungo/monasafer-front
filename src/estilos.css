@@ -458,6 +458,13 @@ body {
 }
 .bolsillo { background: var(--fondo); border: 2px solid var(--borde); border-radius: 18px; padding: 12px; box-shadow: var(--sombra); }
 .bolsillo.generico { border-style: dashed; border-color: #e0b520; }
+.bolsillos.ordenando li { display: flex; align-items: center; gap: 8px; }
+.bolsillos.ordenando .bolsillo { cursor: default; }
+.bolsillo-mover { display: grid; gap: 4px; }
+.mover { width: 36px; height: 30px; border-radius: 10px; border: 2px solid var(--borde); background: var(--fondo); color: var(--texto); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.mover:disabled { opacity: 0.3; cursor: default; }
+.mover:active:not(:disabled) { transform: translateY(2px); }
+.chip-ordenar { justify-self: end; margin-left: auto; display: block; }
 .bolsillo-emoji { font-size: 1.8rem; }
 .bolsillo-info { flex: 1; display: grid; min-width: 0; }
 .bolsillo-info small { color: var(--suave); font-weight: 700; }
