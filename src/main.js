@@ -9,7 +9,7 @@ import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
 import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
 import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
-import { abrirAhorrar, abrirCajon, cargarCajon, iniciarCajon, sugerenciaCajon } from './cajon.js';
+import { abrirAhorrar, abrirCajon, cargarCajon, iniciarCajon, resumenCajon, sugerenciaCajon } from './cajon.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
@@ -1399,18 +1399,41 @@ $('boton-metricas').addEventListener('click', async () => {
   } else if (estado.modo !== 'real') {
     encabezado = `<p class="quedan-aviso">👑 ${t('En la demo ves todo lo de Premium.')}</p>`;
   }
-  const pasados =
-    estado.modo === 'real' ? await api('GET', `/historial?meses=${premium ? MESES_PREMIUM : MESES_NORMAL}`).catch(() => []) : null;
-  $('hoja-metricas').showModal();
+  const [pasados, cajon] = await Promise.all([
+    estado.modo === 'real' ? api('GET', `/historial?meses=${premium ? MESES_PREMIUM : MESES_NORMAL}`).catch(() => []) : null,
+    resumenCajon().catch(() => null),
+  ]);
+  const pantalla = $('pantalla-metricas');
+  pantalla.showModal();
+  pantalla.scrollTop = 0;
+  // El "atrás" del celular cierra las métricas en vez de salir de la app.
+  history.pushState({ metricas: true }, '');
   montarMetricas($('metricas'), estado.datos, hoy, estado.mesVisto, {
     premium,
     pasados,
     encabezado,
+    cajon,
+    pestanas: $('pestanas-metricas'),
+    seccion: seccionMetricas,
+    alSeccion: (s) => {
+      sonar('toque');
+      seccionMetricas = s;
+      pantalla.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    alCajon: () => abrirCajon(),
     alPremium: () => {
-      $('hoja-metricas').close();
+      pantalla.close();
       abrirPremium(t('Con Premium ves 12 meses para atrás y para adelante y cada categoría en el tiempo.'));
     },
   });
+});
+
+let seccionMetricas = 'gastos';
+$('pantalla-metricas').addEventListener('close', () => {
+  if (history.state?.metricas) history.back();
+});
+window.addEventListener('popstate', () => {
+  if ($('pantalla-metricas').open) $('pantalla-metricas').close();
 });
 
 function avisoMetricas(texto, animo) {

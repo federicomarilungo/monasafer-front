@@ -263,13 +263,19 @@
       </form>
     </dialog>
 
-    <!-- Métricas premium (S2) -->
-    <dialog class="hoja" id="hoja-metricas">
-      <form method="dialog">
-        <h3 data-t>Tus números</h3>
-        <div id="metricas"></div>
-        <div class="acciones"><button type="button" class="boton" data-cerrar data-t>Cerrar</button></div>
-      </form>
+    <!-- Métricas (S2): pantalla completa, partida en Gastos y Ahorros -->
+    <dialog class="pantalla-completa" id="pantalla-metricas" aria-labelledby="titulo-metricas">
+      <header class="pm-cabecera">
+        <div class="pm-barra">
+          <button type="button" class="flecha" data-cerrar aria-label="Volver" data-t-aria>‹</button>
+          <h2 id="titulo-metricas" data-t>Tus números</h2>
+        </div>
+        <div class="segmentos dos pm-pestanas" id="pestanas-metricas" role="tablist">
+          <button type="button" class="segmento activo" role="tab" aria-selected="true" data-seccion="gastos" data-t>💸 Gastos</button>
+          <button type="button" class="segmento" role="tab" aria-selected="false" data-seccion="ahorros" data-t>🍌 Ahorros</button>
+        </div>
+      </header>
+      <div class="pm-cuerpo"><div id="metricas" class="pm-contenido"></div></div>
     </dialog>
 
     <!-- Chat con Mona (S3, S4) -->

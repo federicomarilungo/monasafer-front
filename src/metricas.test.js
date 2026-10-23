@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { armarMeses, categoriaDe, porCategoria } from './metricas.js';
+import { armarMeses, categoriaDe, guardadoPorMes, porCategoria, porTipo } from './metricas.js';
 import { datosDemo } from './demo.js';
 
 const hoy = new Date(2026, 9, 15);
@@ -34,4 +34,28 @@ test('premium: 12 y 12, y lo pasado puede venir del back', () => {
   const meses = armarMeses(datosDemo(hoy), hoy, 12, pasados);
   assert.equal(meses.filter((m) => !m.pasado).length, 13);
   assert.deepEqual(meses.filter((m) => m.pasado).map((m) => m.total), [100]);
+});
+
+test('el gasto de un mes se parte en fijos, reservas y de una vez', () => {
+  assert.deepEqual(
+    porTipo([
+      { tipo: 'fijo', monto: 50000 },
+      { tipo: 'reserva', monto: 20000 },
+      { tipo: 'puntual', monto: 4500 },
+      { tipo: 'fijo', monto: 3000 },
+    ]),
+    { fijo: 53000, reserva: 20000, puntual: 4500 },
+  );
+});
+
+test('lo guardado por mes es lo ahorrado menos lo que volvió; ajustes y traspasos no cuentan', () => {
+  const movimientos = [
+    { tipo: 'ahorro', mes: '2026-09', monto: 10000, cantidad: 10000 },
+    { tipo: 'retiro', mes: '2026-09', monto: 2500, cantidad: -2500 },
+    { tipo: 'ahorro', mes: '2026-10', monto: 7000, cantidad: 700000 },
+    { tipo: 'gasto', mes: '2026-10', monto: 0, cantidad: -3000 },
+    { tipo: 'traspaso', mes: '2026-10', monto: 0, cantidad: 5000 },
+    { tipo: 'ahorro', mes: '2026-05', monto: 99999, cantidad: 99999 },
+  ];
+  assert.deepEqual(guardadoPorMes(movimientos, ['2026-08', '2026-09', '2026-10']), [0, 7500, 7000]);
 });

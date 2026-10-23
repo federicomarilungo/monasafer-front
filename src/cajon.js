@@ -190,6 +190,23 @@ async function demoApi(metodo, ruta, c = {}) {
   return structuredClone(r);
 }
 
+/** El cajón valuado en la moneda base, para la sección Ahorros de las métricas. */
+export async function resumenCajon() {
+  await Promise.all([cargarCajon(), cargarCotizaciones()]);
+  const bolsillos = cajon.bolsillos
+    .filter((b) => b.cantidad)
+    .map((b) => ({ id: b.id, emoji: b.emoji, nombre: nombreDe(b), texto: cantidadTexto(b.cantidad, b), valor: enBase(b.cantidad, b) }))
+    .sort((a, b) => (b.valor ?? 0) - (a.valor ?? 0));
+  return {
+    bolsillos,
+    movimientos: cajon.movimientos,
+    total: bolsillos.reduce((s, b) => s + (b.valor ?? 0), 0),
+    sinCotizar: bolsillos.filter((b) => b.valor === null).length,
+    base: monedaBase(),
+    plataBase,
+  };
+}
+
 // ---------- Inicio y home ----------
 
 export function iniciarCajon(contexto) {
