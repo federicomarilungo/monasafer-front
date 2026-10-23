@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#2f9e6b" />
     <title>Monasafer</title>
+    <!-- El tema elegido en ⚙️, antes de pintar (ver src/tema.js) -->
+    <script>try{var t=localStorage.getItem('monasafer.tema');if(t==='claro'||t==='oscuro')document.documentElement.dataset.tema=t}catch(e){}</script>
     <link rel="icon" href="/mono.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -249,6 +251,7 @@
         <div class="premium-caja" id="premium-caja"></div>
         <label class="campo"><span data-t>Moneda</span><select name="moneda" id="elegir-moneda"></select></label>
         <label class="campo"><span data-t>Idioma</span><select name="idioma" id="elegir-idioma"></select></label>
+        <label class="campo"><span data-t>Tema</span><select name="tema" id="elegir-tema"></select></label>
         <p class="legal"><a href="/terminos.html" data-t>Términos</a> · <a href="/privacidad.html" data-t>Privacidad</a> · <a href="mailto:hola@monasafer.com">hola@monasafer.com</a></p>
         <details class="borrar">
           <summary data-t>Borrar mi cuenta</summary>

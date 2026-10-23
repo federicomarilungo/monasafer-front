@@ -2,6 +2,7 @@
 // el botón devuelve un ID token y el back lo verifica con Google (POST /auth/google).
 // El Client ID lo da el back (GET /auth/config); si no hay, el botón no aparece.
 import { api } from './api.js';
+import { esOscuro } from './tema.js';
 
 let listo = null;
 
@@ -35,7 +36,7 @@ export async function mostrarBotonGoogle(contenedor, alEntrar) {
     });
     contenedor.innerHTML = '';
     // Con la app en oscuro, el botón negro; en claro, el blanco con borde (pautas de Google).
-    const oscuro = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    const oscuro = esOscuro();
     window.google.accounts.id.renderButton(contenedor, {
       theme: oscuro ? 'filled_black' : 'outline',
       size: 'large',

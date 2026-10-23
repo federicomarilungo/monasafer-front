@@ -11,8 +11,19 @@
   --borde: #f0e2c4;
   --sombra: 0 6px 0 #f0e2c4;
 }
+/* Oscuro: lo pide el sistema (tema automático) o se eligió en ⚙️ (data-tema, ver tema.js). */
+:root[data-tema='claro'] { color-scheme: light; }
+:root[data-tema='oscuro'] { color-scheme: dark; }
+:root[data-tema='oscuro'] {
+  --fondo: #1a1510;
+  --tarjeta: #2a2219;
+  --texto: #fff3dc;
+  --suave: #bba88f;
+  --borde: #3d3226;
+  --sombra: 0 6px 0 #0f0c08;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema='claro']) {
     --fondo: #1a1510;
     --tarjeta: #2a2219;
     --texto: #fff3dc;
@@ -420,8 +431,9 @@ body {
 .aviso-metricas p { font-weight: 700; font-size: 0.9rem; }
 .aviso-metricas .boton { grid-column: 1 / -1; }
 .mono-chico { width: 64px; }
+[data-tema='oscuro'] .candado { background: linear-gradient(135deg, #3a2f14, var(--tarjeta)); }
 @media (prefers-color-scheme: dark) {
-  .candado { background: linear-gradient(135deg, #3a2f14, var(--tarjeta)); }
+  :root:not([data-tema='claro']) .candado { background: linear-gradient(135deg, #3a2f14, var(--tarjeta)); }
 }
 
 /* ---- Cajón de bananas (K1) ---- */

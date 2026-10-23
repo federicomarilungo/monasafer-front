@@ -9,6 +9,7 @@ import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
 import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
 import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
+import { cambiarTema, TEMAS, temaActual } from './tema.js';
 import { abrirAhorrar, abrirCajon, cargarCajon, iniciarCajon, resumenCajon, sugerenciaCajon } from './cajon.js';
 
 const $ = (id) => document.getElementById(id);
@@ -1259,6 +1260,8 @@ $('elegir-idioma').addEventListener('change', async (e) => {
   pintarCuenta();
 });
 
+$('elegir-tema').addEventListener('change', (e) => cambiarTema(e.target.value));
+
 function pintarCuenta() {
   const p = estado.perfil;
   $('elegir-moneda').innerHTML = Object.entries(MONEDAS)
@@ -1266,6 +1269,9 @@ function pintarCuenta() {
     .join('');
   $('elegir-idioma').innerHTML = Object.entries(IDIOMAS)
     .map(([c, n]) => `<option value="${c}" ${c === idiomaActual() ? 'selected' : ''}>${n}</option>`)
+    .join('');
+  $('elegir-tema').innerHTML = Object.entries(TEMAS)
+    .map(([c, n]) => `<option value="${c}" ${c === temaActual() ? 'selected' : ''}>${t(n)}</option>`)
     .join('');
   const caja = $('premium-caja');
   const prem = p?.premium;
