@@ -510,3 +510,4 @@ html, body { overflow-x: clip; }
 .resumen { font-size: clamp(0.85rem, 4.2vw, 1rem); }
 .acumulado-fila > * { min-width: 0; }
 .hoja { overflow-x: hidden; }
+.valor-unidad { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }

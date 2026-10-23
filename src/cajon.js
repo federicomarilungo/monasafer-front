@@ -33,6 +33,14 @@ function porUsd(unidad) {
 function enBase(cantidad, b) {
   const base = monedaBase();
   const n = cantidad / 10 ** b.decimales;
+  // El valor puesto a mano manda sobre el de mercado.
+  if (b.cotizacion) {
+    const enSuMoneda = n * b.cotizacion.valor;
+    if (b.cotizacion.moneda === base) return Math.round(enSuMoneda);
+    const de = porUsd(b.cotizacion.moneda);
+    const a = porUsd(base);
+    return de && a ? Math.round((enSuMoneda / de) * a) : null;
+  }
   if (b.unidad === base) return Math.round(n * 100);
   const de = porUsd(b.unidad);
   const a = porUsd(base);
@@ -145,6 +153,8 @@ async function demoApi(metodo, ruta, c = {}) {
       mov({ bolsilloId: c.desde, tipo: 'traspaso', cantidad: -c.cantidad, grupo, detalle: c.detalle }),
       mov({ bolsilloId: c.hacia, tipo: 'traspaso', cantidad: c.cantidadEntra ?? c.cantidad, grupo, detalle: c.detalle }),
     ];
+  } else if (recurso === 'bolsillos' && metodo === 'PATCH') {
+    r = Object.assign(demo.bolsillos.find((b) => b.id === id), c);
   } else if (recurso === 'bolsillos' && metodo === 'DELETE') {
     if (cant(id)) throw new Error(t('Primero vaciá el bolsillo'));
     demo.bolsillos = demo.bolsillos.filter((b) => b.id !== id);
@@ -395,8 +405,8 @@ function pasoCantidad() {
 async function guardarAhorro(destino, cantidad) {
   let bolsilloId = destino?.existente?.id ?? null;
   if (destino && !bolsilloId) {
-    const { nombre, emoji, unidad, decimales } = destino.datos;
-    bolsilloId = (await llamar('POST', '/cajon/bolsillos', { nombre, emoji, unidad, decimales })).id;
+    const { nombre, emoji, unidad, decimales, cotizacion = null } = destino.datos;
+    bolsilloId = (await llamar('POST', '/cajon/bolsillos', { nombre, emoji, unidad, decimales, cotizacion })).id;
   }
   const m = await llamar('POST', '/cajon/ahorrar', { monto: flujo.monto, origen: flujo.origen, bolsilloId, cantidad });
   document.getElementById('hoja-ahorro').close();
@@ -462,14 +472,18 @@ function tostadaDeshacer(texto, deshacer) {
 function pasoNuevaCategoria(listo, volver = pasoDonde) {
   let emoji = '🐷';
   let unidad = monedaCuenta();
-  const unidades = [...new Set([monedaCuenta(), 'USD', 'EUR', 'BTC'])];
+  const unidades = [...new Set([monedaCuenta(), 'USD', 'EUR', 'BTC', 'g'])];
+  const etiqueta = (u) => (u === 'g' ? t('Oro (g)') : u);
   paso(
     `<h3>${t('Nueva categoría')}</h3>
      <label class="campo"><span>${t('¿Cómo se llama?')}</span><input name="nombre" maxlength="40" autocomplete="off" placeholder="${t('Viaje, dólares del colchón, ETH…')}" required /></label>
      <div class="emojis cajon-emojis">${EMOJIS.map((e) => `<button type="button" class="emoji-boton${e === emoji ? ' activo' : ''}" data-emoji="${e}">${e}</button>`).join('')}</div>
      <fieldset class="grupo"><legend>${t('¿En qué lo contás?')}</legend>
-       <div class="chips">${unidades.map((u) => `<button type="button" class="chip${u === unidad ? ' activo' : ''}" data-unidad="${u}">${u}</button>`).join('')}<button type="button" class="chip" data-otra>${t('Otra')}</button></div>
-       <label class="campo" hidden id="campo-unidad"><span>${t('Unidad (ETH, g, acciones…)')}</span><input name="unidad" maxlength="10" autocomplete="off" /></label>
+       <div class="chips">${unidades.map((u) => `<button type="button" class="chip${u === unidad ? ' activo' : ''}" data-unidad="${u}">${etiqueta(u)}</button>`).join('')}<button type="button" class="chip" data-otra>${t('Otra')}</button></div>
+       <div hidden id="campo-unidad" class="grupo">
+         <label class="campo"><span>${t('Unidad (ETH, acciones, figuritas…)')}</span><input name="unidad" maxlength="10" autocomplete="off" /></label>
+         ${htmlValorUnidad()}
+       </div>
      </fieldset>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Seguir')}</button></div>`,
     (f) => {
@@ -495,10 +509,31 @@ function pasoNuevaCategoria(listo, volver = pasoDonde) {
         const u = (unidad ?? f.unidad.value.trim()).toUpperCase() === 'G' ? 'g' : unidad ?? f.unidad.value.trim();
         if (!nombre) return error(t('Ponele un nombre'));
         if (!u) return error(t('Elegí en qué lo contás'));
-        listo({ nombre, emoji, unidad: u, decimales: CRIPTO.test(u) ? 8 : 2 });
+        const cotizacion = unidad ? null : leerValorUnidad(f);
+        if (cotizacion === false) return error(t('Poné un valor válido'));
+        listo({ nombre, emoji, unidad: u, decimales: CRIPTO.test(u) ? 8 : 2, cotizacion });
       };
     },
   );
+}
+
+// Cuánto vale 1 unidad, puesto a mano (para lo que no cotiza o para usar tu propio valor).
+function htmlValorUnidad(b = null) {
+  const moneda = b?.cotizacion?.moneda ?? monedaBase();
+  const mercado = b && !b.cotizacion ? enBase(10 ** b.decimales, b) : null;
+  return `<div class="valor-unidad">
+      <label class="campo"><span>${b ? t('¿Cuánto vale 1 {unidad}?', { unidad: esc(b.unidad) }) : t('¿Cuánto vale 1 unidad? (opcional)')}</span>
+        <input name="valorUnidad" inputmode="decimal" autocomplete="off" placeholder="${mercado ? t('Hoy {valor} (mercado)', { valor: plataBase(mercado) }) : '0'}" /></label>
+      <label class="campo"><span>${t('en')}</span><select name="monedaUnidad">${MONEDAS_BASE.map((m) => `<option${m === moneda ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+    </div>
+    <p class="ayuda">${b ? t('Vacío: uso la cotización del mercado si hay.') : t('Con esto el cajón puede sumarlo al total.')}</p>`;
+}
+
+/** null si está vacío, false si es inválido. */
+function leerValorUnidad(f) {
+  if (!f.valorUnidad.value.trim()) return null;
+  const valor = centavos(f.valorUnidad.value);
+  return valor ? { moneda: f.monedaUnidad.value, valor } : false;
 }
 
 // ---------- El cajón ----------
@@ -619,6 +654,7 @@ function abrirBolsillo(b) {
     `<h3>${esc(b.emoji)} ${esc(b.nombre)}</h3>
      <label class="campo monto-campo"><span>${t('¿Cuánto tenés? ({unidad})', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="decimal" autocomplete="off" /></label>
      <p class="ayuda">${t('Si cambiás el total, te pregunto en qué se usó o de dónde salió. Queda en el historial y no toca los gastos del mes.')}</p>
+     ${MONEDAS_BASE.includes(b.unidad) ? '' : htmlValorUnidad(b)}
      <div class="chips">
        <button type="button" class="chip" data-retirar>${t('↩️ Volver a la cuenta')}</button>
        ${cajon.bolsillos.length > 1 ? `<button type="button" class="chip" data-pasar>${t('↔️ Pasar a otro bolsillo')}</button>` : ''}
@@ -627,6 +663,7 @@ function abrirBolsillo(b) {
      <div class="acciones"><button type="button" class="boton" data-cerrar-ahorro>${t('Cerrar')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
     (f) => {
       f.cantidad.value = paraInput(b.cantidad, b.decimales);
+      if (f.valorUnidad && b.cotizacion) f.valorUnidad.value = paraInput(b.cotizacion.valor);
       f.querySelector('[data-retirar]').addEventListener('click', () => pasoRetirar(b));
       f.querySelector('[data-pasar]')?.addEventListener('click', () => pasoTraspaso(b));
       f.querySelector('[data-borrar]')?.addEventListener('click', (e) =>
@@ -641,8 +678,21 @@ function abrirBolsillo(b) {
         e.preventDefault();
         const nueva = leerCantidad(f.cantidad.value, b.decimales);
         if (nueva === null) return error(t('Poné cuánto tenés'));
-        if (nueva === b.cantidad) return document.getElementById('hoja-ahorro').close();
-        pasoDetalle(b, nueva);
+        const cotizacion = f.valorUnidad ? leerValorUnidad(f) : b.cotizacion ?? null;
+        if (cotizacion === false) return error(t('Poné un valor válido'));
+        const cambioValor = JSON.stringify(cotizacion) !== JSON.stringify(b.cotizacion ?? null);
+        enviar(f.querySelector('[type=submit]'), async () => {
+          if (cambioValor) {
+            await llamar('PATCH', `/cajon/bolsillos/${b.id}`, { cotizacion });
+            b = { ...b, cotizacion };
+          }
+          if (nueva !== b.cantidad) return pasoDetalle(b, nueva);
+          document.getElementById('hoja-ahorro').close();
+          if (cambioValor) {
+            sonar('pop');
+            await refrescar(false);
+          }
+        });
       };
     },
   );

@@ -466,4 +466,13 @@ export const EN = {
   'Ver en': 'Show in',
   'Del mes': 'This month',
   'De meses anteriores': 'Previous months',
+  'Oro (g)': 'Gold (g)',
+  'Unidad (ETH, acciones, figuritas…)': 'Unit (ETH, shares, stickers…)',
+  '¿Cuánto vale 1 {unidad}?': 'How much is 1 {unidad} worth?',
+  '¿Cuánto vale 1 unidad? (opcional)': 'How much is 1 unit worth? (optional)',
+  'Hoy {valor} (mercado)': 'Today {valor} (market)',
+  en: 'in',
+  'Vacío: uso la cotización del mercado si hay.': "Empty: I'll use the market rate if there is one.",
+  'Con esto el cajón puede sumarlo al total.': 'With this the drawer can add it to the total.',
+  'Poné un valor válido': 'Enter a valid value',
 };
