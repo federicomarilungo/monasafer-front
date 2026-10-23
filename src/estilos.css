@@ -626,10 +626,11 @@ html, body { overflow-x: clip; }
   #pantalla-app { max-width: 1360px; grid-template-columns: 440px minmax(0, 1fr); }
   .boton-flotante { right: max(24px, calc(50% - 648px)); }
   .boton-chat { right: calc(max(24px, calc(50% - 648px)) + 80px); }
+}
 
 /* ---- Métricas en pantalla completa: Gastos y Ahorros ----
    Es un <dialog> que ocupa toda la pantalla (Esc y el "atrás" lo cierran). En el celular
-   se pasa de una sección a la otra con pestañas; desde 960 px van una al lado de la otra. */
+   se pasa de una sección a la otra con pestañas; desde 860 px (el mismo corte que la home) van una al lado de la otra. */
 .pantalla-completa {
   border: 0; padding: 0; margin: 0; width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh;
   background: var(--fondo); color: var(--texto); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
@@ -660,8 +661,8 @@ html, body { overflow-x: clip; }
   display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 4px 12px; align-items: center;
   border-radius: 24px; padding: 14px 16px; color: #fff;
 }
-.pm-hero.gastos { background: linear-gradient(135deg, #3b7fc4, #2b5f99); box-shadow: 0 6px 0 #234d7d; }
-.pm-hero.ahorros { background: linear-gradient(135deg, var(--selva), #1f8a8a); box-shadow: 0 6px 0 var(--selva-oscura); }
+.pm-hero.hero-gastos { background: linear-gradient(135deg, #3b7fc4, #2b5f99); box-shadow: 0 6px 0 #234d7d; }
+.pm-hero.hero-ahorros { background: linear-gradient(135deg, var(--selva), #1f8a8a); box-shadow: 0 6px 0 var(--selva-oscura); }
 .pm-hero > div:nth-child(2) { display: grid; gap: 2px; min-width: 0; }
 .pm-hero small { font-weight: 800; opacity: 0.9; }
 .pm-hero b { font-family: 'Baloo 2', sans-serif; font-size: clamp(1.7rem, 8vw, 2.3rem); line-height: 1.05; overflow-wrap: anywhere; }
@@ -670,7 +671,7 @@ html, body { overflow-x: clip; }
 .pm-hero .mono-chico { width: 72px; }
 .pm-hero .cambio { justify-self: start; background: rgba(255, 255, 255, 0.2); border-radius: 99px; padding: 1px 8px; }
 .pm-hero .cambio.sube { background: rgba(229, 72, 77, 0.85); }
-.pm-hero .pagado { grid-column: 1 / -1; display: grid; gap: 2px; }
+.pm-hero .pm-pagado { grid-column: 1 / -1; display: grid; gap: 2px; }
 .pm-hero .frasco { background: rgba(255, 255, 255, 0.25); margin-top: 2px; }
 .grafico { max-height: 240px; }
 .grafico .media { stroke: var(--texto); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: 0.5; }
@@ -701,10 +702,10 @@ html, body { overflow-x: clip; }
   .pm-cabecera { padding-inline: max(16px, calc(50% - 300px)); }
 }
 /* PC: las dos secciones a la vez, cada una en su columna; las pestañas sobran. */
-@media (min-width: 960px) {
-  .pm-cabecera { padding-inline: max(24px, calc(50% - 580px)); }
+@media (min-width: 860px) {
+  .pm-cabecera { padding-inline: max(24px, calc(50% - 620px)); }
   .pm-pestanas { display: none; }
-  .pm-contenido { max-width: 1160px; gap: 18px; }
+  .pm-contenido { max-width: 1240px; gap: 18px; }
   .pm-secciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
   .pm-secciones > .pm-seccion { display: grid; gap: 16px; }
   .pm-titulo { display: block; }

@@ -241,7 +241,7 @@ export function montarMetricas(
     const mes = nombreMes(mesCat).toLowerCase();
 
     let html = `<h3 class="pm-titulo">💸 ${t('Gastos')}</h3>
-      <div class="pm-hero gastos">
+      <div class="pm-hero hero-gastos">
         <div class="mono-chico">${svgMono(animo)}</div>
         <div>
           <small>${visto.pasado ? t('Gastaste en {mes}', { mes }) : t('Tenés anotado para {mes}', { mes })}</small>
@@ -254,7 +254,7 @@ export function montarMetricas(
         </div>
         ${
           !visto.pasado && visto.total
-            ? `<div class="pagado"><div class="frasco"><span style="width:${Math.round((pagado / visto.total) * 100)}%"></span></div>
+            ? `<div class="pm-pagado"><div class="frasco"><span style="width:${Math.round((pagado / visto.total) * 100)}%"></span></div>
           <small>${t('Pagaste {pagado} de {total}', { pagado: plata(pagado), total: plata(visto.total) })}</small></div>`
             : ''
         }
@@ -323,7 +323,7 @@ export function montarMetricas(
     const ritmo = promedioDe(guardado.slice(0, -1).filter((v) => v > 0));
 
     let html = `<h3 class="pm-titulo">🍌 ${t('Ahorros')}</h3>
-      <div class="pm-hero ahorros">
+      <div class="pm-hero hero-ahorros">
         <div class="mono-chico">${svgMono(animoPara(meta.balance, ingreso), premium)}</div>
         <div>
           <small>${t('En {mes} vas a tener ahorrado', { mes: nombreMes(meta.mes).toLowerCase() })}</small>
