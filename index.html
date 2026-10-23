@@ -63,40 +63,46 @@
         <button class="boton enlace chico" id="boton-salir" type="button">Salir</button>
       </header>
 
-      <nav class="navegador-mes" aria-label="Mes" data-t-aria>
-        <button class="flecha" id="mes-anterior" aria-label="Mes anterior" data-t-aria>‹</button>
-        <h2 id="titulo-mes">—</h2>
-        <button class="flecha" id="mes-siguiente" aria-label="Mes siguiente" data-t-aria>›</button>
-      </nav>
+      <!-- En celular las dos columnas no existen (display: contents); en PC son lado a lado -->
+      <div class="columna columna-mes">
+        <nav class="navegador-mes" aria-label="Mes" data-t-aria>
+          <button class="flecha" id="mes-anterior" aria-label="Mes anterior" data-t-aria>‹</button>
+          <h2 id="titulo-mes">—</h2>
+          <button class="flecha" id="mes-siguiente" aria-label="Mes siguiente" data-t-aria>›</button>
+        </nav>
 
-      <section class="tarjeta-balance" id="tarjeta-balance">
-        <div class="mono" id="mono" aria-hidden="true"></div>
-        <div class="balance">
-          <p class="etiqueta" data-t>Balance del mes</p>
-          <p class="monto-grande" id="balance">0</p>
-          <p class="linea-acumulado" id="linea-acumulado"></p>
-          <p class="frase" id="frase"></p>
-          <button class="boton-ahorrar" id="ahorrar-mes" type="button" hidden data-t>Ahorrar 🍌</button>
-        </div>
-      </section>
+        <section class="tarjeta-balance" id="tarjeta-balance">
+          <div class="mono" id="mono" aria-hidden="true"></div>
+          <div class="balance">
+            <p class="etiqueta" data-t>Balance del mes</p>
+            <p class="monto-grande" id="balance">0</p>
+            <p class="linea-acumulado" id="linea-acumulado"></p>
+            <p class="frase" id="frase"></p>
+            <button class="boton-ahorrar" id="ahorrar-mes" type="button" hidden data-t>Ahorrar 🍌</button>
+          </div>
+        </section>
 
-      <section class="resumen" id="resumen"></section>
-      <button class="aviso-cobro" id="aviso-cobro" type="button" hidden></button>
-      <div class="sugerencias" id="sugerencias"></div>
+        <section class="resumen" id="resumen"></section>
+        <button class="aviso-cobro" id="aviso-cobro" type="button" hidden></button>
+      </div>
 
-      <section>
-        <h3 class="subtitulo" data-t>Gastos del mes</h3>
-        <ul class="gastos" id="gastos"></ul>
-        <p class="vacio" id="vacio" hidden data-t-html>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
-      </section>
+      <div class="columna columna-gastos">
+        <div class="sugerencias" id="sugerencias"></div>
 
-      <aside class="aviso-premium" id="aviso-premium" hidden>
-        <span>🎙️</span>
-        <p><b data-t>Contale a Mona lo que gastaste</b> <small id="aviso-gratis" data-t>y ella lo carga. Con Premium no ves más este aviso.</small><small id="aviso-con-premium" hidden data-t>y ella lo carga. Escribile o hablale.</small></p>
-        <button type="button" class="boton chico" id="aviso-probar" data-t>Probar</button>
-        <button type="button" class="boton chico" id="aviso-hablar" hidden data-t>Hablar</button>
-        <button type="button" class="cerrar-aviso" id="aviso-cerrar" aria-label="Cerrar aviso" data-t-aria>×</button>
-      </aside>
+        <section>
+          <h3 class="subtitulo" data-t>Gastos del mes</h3>
+          <ul class="gastos" id="gastos"></ul>
+          <p class="vacio" id="vacio" hidden data-t-html>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
+        </section>
+
+        <aside class="aviso-premium" id="aviso-premium" hidden>
+          <span>🎙️</span>
+          <p><b data-t>Contale a Mona lo que gastaste</b> <small id="aviso-gratis" data-t>y ella lo carga. Con Premium no ves más este aviso.</small><small id="aviso-con-premium" hidden data-t>y ella lo carga. Escribile o hablale.</small></p>
+          <button type="button" class="boton chico" id="aviso-probar" data-t>Probar</button>
+          <button type="button" class="boton chico" id="aviso-hablar" hidden data-t>Hablar</button>
+          <button type="button" class="cerrar-aviso" id="aviso-cerrar" aria-label="Cerrar aviso" data-t-aria>×</button>
+        </aside>
+      </div>
 
       <button class="boton-flotante boton-chat" id="boton-chat" aria-label="Hablar con Mona" data-t-aria>💬</button>
       <button class="boton-flotante" id="boton-nuevo" aria-label="Nuevo gasto" data-t-aria>+</button>

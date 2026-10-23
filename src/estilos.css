@@ -524,3 +524,106 @@ html, body { overflow-x: clip; }
 .acumulado-fila > * { min-width: 0; }
 .hoja { overflow-x: hidden; }
 .valor-unidad { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+
+/* ---- Responsive en tablet y PC (C8) ----
+   En celular .columna no existe (display: contents) y todo queda como siempre. En una
+   tablet la columna se ensancha un poco; en PC la home va en dos columnas: el mes con Mona
+   a la izquierda (queda fija al bajar) y las sugerencias y los gastos a la derecha. */
+.columna { display: contents; }
+.columna > * { min-width: 0; }
+
+@media (hover: hover) and (pointer: fine) {
+  .gasto { transition: opacity 0.3s, transform 0.15s, border-color 0.15s; }
+  .gasto:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--selva) 45%, var(--borde)); }
+  .boton:hover:not(:disabled), .chip:hover, .flecha:hover:not(:disabled), .paso:hover:not(:disabled),
+  .cajon-opcion:hover, .opcion-borrar:hover, .segmento:hover:not(.activo) { filter: brightness(1.04); border-color: var(--selva); }
+  .boton.principal:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--selva-oscura); }
+  .boton.enlace:hover { filter: none; text-decoration-thickness: 2px; }
+  .boton-sonido { transition: transform 0.15s; }
+  .boton-sonido:hover { transform: scale(1.15) rotate(-6deg); }
+  .boton-flotante:hover { transform: translateY(-3px) scale(1.05); }
+  .check:hover { background: color-mix(in srgb, var(--selva) 25%, transparent); }
+  .pagado .check:hover { background: var(--selva-oscura); }
+  .bolsillo:hover, .cajon-boton:hover { border-color: var(--selva); }
+}
+
+@media (min-width: 600px) {
+  #pantalla-app, .onboarding { max-width: 600px; }
+  .boton-flotante { right: max(16px, calc(50% - 284px)); }
+  .boton-chat { right: auto; left: max(16px, calc(50% - 284px)); }
+  .hoja form { padding: 24px 24px calc(24px + env(safe-area-inset-bottom)); }
+  .hoja-chat, #hoja-cajon, #hoja-ahorro { width: min(600px, 100%); }
+  .chat { max-height: 56vh; }
+  .emojis { max-height: 160px; }
+}
+
+@media (min-width: 860px) {
+  body { font-size: 1.05rem; }
+  #pantalla-app {
+    max-width: 1120px; padding: 24px 32px 120px; column-gap: clamp(24px, 3vw, 48px); align-items: start;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  }
+  #pantalla-app .cabecera { grid-column: 1 / -1; }
+  .columna { display: grid; gap: 18px; align-content: start; min-width: 0; }
+  .columna-mes { position: sticky; top: 16px; }
+  .columna-gastos { padding-top: 4px; }
+  .cabecera .marca { font-size: 2.2rem; }
+  .cabecera .boton-sonido { font-size: 1.45rem; padding: 4px; }
+  .cabecera .sello-premium { font-size: 0.65rem; }
+  .cabecera #boton-salir { font-size: 0.95rem; }
+
+  /* Mona arriba y grande, el balance abajo */
+  .tarjeta-balance { flex-direction: column; text-align: center; padding: 24px 20px 26px; gap: 6px; }
+  .tarjeta-balance .mono { width: 150px; }
+  .tarjeta-balance .balance { display: grid; justify-items: center; gap: 2px; }
+  .monto-grande { font-size: 3.2rem; }
+  .resumen { font-size: 1.05rem; padding: 14px 10px; }
+  .subtitulo { font-size: 1.3rem; }
+  .gasto { padding: 14px 16px; }
+
+  /* Los botones flotantes van juntos, a la derecha del contenido */
+  .boton-flotante { right: max(24px, calc(50% - 528px)); bottom: 28px; }
+  .boton-chat { left: auto; right: calc(max(24px, calc(50% - 528px)) + 80px); }
+  .tostada, .deshacer[popover] { bottom: 112px; }
+
+  /* Hojas: más aire; el chat y el cajón, más grandes */
+  .hoja { width: min(540px, 100% - 48px); }
+  .hoja-chat, #hoja-cajon, #hoja-ahorro { width: min(680px, 100% - 48px); }
+  .chat { max-height: 60vh; min-height: 280px; }
+  .bolsillos { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .bolsillos.ordenando { grid-template-columns: minmax(0, 1fr); }
+
+  /* Entrada: Mona y la marca a la izquierda, el formulario a la derecha */
+  .entrada {
+    max-width: 980px; min-height: 100vh; padding: 32px; text-align: left; justify-items: stretch; align-content: center;
+    grid-template-columns: minmax(0, 1fr) 400px; column-gap: 64px; row-gap: 14px;
+    grid-template-areas: 'mono form' 'marca form' 'lema form' '. demo' '. idioma';
+  }
+  .entrada .mono-entrada { grid-area: mono; width: 220px; align-self: end; }
+  .entrada .marca.grande { grid-area: marca; font-size: 4.2rem; line-height: 1; }
+  .entrada .lema { grid-area: lema; font-size: 1.3rem; max-width: 420px; align-self: start; }
+  .entrada .formulario { grid-area: form; padding: 24px; }
+  .entrada #boton-demo { grid-area: demo; justify-self: center; }
+  .entrada #boton-idioma-entrada { grid-area: idioma; justify-self: center; }
+
+  .onboarding { max-width: 680px; padding-top: 48px; }
+  .mono-onb { width: 140px; }
+  .globo { font-size: 1.15rem; padding: 18px 20px; }
+}
+
+@media (min-width: 1280px) {
+  #pantalla-app { max-width: 1240px; grid-template-columns: 420px minmax(0, 1fr); }
+  .boton-flotante { right: max(24px, calc(50% - 588px)); }
+  .boton-chat { right: calc(max(24px, calc(50% - 588px)) + 80px); }
+  /* Con tanto ancho los gastos van en dos columnas */
+  .gastos { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .sugerencias { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
+}
+
+/* Pantallas grandes (1600 px o más): todo un poco más grande, para que no quede chiquito en el medio */
+@media (min-width: 1600px) {
+  html { font-size: 17px; }
+  #pantalla-app { max-width: 1360px; grid-template-columns: 440px minmax(0, 1fr); }
+  .boton-flotante { right: max(24px, calc(50% - 648px)); }
+  .boton-chat { right: calc(max(24px, calc(50% - 648px)) + 80px); }
+}
