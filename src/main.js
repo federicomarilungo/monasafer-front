@@ -1340,7 +1340,8 @@ async function volverDePago() {
   }
 }
 
-// S5: un solo aviso liviano, propio, que se va con Premium o al cerrarlo (vuelve al otro día).
+// S5: un solo aviso liviano, propio, que se cierra por el día. Con Premium sigue, como atajo
+// al asistente (es la función que pagó), sin el texto de venta.
 const CLAVE_AVISO = 'monasafer.aviso-cerrado';
 function pintarAviso() {
   let cerrado = null;
@@ -1349,7 +1350,12 @@ function pintarAviso() {
   } catch {
     /* sin storage */
   }
-  $('aviso-premium').hidden = esPremium() || cerrado === hoy.toDateString();
+  const premium = esPremium();
+  $('aviso-premium').hidden = cerrado === hoy.toDateString();
+  $('aviso-gratis').hidden = premium;
+  $('aviso-probar').hidden = premium;
+  $('aviso-con-premium').hidden = !premium;
+  $('aviso-hablar').hidden = !premium;
 }
 $('aviso-cerrar').addEventListener('click', () => {
   try {
@@ -1361,6 +1367,7 @@ $('aviso-cerrar').addEventListener('click', () => {
   $('aviso-premium').hidden = true;
 });
 $('aviso-probar').addEventListener('click', () => abrirChat());
+$('aviso-hablar').addEventListener('click', () => abrirChat());
 
 // S2: métricas. Todos ven las normales (3 meses y categorías); las Premium gastan una vista
 // gratis a quien no paga. Sin vistas se avisa y se ven las normales: nunca se cortan.

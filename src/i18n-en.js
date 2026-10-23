@@ -148,6 +148,7 @@ export const EN = {
   'Contale a Mona lo que gastaste': 'Tell Mona what you spent',
   'y ella lo carga. Con Premium no ves más este aviso.': "and she adds it. With Premium you won't see this again.",
   Probar: 'Try it',
+  'y ella lo carga. Escribile o hablale.': 'and she adds it. Type or talk to her.',
   'Cerrar aviso': 'Close',
   'Monasafer Premium': 'Monasafer Premium',
   'Cambiar {nombre}: {cambios}': 'Change {nombre}: {cambios}',
