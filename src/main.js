@@ -4,7 +4,7 @@ import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
-import { centavos, plata, nombreMes, configurarMoneda } from './formato.js';
+import { centavos, plata, nombreMes, configurarMoneda, conMiles, paraEditar, monedaSugerida } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
 import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
@@ -197,6 +197,14 @@ function empezarOnboarding() {
   iniciarOnboarding({
     nombre: estado.perfil?.nombre ?? '',
     mes: mesActual,
+    // Las cuentas nacen en USD: si sigue así, se sugiere la del país (Argentina → ARS).
+    moneda: estado.perfil?.moneda && estado.perfil.moneda !== 'USD' ? estado.perfil.moneda : monedaSugerida(),
+    monedas: MONEDAS,
+    guardarMoneda: async (moneda) => {
+      if (moneda === estado.perfil?.moneda) return;
+      await api('PATCH', '/perfil', { moneda });
+      estado.perfil.moneda = moneda;
+    },
     guardarPlata: async (saldo, ingreso) => {
       await api('PATCH', '/perfil', { saldo, ingresoMensual: ingreso });
       await cargar();
@@ -808,7 +816,7 @@ function abrirGasto(g = null) {
   $('titulo-hoja-gasto').textContent = g ? t('Editar gasto') : t('Nuevo gasto');
   $('boton-borrar-gasto').hidden = !g;
   // El monto del mes que estás mirando: si cambió desde algún mes, el que rige ahí.
-  f.monto.value = g ? String(montoEn(g, estado.mesVisto) / 100) : '';
+  f.monto.value = g ? paraEditar(montoEn(g, estado.mesVisto)) : '';
   f.nombre.value = g?.nombre ?? '';
   elegirEmoji(g?.emoji || '💸');
   emojiAMano = !!g;
@@ -1196,8 +1204,8 @@ function abrirPlata() {
   const f = $('form-plata');
   const p = estado.datos.perfil;
   mostrarError('error-plata', null);
-  f.saldo.value = String(p.saldo / 100);
-  f.ingreso.value = p.ingresoMensual ? String(p.ingresoMensual.monto / 100) : '';
+  f.saldo.value = paraEditar(p.saldo);
+  f.ingreso.value = p.ingresoMensual ? paraEditar(p.ingresoMensual.monto) : '';
   f.dia.value = p.ingresoMensual?.diaCobro ?? '';
   $('hoja-plata').showModal();
 }
@@ -1685,3 +1693,24 @@ document.addEventListener('focusout', (e) => {
   delete el.dataset.cero;
 });
 
+
+// Separador de miles mientras se escribe (700000 → 700.000). El cursor queda después del
+// mismo dígito. En castellano un "." pegado como decimal ("12.50") se toma como coma.
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.matches?.(MONTO) || e.isComposing) return;
+  let valor = el.value;
+  if (e.inputType === 'insertFromPaste' && idiomaActual() !== 'en' && /^\s*-?\d+\.\d{1,2}\s*$/.test(valor)) valor = valor.replace('.', ',');
+  const nuevo = conMiles(valor);
+  if (nuevo === el.value) return;
+  const significativos = (s) => s.replace(idiomaActual() === 'en' ? /[^\d.\-]/g : /[^\d,\-]/g, '').length;
+  const antes = significativos(el.value.slice(0, el.selectionStart ?? el.value.length));
+  el.value = nuevo;
+  let pos = 0;
+  for (let n = 0; pos < nuevo.length && n < antes; pos++) if (significativos(nuevo[pos])) n++;
+  try {
+    el.setSelectionRange(pos, pos);
+  } catch {
+    /* inputs sin selección */
+  }
+});

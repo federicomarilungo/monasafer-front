@@ -1,6 +1,6 @@
 // Onboarding guiado por Mona (C6): saldo, ingreso y primeros fijos, en cuatro pasos cortos.
 import { svgMono } from './mono.js';
-import { centavos, plata } from './formato.js';
+import { centavos, plata, configurarMoneda } from './formato.js';
 import { sonar } from './sonidos.js';
 import { t } from './i18n.js';
 
@@ -27,6 +27,9 @@ const RESERVAS_COMUNES = [
  * @param {object} op
  * @param {string} op.nombre
  * @param {string} op.mes  mes actual 'AAAA-MM'
+ * @param {string} op.moneda  la sugerida (por país o zona horaria), editable en el primer paso
+ * @param {Record<string,string>} op.monedas  código → nombre
+ * @param {(moneda:string)=>Promise} op.guardarMoneda
  * @param {(saldo:number, ingreso:object|null)=>Promise} op.guardarPlata
  * @param {(g:object)=>Promise} op.crearGasto
  * @param {()=>number} op.balance  balance del mes actual con lo cargado
@@ -85,16 +88,37 @@ export function iniciarOnboarding(op) {
   }
 
   let saldo = 0;
+  let moneda = op.moneda;
+  configurarMoneda(moneda);
+  // La moneda va en el primer paso y a la vista: antes quedaba en USD sin preguntar
+  // (feedback del primer uso de un amigo de Fede, 23/10/2026).
   function pasoSaldo() {
     decir(t('¡Hola{nombre}! Soy Mona y te voy a cuidar la plata 🍌 Para arrancar: ¿cuánta plata tenés hoy en tu cuenta?', { nombre: op.nombre ? ` ${op.nombre}` : '' }));
-    form.innerHTML = `<label class="campo monto-campo">${t('Saldo de hoy')}<input name="saldo" inputmode="decimal" placeholder="0" required /></label>
+    const opciones = Object.entries(op.monedas)
+      .map(([c, n]) => `<option value="${c}" ${c === moneda ? 'selected' : ''}>${t(n)}</option>`)
+      .join('');
+    form.innerHTML = `<label class="campo">${t('Tu moneda')}<select name="moneda" class="onb-moneda">${opciones}</select></label>
+      <label class="campo monto-campo"><span class="onb-saldo"></span><input name="saldo" inputmode="decimal" placeholder="0" required /></label>
       <p class="ayuda">${t('Lo que tenés en el banco o en efectivo ahora. Después lo podés corregir tocando "Saldo hoy".')}</p>`;
+    const etiqueta = () => (form.querySelector('.onb-saldo').textContent = `${t('Saldo de hoy')} (${moneda})`);
+    etiqueta();
+    form.moneda.addEventListener('change', () => {
+      moneda = form.moneda.value;
+      configurarMoneda(moneda);
+      etiqueta();
+      sonar('toque');
+    });
     botones(t('Seguir'));
     form.saldo.focus();
-    form.onsubmit = (e) => {
+    form.onsubmit = async (e) => {
       e.preventDefault();
       const c = centavos(form.saldo.value, true);
       if (c === null) return error(t('Poné un número, aunque sea 0'));
+      try {
+        await op.guardarMoneda(moneda);
+      } catch (err) {
+        return error(err.message);
+      }
       saldo = c;
       sonar('pop');
       ir(1);
@@ -103,7 +127,7 @@ export function iniciarOnboarding(op) {
 
   function pasoIngreso() {
     decir(t('¿Cobrás algo todos los meses? Así puedo calcular cómo te va a ir en los meses que vienen.'));
-    form.innerHTML = `<label class="campo monto-campo">${t('Ingreso por mes')}<input name="ingreso" inputmode="decimal" placeholder="0" /></label>
+    form.innerHTML = `<label class="campo monto-campo">${t('Ingreso por mes')} (${moneda})<input name="ingreso" inputmode="decimal" placeholder="0" /></label>
       <label class="campo">${t('¿Qué día cobrás?')}<input name="dia" type="number" min="1" max="31" placeholder="1" /></label>`;
     botones(t('Seguir'), { texto: t('No tengo fijo'), accion: () => guardar(null) });
     form.ingreso.focus();

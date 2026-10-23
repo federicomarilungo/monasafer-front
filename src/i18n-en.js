@@ -268,6 +268,7 @@ export const EN = {
   '¡Hola{nombre}! Soy Mona y te voy a cuidar la plata 🍌 Para arrancar: ¿cuánta plata tenés hoy en tu cuenta?':
     "Hi{nombre}! I'm Mona and I'll look after your money 🍌 To start: how much money do you have in your account today?",
   'Saldo de hoy': "Today's balance",
+  'Tu moneda': 'Your currency',
   'Lo que tenés en el banco o en efectivo ahora. Después lo podés corregir tocando "Saldo hoy".':
     'What you have in the bank or in cash right now. You can fix it later by tapping "Balance today".',
   Seguir: 'Next',

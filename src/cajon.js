@@ -82,7 +82,7 @@ export function leerCantidad(texto, decimales, negativo = false) {
 }
 
 const paraInput = (c, decimales = 2) =>
-  (c / 10 ** decimales).toLocaleString(locale(), { useGrouping: false, maximumFractionDigits: decimales });
+  (c / 10 ** decimales).toLocaleString(locale(), { maximumFractionDigits: decimales });
 
 export function cantidadTexto(c, b) {
   if (enMoneda(b)) return plata(c);
