@@ -372,8 +372,9 @@ function filaGasto(l) {
   if (pasada) li.classList.add('pasada');
   const frasco = l.tipo === 'reserva' ? `<div class="frasco"><span style="width:${l.monto ? (Math.max(0, quedaReal) / l.monto) * 100 : 0}%"></span></div>` : '';
   const puedePagar = l.tipo !== 'reserva';
-  // Fede (23/10): a la reserva de "cargo cada uso" se le carga un uso desde la fila, sin abrirla.
-  const puedeCargar = l.tipo === 'reserva' && g?.modoReserva === 'manual' && estado.mesVisto === mesActual;
+  // Fede (23/10): a una reserva se le carga un uso desde la fila, sin abrirla. Si bajaba
+  // sola, al cargar el primero pasa a "cargo cada uso" (ver abrirReserva).
+  const puedeCargar = l.tipo === 'reserva' && !l.pagado && estado.mesVisto === mesActual;
   li.innerHTML = `
     <span class="emoji">${g?.emoji || '💸'}</span>
     <div class="info">
@@ -1161,10 +1162,12 @@ async function abrirReserva(l, g, aCargar = false) {
   $('texto-reserva').textContent = esActual
     ? queda < 0
       ? t('Te pasaste por {pasado} (usaste {usado} de {monto}). Ya salió de tu saldo, así que el balance está bien; capaz conviene subir la reserva.', { pasado: plata(-queda), usado: plata(l.usado), monto: plata(l.monto) })
-      : `${t('Quedan {queda} de {monto}.', { queda: plata(queda), monto: plata(l.monto) })} ${manual ? t('Cargá cada uso y Mona lo resta.') : t('Baja sola con los días del mes; si querés cargar cada uso, tocá Editar y elegí "Cargo cada uso".')}`
+      : `${t('Quedan {queda} de {monto}.', { queda: plata(queda), monto: plata(l.monto) })} ${manual ? t('Cargá cada uso y Mona lo resta.') : t('Baja sola con los días del mes. Si cargás un uso, desde este mes pasa a "cargo cada uso" y queda lo que no usaste.')}`
     : `${t('En {mes} vas a tener {monto} reservados.', { mes: nombreMes(estado.mesVisto), monto: plata(l.monto) })}${manual ? ' ' + t('Los usos se cargan en el mes de hoy.') : ''}`;
-  $('carga-uso').hidden = !(manual && esActual);
-  $('boton-usar').hidden = !(manual && esActual);
+  // Fede (24/10): toda reserva del mes de hoy acepta usos, no solo las de "cargo cada uso".
+  const puedeUsar = esActual && !l.pagado;
+  $('carga-uso').hidden = !puedeUsar;
+  $('boton-usar').hidden = !puedeUsar;
   $('lista-usos').replaceChildren();
   $('hoja-reserva').showModal();
   if (aCargar) f.monto.focus();
@@ -1185,7 +1188,11 @@ $('form-uso').addEventListener('submit', async (e) => {
   const monto = centavos(e.target.monto.value);
   if (!monto) return mostrarError('error-uso', t('Poné cuánto usaste'));
   try {
-    await acciones.usar(reservaAbierta.l.gastoId, monto, e.target.nota.value.trim());
+    const { l, g } = reservaAbierta;
+    // Una reserva que bajaba sola pasa a "cargo cada uso" desde este mes (el back guarda
+    // manualDesde, así los meses anteriores no cambian).
+    if (g && g.modoReserva !== 'manual') await acciones.guardarGasto(g.id, { modoReserva: 'manual' });
+    await acciones.usar(l.gastoId, monto, e.target.nota.value.trim());
     $('hoja-reserva').close();
     sonar('plop');
     saltoMono();

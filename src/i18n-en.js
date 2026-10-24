@@ -104,6 +104,7 @@ export const EN = {
   Editar: 'Edit',
   Cerrar: 'Close',
   Usar: 'Use',
+  'Cargar uso': 'Log use',
   Uso: 'Use',
   'Poné cuánto usaste': 'Enter how much you spent',
   'Te pasaste por {pasado} (usaste {usado} de {monto}). Ya salió de tu saldo, así que el balance está bien; capaz conviene subir la reserva.':
@@ -112,8 +113,8 @@ export const EN = {
   'Cargá cada uso y Mona lo resta.': 'Log each use and Mona subtracts it.',
   'Cargar un uso': 'Log a use',
   'Los usos se cargan en el mes de hoy.': 'Uses are logged in the current month.',
-  'Baja sola con los días del mes; si querés cargar cada uso, tocá Editar y elegí "Cargo cada uso".':
-    'It goes down by itself as the month passes; to log each use, tap Edit and choose "I log each use".',
+  'Baja sola con los días del mes. Si cargás un uso, desde este mes pasa a "cargo cada uso" y queda lo que no usaste.':
+    'It goes down by itself as the month passes. If you log a use, from this month on it becomes "I log each use" and what you didn\'t use stays.',
   'En {mes} vas a tener {monto} reservados.': 'In {mes} you will have {monto} set aside.',
 
   // Plata

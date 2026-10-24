@@ -49,6 +49,12 @@ test('historial: mismos números que el motor del back', () => {
   assert.deepEqual(h.map((m) => m.total), [0, USD(530), USD(530), USD(520 + 210 + 40), USD(500)]);
 });
 
+test('reserva que pasó a manual: antes de manualDesde cuenta entera, mismo caso que el back', () => {
+  const nafta = { id: 'n', nombre: 'Súper', monto: USD(300), tipo: 'reserva', modoReserva: 'manual', recurrente: true, mesInicio: '2026-07', manualDesde: '2026-09' };
+  const h = historial({ gastos: [nafta], estados: [], usos: [{ gastoId: 'n', mes: '2026-09', monto: USD(70) }] }, '2026-08', '2026-10');
+  assert.deepEqual(h.map((m) => m.total), [USD(300), USD(70), 0]);
+});
+
 test('historial con cambios de monto: mismo caso que el back', () => {
   const tarjeta = { id: 't', nombre: 'Tarjeta', monto: USD(300), tipo: 'fijo', mesInicio: '2026-06', cambiosMonto: [{ desde: '2026-08', monto: USD(200) }] };
   const h = historial({ gastos: [tarjeta], estados: [], usos: [] }, '2026-07', '2026-08');
