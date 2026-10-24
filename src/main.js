@@ -842,10 +842,10 @@ $('boton-sonido').addEventListener('click', () => {
 });
 pintarBotonSonido();
 
-// Solo en las cuentas admin (el back manda perfil.admin y valida): prende y apaga premium para probarlo.
+// Botón 👑 para todos (Fede, 23/10): prende y apaga premium.
 function pintarBotonPruebaPremium() {
   const b = $('boton-prueba-premium');
-  b.hidden = estado.modo !== 'real' || !estado.perfil?.admin;
+  b.hidden = estado.modo !== 'real';
   b.classList.toggle('apagado', !esPremium());
   b.setAttribute('aria-pressed', String(esPremium()));
   b.setAttribute('aria-label', esPremium() ? t('Apagar Premium de prueba') : t('Prender Premium de prueba'));
