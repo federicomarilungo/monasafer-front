@@ -530,8 +530,12 @@ function pintar(direccion = 0) {
   estado.filas = [];
   lista.replaceChildren(...r.gastos.map(filaGasto));
   $('vacio').hidden = r.gastos.length > 0;
+  // Se animan las filas y no la lista: con la lista animada (transform) Chrome a veces
+  // dejaba de registrar los toques sobre los gastos después de cambiar de mes.
   if (direccion) {
-    lista.animate([{ opacity: 0, transform: `translateX(${direccion * 40}px)` }, { opacity: 1, transform: 'none' }], { duration: 280, easing: 'ease-out' });
+    for (const li of lista.children) {
+      li.animate([{ opacity: 0, transform: `translateX(${direccion * 40}px)` }, { opacity: 1, transform: 'none' }], { duration: 280, easing: 'ease-out' });
+    }
   }
 }
 
