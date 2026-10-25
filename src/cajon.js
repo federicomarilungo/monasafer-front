@@ -685,6 +685,28 @@ function pasoCedear(listo, volver) {
   );
 }
 
+/**
+ * Lo que propone Mona desde una captura del broker: cada posición reemplaza la cantidad del
+ * CEDEAR (o lo crea). Sin cantidad, se deduce del valor en pesos con el precio de hoy.
+ * Devuelve lo cargado, para avisar ("41 SPY").
+ */
+export async function cargarCartera(posiciones) {
+  await cargarCajon();
+  await cargarCedears(posiciones.map((p) => p.ticker));
+  const hechas = [];
+  for (const p of posiciones) {
+    const precio = cedears.precios[p.ticker];
+    if (p.cantidad === null && !precio) throw new Error(t('No encontré el precio de {s} para saber cuántos son', { s: p.ticker }));
+    const cantidad = p.cantidad ?? Math.round(p.valor / precio);
+    let b = cajon.bolsillos.find((x) => esCedear(x) && x.unidad === p.ticker);
+    if (!b) b = await llamar('POST', '/cajon/bolsillos', { nombre: p.nombre, emoji: '📈', unidad: p.ticker, decimales: 0, mercado: 'cedear' });
+    if ((b.cantidad ?? 0) !== cantidad) await llamar('POST', `/cajon/bolsillos/${b.id}/ajustar`, { cantidad, detalle: t('Captura del broker') });
+    hechas.push(`${cantidad} ${p.ticker}`);
+  }
+  await refrescar(false);
+  return hechas;
+}
+
 /** Sumar un CEDEAR que ya tenés: por cantidad o por lo que vale hoy (y se deduce la cantidad). */
 function pasoCargaCedear(datos) {
   paso(

@@ -316,7 +316,10 @@
       <form method="dialog" id="form-chat">
         <h3><span data-t>Mona te ayuda</span> <small class="quedan" id="chat-quedan"></small></h3>
         <div class="chat" id="chat"></div>
+        <div class="chat-adjunto" id="chat-adjunto" hidden><img alt="" /><span data-t>Captura lista para Mona</span><button type="button" aria-label="Sacar" data-t-aria>✕</button></div>
         <div class="chat-entrada">
+          <button type="button" class="boton-mic" id="boton-foto" aria-label="Mandar una captura" data-t-aria>📷</button>
+          <input type="file" id="chat-foto" accept="image/*" hidden />
           <button type="button" class="boton-mic" id="boton-mic" aria-label="Hablar" data-t-aria hidden>🎙️</button>
           <input name="texto" maxlength="500" autocomplete="off" placeholder="Compré una campera en 6 cuotas…" data-t-ph />
           <button type="submit" class="boton principal" aria-label="Mandar" data-t-aria>➤</button>
@@ -336,6 +339,7 @@
         <ul class="premium-lista">
           <li><span class="premium-icono">🎙️</span><span><b data-t>Mona carga tus gastos</b><small data-t>Le contás por chat o por voz y ella lo anota.</small></span></li>
           <li><span class="premium-icono">📊</span><span><b data-t>Métricas sin límite</b><small data-t>En qué se va tu plata, cómo cambian tus meses y cuánto vas a ahorrar.</small></span></li>
+          <li><span class="premium-icono">📷</span><span><b data-t>Mona lee tus capturas</b><small data-t>Un ticket, el resumen de la tarjeta o tu cartera del broker, y ella lo carga.</small></span></li>
           <li><span class="premium-icono">📈</span><span><b data-t>Tu cartera de inversiones</b><small data-t>Anotás tus CEDEARs y se valúan solos con el precio del día.</small></span></li>
           <li><span class="premium-icono">🙈</span><span><b data-t>Sin avisos</b><small data-t>Nada entre vos y tus números.</small></span></li>
         </ul>
