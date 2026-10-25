@@ -404,6 +404,20 @@ export const EN = {
 
   // Cajón de bananas (K1)
   CEDEAR: 'CEDEAR',
+  'Mona lee tus capturas': 'Mona reads your screenshots',
+  'Un ticket, el resumen de la tarjeta o tu cartera del broker, y ella lo carga.': 'A receipt, your card statement or your broker portfolio, and she adds it.',
+  'Captura lista para Mona': 'Screenshot ready for Mona',
+  'Mandar una captura': 'Send a screenshot',
+  Sacar: 'Remove',
+  Cartera: 'Portfolio',
+  '{ticker} por {valor}': '{ticker} worth {valor}',
+  'Cartera al día: {lista}': 'Portfolio updated: {lista}',
+  'Con Premium le mandás a Mona una captura (un ticket, el resumen de la tarjeta o tu cartera del broker) y ella lo carga.':
+    'With Premium you send Mona a screenshot (a receipt, your card statement or your broker portfolio) and she adds it.',
+  'No pude abrir esa imagen. Probá con otra captura.': "I couldn't open that image. Try another screenshot.",
+  'Cargá lo que ves en esta captura': 'Add what you see in this screenshot',
+  'No encontré el precio de {s} para saber cuántos son': "I couldn't find the price of {s} to know how many they are",
+  'Captura del broker': 'Broker screenshot',
   'Tu cartera de inversiones': 'Your investment portfolio',
   'Anotás tus CEDEARs y se valúan solos con el precio del día.': "Add your CEDEARs and they're valued with today's price.",
   'Con el precio de hoy ({precio}) te alcanza para unos {n}.': "At today's price ({precio}) that buys about {n}.",

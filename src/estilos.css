@@ -358,15 +358,21 @@ body {
 .burbuja.mona { background: var(--fondo); border: 2px solid var(--borde); border-bottom-left-radius: 4px; justify-self: start; }
 .burbuja.usuario { background: var(--selva); color: #fff; border-bottom-right-radius: 4px; justify-self: end; }
 .burbuja p { white-space: pre-wrap; }
+.burbuja img { max-width: 160px; max-height: 200px; border-radius: 12px; justify-self: end; }
+.chat-adjunto { display: flex; align-items: center; gap: 10px; background: var(--fondo); border: 2px dashed var(--banana); border-radius: 14px; padding: 6px 10px; font-weight: 700; font-size: 0.9rem; }
+.chat-adjunto[hidden] { display: none; }
+.chat-adjunto img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; }
+.chat-adjunto span { flex: 1; }
+.chat-adjunto button { border: 0; background: none; font: inherit; color: var(--suave); cursor: pointer; font-size: 1.1rem; }
 .propuesta { background: var(--tarjeta); border: 2px dashed var(--banana); border-radius: 14px; padding: 8px 10px; display: grid; gap: 8px; color: var(--texto); }
-.chat-entrada { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.chat-entrada { display: flex; gap: 8px; align-items: center; }
 .chat-entrada input {
   font: inherit; font-size: 1rem; color: var(--texto); background: var(--fondo); border: 2px solid var(--borde);
-  border-radius: 99px; padding: 10px 14px; min-width: 0;
+  border-radius: 99px; padding: 10px 14px; min-width: 0; flex: 1;
 }
 .chat-entrada .boton { border-radius: 50%; width: 46px; height: 46px; padding: 0; }
-.chat-entrada .boton-mic[hidden] + input { grid-column: 1 / 3; }
-.boton-mic { border: 0; background: var(--banana); border-radius: 50%; width: 46px; height: 46px; font-size: 1.3rem; cursor: pointer; }
+.boton-mic[hidden] { display: none; }
+.boton-mic { flex: none;  border: 0; background: var(--banana); border-radius: 50%; width: 46px; height: 46px; font-size: 1.3rem; cursor: pointer; }
 .boton-mic.escuchando { animation: latido 0.8s ease-in-out infinite; background: var(--rojo); }
 .metrica-destacada { text-align: center; display: grid; gap: 2px; background: var(--fondo); border-radius: 18px; padding: 14px; }
 .metrica-destacada b { font-family: 'Baloo 2', sans-serif; font-size: 2rem; }

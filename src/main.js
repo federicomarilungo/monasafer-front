@@ -10,7 +10,7 @@ import { iniciarOnboarding } from './onboarding.js';
 import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
 import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from './i18n.js';
 import { cambiarTema, TEMAS, temaActual } from './tema.js';
-import { abrirAhorrar, abrirCajon, cargarCajon, iniciarCajon, resumenCajon, sugerenciaCajon } from './cajon.js';
+import { abrirAhorrar, abrirCajon, cargarCajon, cargarCartera, iniciarCajon, resumenCajon, sugerenciaCajon } from './cajon.js';
 import { abrirComentarios, iniciarComentarios } from './comentarios.js';
 
 const $ = (id) => document.getElementById(id);
@@ -1487,6 +1487,12 @@ function pintarChat() {
     ...chat.map((m) => {
       const d = document.createElement('div');
       d.className = `burbuja ${m.rol}`;
+      if (m.imagen) {
+        const img = document.createElement('img');
+        img.src = m.imagen;
+        img.alt = '';
+        d.append(img);
+      }
       if (m.texto) {
         const p = document.createElement('p');
         p.textContent = m.texto;
@@ -1515,6 +1521,10 @@ function textoPropuesta(p) {
   if (p.accion === 'borrar_gasto') return t('Borrar {nombre}', { nombre: p.nombre });
   if (p.accion === 'cambiar_saldo') return t('Saldo de hoy: {monto}', { monto: plata(p.saldo) });
   if (p.accion === 'cambiar_ingreso') return t('Ingreso: {monto} por mes, cobrás el día {dia}', { monto: plata(p.monto), dia: p.diaCobro });
+  if (p.accion === 'cargar_cartera')
+    return `📈 ${t('Cartera')}: ${p.posiciones
+      .map((x) => (x.cantidad !== null ? `${x.cantidad} ${x.ticker}` : t('{ticker} por {valor}', { ticker: x.ticker, valor: plataArs(x.valor) })))
+      .join(' · ')}`;
   const g = p.gasto;
   const cuando =
     g.tipo === 'puntual'
@@ -1568,6 +1578,10 @@ function tarjetaPropuesta(p) {
       }
       else if (p.accion === 'cambiar_saldo') await acciones.guardarPlata(p.saldo, estado.datos.perfil.ingresoMensual ?? null);
       else if (p.accion === 'cambiar_ingreso') await acciones.guardarPlata(estado.datos.perfil.saldo, { monto: p.monto, diaCobro: p.diaCobro });
+      else if (p.accion === 'cargar_cartera') {
+        const cargadas = await cargarCartera(p.posiciones);
+        alertaSuave(t('Cartera al día: {lista}', { lista: cargadas.join(' · ') }), '📈');
+      }
       p.hecha = true;
       sonar('pop');
       saltoMono();
@@ -1595,13 +1609,66 @@ $('boton-chat').addEventListener('click', () => {
   abrirChat();
 });
 
+// Capturas para Mona (premium): se achican en el navegador antes de mandarlas.
+let adjunto = null;
+const plataArs = (c) => new Intl.NumberFormat(locale(), { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(c / 100);
+
+function mostrarAdjunto() {
+  $('chat-adjunto').hidden = !adjunto;
+  if (adjunto) $('chat-adjunto').querySelector('img').src = adjunto.url;
+}
+
+/** Hasta 1568 px de lado (lo que Claude aprovecha) y en JPEG: una captura queda en ~300 kB. */
+async function achicarImagen(archivo) {
+  const bmp = await createImageBitmap(archivo);
+  const escala = Math.min(1, 1568 / Math.max(bmp.width, bmp.height));
+  const lienzo = document.createElement('canvas');
+  lienzo.width = Math.round(bmp.width * escala);
+  lienzo.height = Math.round(bmp.height * escala);
+  const c = lienzo.getContext('2d');
+  c.fillStyle = '#fff';
+  c.fillRect(0, 0, lienzo.width, lienzo.height);
+  c.drawImage(bmp, 0, 0, lienzo.width, lienzo.height);
+  const url = lienzo.toDataURL('image/jpeg', 0.85);
+  return { url, tipo: 'image/jpeg', datos: url.split(',')[1] };
+}
+
+$('boton-foto').addEventListener('click', () => {
+  sonar('toque');
+  if (!esPremium()) {
+    $('hoja-chat').close();
+    return abrirPremium(t('Con Premium le mandás a Mona una captura (un ticket, el resumen de la tarjeta o tu cartera del broker) y ella lo carga.'));
+  }
+  $('chat-foto').click();
+});
+$('chat-foto').addEventListener('change', async (e) => {
+  const archivo = e.target.files?.[0];
+  e.target.value = '';
+  if (!archivo) return;
+  try {
+    adjunto = await achicarImagen(archivo);
+    mostrarAdjunto();
+    sonar('pop');
+    $('form-chat').texto.focus();
+  } catch {
+    alertaSuave(t('No pude abrir esa imagen. Probá con otra captura.'));
+  }
+});
+$('chat-adjunto').querySelector('button').addEventListener('click', () => {
+  adjunto = null;
+  mostrarAdjunto();
+});
+
 $('form-chat').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = e.target.texto;
-  const texto = input.value.trim();
+  const foto = adjunto;
+  const texto = input.value.trim() || (foto ? t('Cargá lo que ves en esta captura') : '');
   if (!texto) return;
   input.value = '';
-  chat.push({ rol: 'usuario', texto });
+  adjunto = null;
+  mostrarAdjunto();
+  chat.push({ rol: 'usuario', texto, imagen: foto?.url });
   if (estado.modo !== 'real') {
     chat.push({ rol: 'mona', texto: t('En la demo no puedo cargar nada. Creá tu cuenta y probame gratis 🐒') });
     return pintarChat();
@@ -1617,6 +1684,7 @@ $('form-chat').addEventListener('submit', async (e) => {
   try {
     const r = await api('POST', '/asistente', {
       mensajes: chat.filter((m) => m !== pensando && m.texto && m.texto !== '…').map((m) => ({ rol: m.rol, texto: m.texto })),
+      ...(foto ? { imagen: { tipo: foto.tipo, datos: foto.datos } } : {}),
     });
     chat.pop();
     if (r.requierePremium) {
