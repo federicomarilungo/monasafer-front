@@ -497,6 +497,11 @@ body {
 .cajon-tostada button { font: inherit; font-weight: 800; border: 0; background: var(--banana); color: #2b1d10; border-radius: 99px; padding: 4px 12px; cursor: pointer; }
 .linea-acumulado { font-weight: 800; font-size: 0.9rem; opacity: 0.9; }
 .cajon-total { display: grid; justify-items: center; gap: 2px; text-align: center; background: color-mix(in srgb, var(--banana) 22%, var(--tarjeta)); border: 2px dashed #e0b520; border-radius: 18px; padding: 12px; }
+.cartera { display: grid; gap: 8px; }
+.cartera-titulo { display: flex; justify-content: space-between; align-items: baseline; font-family: 'Baloo 2', sans-serif; font-size: 1.15rem; }
+.cartera-titulo span { font-weight: 800; }
+.cartera .bolsillo { padding: 10px 12px; }
+.cartera-porcentaje { font-weight: 800; font-size: 0.85rem; background: color-mix(in srgb, var(--banana) 35%, transparent); border-radius: 99px; padding: 2px 8px; }
 .cajon-total b { font-family: 'Baloo 2', sans-serif; font-size: 2rem; line-height: 1.1; }
 .cajon-total small { color: var(--suave); font-weight: 700; }
 .cajon-base { font-weight: 800; font-size: 0.85rem; color: var(--suave); }

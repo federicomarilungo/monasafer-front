@@ -10,6 +10,8 @@ let ctx = null;
 let cajon = { bolsillos: [], movimientos: [] };
 /** Cotizaciones del día del back: unidades de cada código por 1 USD (null si no hay). */
 let cotizaciones = null;
+/** Precios de los CEDEARs que se usan, en centavos de peso: { SPY: 2096000 }. */
+let cedears = { precios: {}, fecha: null };
 const MONEDAS_BASE = ['USD', 'ARS', 'EUR', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN'];
 const GRAMOS_POR_ONZA = 31.1035;
 
@@ -29,10 +31,23 @@ function porUsd(unidad) {
   return p[u] ?? null;
 }
 
+/** Centavos de `de` pasados a `a` con las cotizaciones del día (null si falta alguna). */
+function convertir(c, de, a) {
+  if (de === a) return c;
+  const x = porUsd(de);
+  const y = porUsd(a);
+  return x && y ? Math.round((c / x) * y) : null;
+}
+
 /** Cuánto vale una cantidad del bolsillo en la moneda base, en centavos (null: sin cotización). */
 function enBase(cantidad, b) {
   const base = monedaBase();
   const n = cantidad / 10 ** b.decimales;
+  // Un CEDEAR vale su precio en pesos de hoy, pasado a la base con el MEP.
+  if (b.mercado === 'cedear' && !b.cotizacion) {
+    const precio = cedears.precios[b.unidad];
+    return precio ? convertir(n * precio, 'ARS', base) : null;
+  }
   // El valor puesto a mano manda sobre el de mercado.
   if (b.cotizacion) {
     const enSuMoneda = n * b.cotizacion.valor;
@@ -64,6 +79,25 @@ const PRESETS = [
   { nombre: 'Acciones', emoji: '📈', unidad: null, decimales: 2 },
   { nombre: 'Plazo fijo', emoji: '🏦', unidad: null, decimales: 2 },
 ];
+// Cartera de inversiones (premium): los CEDEARs que más se usan. El resto se agrega por
+// ticker, así no se cargan ~400 precios si nadie los usa (Fede, 25/10).
+const CEDEARS_POPULARES = [
+  ['SPY', 'S&P 500'],
+  ['QQQ', 'Nasdaq 100'],
+  ['DIA', 'Dow Jones'],
+  ['AAPL', 'Apple'],
+  ['GOOGL', 'Google'],
+  ['MSFT', 'Microsoft'],
+  ['AMZN', 'Amazon'],
+  ['NVDA', 'Nvidia'],
+  ['META', 'Meta'],
+  ['TSLA', 'Tesla'],
+  ['MELI', 'Mercado Libre'],
+  ['KO', 'Coca-Cola'],
+  ['BRKB', 'Berkshire'],
+  ['IBIT', 'Bitcoin ETF'],
+];
+const esCedear = (b) => b.mercado === 'cedear';
 const EMOJIS = ['🐷', '💵', '💶', '₿', '💠', '💲', '🪙', '📈', '🏦', '✈️', '🏠', '🚗', '🎓', '💍', '🎁', '🆘', '💎', '🍌'];
 const CRIPTO = /^(BTC|ETH|SOL|XRP|ADA|DOGE|LTC|DOT|AVAX|BNB)$/i;
 
@@ -98,6 +132,16 @@ async function cargarCotizaciones() {
   if (cotizaciones && Date.now() - Date.parse(cotizaciones.fecha) < 60 * 60 * 1000) return;
   // Públicas: la demo también las usa.
   cotizaciones = await api('GET', '/cajon/cotizaciones').catch(() => cotizaciones);
+}
+
+/** Precios de los CEDEARs de la cartera (y de `extra`); solo si hay alguno. */
+async function cargarCedears(extra = []) {
+  const simbolos = [...new Set([...cajon.bolsillos.filter(esCedear).map((b) => b.unidad), ...extra])];
+  const faltan = simbolos.filter((s) => !(s in cedears.precios));
+  const viejos = !cedears.fecha || Date.now() - Date.parse(cedears.fecha) > 20 * 60 * 1000;
+  if (!simbolos.length || (!faltan.length && !viejos)) return;
+  const r = await api('GET', `/cajon/cedears?simbolos=${encodeURIComponent((viejos ? simbolos : faltan).join(','))}`).catch(() => null);
+  if (r) cedears = { precios: { ...cedears.precios, ...r.precios }, fecha: r.fecha };
 }
 
 export async function cargarCajon() {
@@ -193,6 +237,7 @@ async function demoApi(metodo, ruta, c = {}) {
 /** El cajón valuado en la moneda base, para la sección Ahorros de las métricas. */
 export async function resumenCajon() {
   await Promise.all([cargarCajon(), cargarCotizaciones()]);
+  await cargarCedears();
   const bolsillos = cajon.bolsillos
     .filter((b) => b.cantidad)
     .map((b) => ({ id: b.id, emoji: b.emoji, nombre: nombreDe(b), texto: cantidadTexto(b.cantidad, b), valor: enBase(b.cantidad, b) }))
@@ -262,7 +307,7 @@ function paso(html, alMostrar) {
   const d = document.getElementById('hoja-ahorro');
   if (!d.open) d.showModal();
   f.animate([{ opacity: 0, transform: 'translateX(24px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
-  f.querySelector('input:not([type=hidden])')?.focus();
+  f.querySelector('input:not([type=hidden]):not([data-sin-foco])')?.focus();
 }
 
 function error(msg) {
@@ -387,6 +432,7 @@ function pasoDonde() {
      <p class="ayuda">${t('{monto} van al cajón. Si los pasaste a otra cosa, elegila y te pregunto cuánto te quedó.', { monto: plata(flujo.monto) })}</p>
      <div class="cajon-opciones">
        ${opciones.map((o, i) => `<button type="button" class="cajon-opcion" data-i="${i}"><span>${esc(o.emoji)}</span><b>${esc(o.nombre)}</b><small>${esc(o.unidad)}</small></button>`).join('')}
+       <button type="button" class="cajon-opcion" data-cedear><span>📈</span><b>${t('CEDEAR')}</b><small>👑 Premium</small></button>
        <button type="button" class="cajon-opcion nueva" data-nueva><span>➕</span><b>${t('Crear categoría')}</b></button>
      </div>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="button" class="boton" data-omitir>${t('Omitir')}</button></div>
@@ -394,6 +440,7 @@ function pasoDonde() {
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', pasoMonto);
       f.querySelector('[data-nueva]').addEventListener('click', () => pasoNuevaCategoria((b) => elegir({ preset: b })));
+      f.querySelector('[data-cedear]').addEventListener('click', () => pasoCedear((b) => elegir({ preset: b }), pasoDonde));
       f.querySelector('[data-omitir]').addEventListener('click', (e) => enviar(e.target, () => guardarAhorro(null, null)));
       f.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => elegir(opciones[Number(b.dataset.i)])));
     },
@@ -411,13 +458,18 @@ function elegir(o) {
 
 function pasoCantidad() {
   const b = flujo.destino.datos;
+  const precio = esCedear(b) ? cedears.precios[b.unidad] : null;
+  const enPesos = precio ? convertir(flujo.monto, monedaCuenta(), 'ARS') : null;
+  const sugerida = enPesos ? Math.floor(enPesos / precio) : 0;
   paso(
     `<h3>${t('¿Cuántos {unidad} son?', { unidad: esc(b.unidad) })}</h3>
      <p class="ayuda">${t('Sacaste {monto}. Poné lo que te quedó en {nombre}: así solo te ocupás de lo que guardás.', { monto: plata(flujo.monto), nombre: `${esc(b.emoji)} ${esc(b.nombre)}` })}</p>
+     ${sugerida ? `<p class="ayuda">${t('Con el precio de hoy ({precio}) te alcanza para unos {n}.', { precio: esc(plataEn(precio, 'ARS')), n: sugerida })}</p>` : ''}
      <label class="campo monto-campo"><span>${esc(b.unidad)}</span><input name="cantidad" inputmode="decimal" autocomplete="off" placeholder="0" /></label>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Guardar 🍌')}</button></div>`,
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', pasoDonde);
+      if (sugerida) f.cantidad.value = sugerida;
       f.onsubmit = (e) => {
         e.preventDefault();
         const c = leerCantidad(f.cantidad.value, b.decimales);
@@ -431,8 +483,8 @@ function pasoCantidad() {
 async function guardarAhorro(destino, cantidad) {
   let bolsilloId = destino?.existente?.id ?? null;
   if (destino && !bolsilloId) {
-    const { nombre, emoji, unidad, decimales, cotizacion = null } = destino.datos;
-    bolsilloId = (await llamar('POST', '/cajon/bolsillos', { nombre, emoji, unidad, decimales, cotizacion })).id;
+    const { nombre, emoji, unidad, decimales, cotizacion = null, mercado = null } = destino.datos;
+    bolsilloId = (await llamar('POST', '/cajon/bolsillos', { nombre, emoji, unidad, decimales, cotizacion, mercado })).id;
   }
   const m = await llamar('POST', '/cajon/ahorrar', { monto: flujo.monto, origen: flujo.origen, bolsilloId, cantidad });
   document.getElementById('hoja-ahorro').close();
@@ -584,6 +636,130 @@ function leerValorUnidad(f) {
   return valor ? { moneda: f.monedaUnidad.value, valor } : false;
 }
 
+// ---------- Cartera de inversiones (CEDEARs, premium) ----------
+
+const plataEn = (c, moneda) => new Intl.NumberFormat(locale(), { style: 'currency', currency: moneda, maximumFractionDigits: 0 }).format(c / 100);
+
+/** Si no es premium, ofrece serlo y devuelve false. */
+function puedeCartera() {
+  if (ctx.esPremium()) return true;
+  document.getElementById('hoja-ahorro').close();
+  ctx.abrirPremium(t('Con Premium armás tu cartera de inversiones: anotás tus CEDEARs y se valúan solos con el precio del día.'));
+  return false;
+}
+
+/** Elegir un CEDEAR: los populares o cualquiera por ticker. `listo` recibe los datos del bolsillo. */
+function pasoCedear(listo, volver) {
+  if (!puedeCartera()) return;
+  const tengo = new Set(cajon.bolsillos.filter(esCedear).map((b) => b.unidad));
+  const opciones = CEDEARS_POPULARES.filter(([s]) => !tengo.has(s));
+  const datos = (s, nombre) => ({ nombre: nombre ?? s, emoji: '📈', unidad: s, decimales: 0, mercado: 'cedear' });
+  paso(
+    `<h3>${t('📈 ¿Qué CEDEAR?')}</h3>
+     <p class="ayuda">${t('Se valúa solo con el precio de hoy en pesos (BYMA, con unos minutos de demora).')}</p>
+     <div class="cajon-opciones">${opciones.map(([s, n]) => `<button type="button" class="cajon-opcion" data-s="${s}"><span>📈</span><b>${s}</b><small>${esc(n)}</small></button>`).join('')}</div>
+     <label class="campo"><span>${t('¿Otro? Poné el ticker')}</span><input name="ticker" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="VIST, YPF, KO…" data-sin-foco /></label>
+     <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Buscar')}</button></div>`,
+    (f) => {
+      f.querySelector('[data-atras]').addEventListener('click', volver);
+      f.querySelectorAll('[data-s]').forEach((el) =>
+        el.addEventListener('click', async () => {
+          sonar('toque');
+          const [s, n] = CEDEARS_POPULARES.find(([x]) => x === el.dataset.s);
+          await cargarCedears([s]);
+          listo(datos(s, n));
+        }),
+      );
+      f.onsubmit = (e) => {
+        e.preventDefault();
+        const s = f.ticker.value.trim().toUpperCase();
+        if (!/^[A-Z0-9.]{1,10}$/.test(s)) return error(t('Poné un ticker, como SPY'));
+        if (tengo.has(s)) return error(t('Ya tenés {s} en la cartera', { s }));
+        enviar(f.querySelector('[type=submit]'), async () => {
+          await cargarCedears([s]);
+          if (!cedears.precios[s]) throw new Error(t('No encontré el CEDEAR {s}', { s }));
+          listo(datos(s));
+        });
+      };
+    },
+  );
+}
+
+/** Sumar un CEDEAR que ya tenés: por cantidad o por lo que vale hoy (y se deduce la cantidad). */
+function pasoCargaCedear(datos) {
+  paso(
+    `<h3>📈 ${esc(datos.unidad)}${datos.nombre !== datos.unidad ? ` · ${esc(datos.nombre)}` : ''}</h3>
+     ${htmlCantidadCedear(datos, null)}
+     <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
+    (f) => {
+      escucharCantidadCedear(f, datos);
+      f.querySelector('[data-atras]').addEventListener('click', () => pasoCedear(pasoCargaCedear, () => document.getElementById('hoja-ahorro').close()));
+      f.onsubmit = (e) => {
+        e.preventDefault();
+        const c = leerCantidad(f.cantidad.value, 0);
+        if (c === null) return error(t('Poné cuántos tenés'));
+        enviar(f.querySelector('[type=submit]'), async () => {
+          const b = await llamar('POST', '/cajon/bolsillos', datos);
+          if (c) await llamar('POST', `/cajon/bolsillos/${b.id}/ajustar`, { cantidad: c, detalle: t('Lo que ya tenía') });
+          document.getElementById('hoja-ahorro').close();
+          sonar('fanfarria');
+          ctx.saltoMono();
+          await refrescar(false);
+        });
+      };
+    },
+  );
+}
+
+/** Cantidad de un CEDEAR, con la opción de poner cuánto vale hoy y deducirla. */
+function htmlCantidadCedear(b, cantidad) {
+  const precio = cedears.precios[b.unidad];
+  return `<label class="campo monto-campo"><span>${t('¿Cuántos {unidad} tenés?', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+     ${
+       precio
+         ? `<label class="campo"><span>${t('¿No sabés cuántos? Poné cuánto vale hoy (ARS)')}</span><input name="valorHoy" inputmode="decimal" autocomplete="off" /></label>
+     <p class="ayuda" id="cedear-cuenta">${t('Hoy 1 {unidad} = {precio}', { unidad: esc(b.unidad), precio: esc(plataEn(precio, 'ARS')) })}${cantidad ? ` · ${t('los tuyos valen {valor}', { valor: esc(plataEn(cantidad * precio, 'ARS')) })}` : ''}</p>`
+         : `<p class="ayuda">${t('Ahora no tengo el precio de {unidad}: poné la cantidad y lo valúo cuando vuelva.', { unidad: esc(b.unidad) })}</p>`
+     }`;
+}
+
+function escucharCantidadCedear(f, b) {
+  const precio = cedears.precios[b.unidad];
+  if (!f.valorHoy) return;
+  const cuenta = document.getElementById('cedear-cuenta');
+  const base = cuenta.textContent.split(' · ')[0];
+  f.valorHoy.addEventListener('input', () => {
+    const v = centavos(f.valorHoy.value);
+    if (!v) return (cuenta.textContent = base);
+    // Los CEDEARs vienen enteros: se redondea y se muestra para que lo confirmes.
+    const n = Math.round(v / precio);
+    f.cantidad.value = n;
+    cuenta.textContent = `${base} · ${t('son unos {n} {unidad}', { n, unidad: b.unidad })}`;
+  });
+  f.cantidad.addEventListener('input', () => {
+    f.valorHoy.value = '';
+    const n = leerCantidad(f.cantidad.value, 0);
+    cuenta.textContent = n ? `${base} · ${t('los tuyos valen {valor}', { valor: plataEn(n * precio, 'ARS') })}` : base;
+  });
+}
+
+function htmlCartera(cartera) {
+  if (!cartera.length) return '';
+  const valores = cartera.map((b) => enBase(b.cantidad, b) ?? 0);
+  const total = valores.reduce((s, v) => s + v, 0);
+  return `<div class="cartera">
+      <div class="cartera-titulo"><b>${t('📈 Inversiones')}</b><span>≈ ${esc(plataBase(total))}</span></div>
+      <ul class="bolsillos">${cartera
+        .map(
+          (b, i) => `<li><button type="button" class="bolsillo" data-b="${b.id}">
+          <span class="bolsillo-info"><b>${esc(b.unidad)}</b>${b.nombre !== b.unidad ? `<small>${esc(b.nombre)}</small>` : ''}</span>
+          ${total > 0 && valores[i] > 0 ? `<span class="cartera-porcentaje">${Math.round((valores[i] / total) * 100)}%</span>` : ''}
+          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`,
+        )
+        .join('')}</ul>
+    </div>`;
+}
+
 // ---------- El cajón ----------
 
 export function abrirCajon() {
@@ -591,7 +767,7 @@ export function abrirCajon() {
   ordenando = false;
   pintarCajon();
   document.getElementById('hoja-cajon').showModal();
-  Promise.all([cargarCajon(), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
+  Promise.all([cargarCajon().then(() => cargarCedears()), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
 }
 
 const TIPOS = {
@@ -607,11 +783,13 @@ let ordenando = false;
 function pintarCajon() {
   const f = document.getElementById('form-cajon');
   const porId = new Map(cajon.bolsillos.map((b) => [b.id, b]));
-  const visibles = cajon.bolsillos.filter((b) => !b.generico || b.cantidad);
+  const todos = cajon.bolsillos.filter((b) => !b.generico || b.cantidad);
+  const visibles = todos.filter((b) => !esCedear(b));
+  const cartera = todos.filter(esCedear).sort((a, b) => (enBase(b.cantidad, b) ?? 0) - (enBase(a.cantidad, a) ?? 0));
   const fecha = (m) => (m.fecha ? new Date(m.fecha).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) : '');
   f.innerHTML = `
     <h3>${t('🍌 Cajón de bananas')}</h3>
-    ${htmlTotal(visibles)}
+    ${htmlTotal(todos)}
     <p class="ayuda">${t('Lo que guardaste y en qué. Tocá un bolsillo para editarlo: si lo cambiás, te pregunto en qué se usó.')}</p>
     ${visibles.length > 1 ? `<button type="button" class="chip chip-ordenar${ordenando ? ' activo' : ''}" data-ordenar>${ordenando ? t('✓ Listo') : t('↕️ Ordenar')}</button>` : ''}
     <ul class="bolsillos${ordenando ? ' ordenando' : ''}">${visibles
@@ -626,7 +804,8 @@ function pintarCajon() {
           <span class="bolsillo-cantidad${b.cantidad < 0 ? ' menos' : ''}">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`,
       )
       .join('')}</ul>
-    ${visibles.length ? '' : `<p class="vacio">${t('Todavía no guardaste nada. Cuando te sobre, tocá Ahorrar y Mona lo trae acá.')}</p>`}
+    ${htmlCartera(cartera)}
+    ${todos.length ? '' : `<p class="vacio">${t('Todavía no guardaste nada. Cuando te sobre, tocá Ahorrar y Mona lo trae acá.')}</p>`}
     ${
       cajon.movimientos.length
         ? `<h4 class="subtitulo">${t('Historial')}</h4>
@@ -647,6 +826,7 @@ function pintarCajon() {
     }
     <div class="acciones">
       <button type="button" class="boton" data-nuevo>${t('Nuevo bolsillo')}</button>
+      <button type="button" class="boton" data-inversion>${t('📈 Inversión')}</button>
       <button type="button" class="boton" data-cerrar-cajon>${t('Cerrar')}</button>
       ${ctx.estado.mesVisto === ctx.mesActual ? `<button type="button" class="boton principal" data-ahorrar>${t('Ahorrar 🍌')}</button>` : ''}
     </div>`;
@@ -668,6 +848,10 @@ function pintarCajon() {
       () => document.getElementById('hoja-ahorro').close(),
     ),
   );
+  f.querySelector('[data-inversion]').addEventListener('click', () => {
+    sonar('pop');
+    pasoCedear(pasoCargaCedear, () => document.getElementById('hoja-ahorro').close());
+  });
   f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => !ordenando && abrirBolsillo(porId.get(el.dataset.b))));
   f.querySelector('[data-ordenar]')?.addEventListener('click', () => {
     sonar('toque');
@@ -722,13 +906,18 @@ async function cambiarBase(moneda) {
 function abrirBolsillo(b) {
   sonar('toque');
   if (b.generico) return pasoTraspaso(b);
+  const cedear = esCedear(b);
   paso(
     `<h3>${esc(b.emoji)} ${esc(b.nombre)}</h3>
-     <label class="campo monto-campo"><span>${t('¿Cuánto tenés? ({unidad})', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="text" autocomplete="off" data-monto /></label>
+     ${
+       cedear
+         ? htmlCantidadCedear(b, b.cantidad)
+         : `<label class="campo monto-campo"><span>${t('¿Cuánto tenés? ({unidad})', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="text" autocomplete="off" data-monto /></label>`
+     }
      <p class="ayuda">${t('Si cambiás el total, te pregunto en qué se usó o de dónde salió. Queda en el historial y no toca los gastos del mes.')}</p>
-     <p class="ayuda">${t('¿Es plata de otro que tenés guardada? Ponela en negativo (-200) y resta del total.')}</p>
+     ${cedear ? '' : `<p class="ayuda">${t('¿Es plata de otro que tenés guardada? Ponela en negativo (-200) y resta del total.')}</p>`}
      <div class="chips">
-       <button type="button" class="chip" data-editar>${t('✏️ Nombre, moneda y valor')}</button>
+       ${cedear ? '' : `<button type="button" class="chip" data-editar>${t('✏️ Nombre, moneda y valor')}</button>`}
        ${b.cantidad > 0 ? `<button type="button" class="chip" data-retirar>${t('↩️ Volver a la cuenta')}</button>` : ''}
        ${b.cantidad > 0 && cajon.bolsillos.length > 1 ? `<button type="button" class="chip" data-pasar>${t('↔️ Pasar a otro bolsillo')}</button>` : ''}
        ${b.cantidad ? '' : `<button type="button" class="chip peligro" data-borrar>${t('🗑️ Borrar bolsillo')}</button>`}
@@ -736,7 +925,8 @@ function abrirBolsillo(b) {
      <div class="acciones"><button type="button" class="boton" data-cerrar-ahorro>${t('Cerrar')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
     (f) => {
       f.cantidad.value = paraInput(b.cantidad, b.decimales);
-      f.querySelector('[data-editar]').addEventListener('click', () => pasoEditarBolsillo(b));
+      if (cedear) escucharCantidadCedear(f, b);
+      f.querySelector('[data-editar]')?.addEventListener('click', () => pasoEditarBolsillo(b));
       f.querySelector('[data-retirar]')?.addEventListener('click', () => pasoRetirar(b));
       f.querySelector('[data-pasar]')?.addEventListener('click', () => pasoTraspaso(b));
       f.querySelector('[data-borrar]')?.addEventListener('click', (e) =>
@@ -749,7 +939,7 @@ function abrirBolsillo(b) {
       );
       f.onsubmit = (e) => {
         e.preventDefault();
-        const nueva = leerCantidad(f.cantidad.value, b.decimales, true);
+        const nueva = leerCantidad(f.cantidad.value, b.decimales, !cedear);
         if (nueva === null) return error(t('Poné cuánto tenés'));
         if (nueva !== b.cantidad) return pasoDetalle(b, nueva);
         document.getElementById('hoja-ahorro').close();

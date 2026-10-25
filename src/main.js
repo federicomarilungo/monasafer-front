@@ -550,6 +550,8 @@ iniciarCajon({
   saltoMono: () => saltoMono(),
   avisar: (err) => avisar(err),
   alertaSuave: (texto, emoji) => alertaSuave(texto, emoji),
+  esPremium: () => esPremium(),
+  abrirPremium: (motivo) => abrirPremium(motivo),
 });
 $('ahorrar-mes').addEventListener('click', () => {
   sonar('pop');
