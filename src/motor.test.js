@@ -116,6 +116,26 @@ test('balance partido: mismos números que el motor del back', () => {
   assert.deepEqual(partirBalance(ahorrado, octAhorrado, ahorros), { delMes: 0, acumulado: USD(350), total: USD(350) });
 });
 
+test('balance partido: un ingreso extra del mes cuenta como del mes (mismo caso que el back)', () => {
+  const datos = {
+    perfil: { saldo: USD(1300), ingresoMensual: { monto: USD(800), diaCobro: 5 }, ingresoCobradoMes: '2026-10' },
+    gastos: [
+      { id: 'alq', nombre: 'Alquiler', monto: USD(400), tipo: 'fijo', mesInicio: '2026-01' },
+      { id: 'cena', nombre: 'Cena', monto: USD(40), tipo: 'puntual', mesInicio: '2026-10' },
+      { id: 'tr', nombre: 'Transporte', monto: USD(200), tipo: 'reserva', mesInicio: '2026-10', recurrente: true, modoReserva: 'manual' },
+    ],
+    estados: [{ gastoId: 'alq', mes: '2026-10', pagado: true }],
+    usos: [{ gastoId: 'tr', mes: '2026-10', monto: USD(50) }],
+    ingresosExtra: [
+      { mes: '2026-10', monto: USD(300) },
+      { mes: '2026-09', monto: USD(999) },
+    ],
+  };
+  const [oct, nov] = proyectar(datos, hoy, '2026-11');
+  assert.deepEqual(partirBalance(datos, oct), { delMes: USD(460), acumulado: USD(650), total: USD(1110) });
+  assert.deepEqual(partirBalance(datos, nov), { delMes: USD(200), acumulado: USD(1110), total: USD(1310) });
+});
+
 test('balance partido: con gastos sin cargar el acumulado queda en 0 (igual que el back)', () => {
   const datos = { perfil: { saldo: USD(495030), ingresoMensual: { monto: USD(5550000), diaCobro: 1 }, ingresoCobradoMes: '2026-10' }, gastos: [], estados: [], usos: [] };
   const [oct] = proyectar(datos, hoy, '2026-10');

@@ -292,6 +292,29 @@ const acciones = {
       () => api('PATCH', '/perfil', { saldo, ingresoMensual }),
       (d) => Object.assign(d.perfil, { saldo, ingresoMensual }),
     ),
+  /** Ingreso extra en cualquier momento del mes; devuelve su id para el Deshacer. */
+  sumarIngreso: async (monto, detalle) => {
+    let id = null;
+    await ejecutar(
+      async () => (id = (await api('POST', '/ingresos', { monto, detalle })).ingreso.id),
+      (d) => {
+        id = `demo-${Date.now()}`;
+        d.ingresosExtra = [...(d.ingresosExtra ?? []), { id, mes: mesActual, monto, detalle }];
+        d.perfil.saldo += monto;
+      },
+    );
+    return id;
+  },
+  borrarIngreso: (id) =>
+    ejecutar(
+      () => api('DELETE', `/ingresos/${id}`),
+      (d) => {
+        const i = (d.ingresosExtra ?? []).find((x) => x.id === id);
+        if (!i) return;
+        d.ingresosExtra = d.ingresosExtra.filter((x) => x !== i);
+        d.perfil.saldo -= i.monto;
+      },
+    ),
   cobrar: () =>
     ejecutar(
       () => api('POST', '/perfil/cobrar-ingreso'),
@@ -510,9 +533,10 @@ function pintar(direccion = 0) {
   const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
   $('resumen').innerHTML = `
     <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? t('Saldo hoy ✎') : t('Arrancás con')}</p><p id="valor-saldo"></p></button>
-    <div class="celda"><p class="etiqueta">${t('Ingreso')}</p><p class="mas">+${plata(r.ingreso)}</p></div>
+    <button class="celda" id="celda-ingreso" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? t('Ingreso ＋') : t('Ingreso')}</p><p class="mas">+${plata(r.ingreso)}</p></button>
     <div class="celda" id="celda-gastar"><p class="etiqueta">${t('Por gastar')}</p><p class="menos" id="valor-gastar"></p></div>`;
-  $('celda-saldo').addEventListener('click', abrirPlata);
+  $('celda-saldo').addEventListener('click', abrirIngreso);
+  $('celda-ingreso').addEventListener('click', abrirIngreso);
   animarNumero($('valor-saldo'), previo.inicio, r.inicio, plata, 900);
   animarNumero($('valor-gastar'), previo.totalPendiente, r.totalPendiente, (c) => `−${plata(c)}`, 900);
   if (previo.inicio !== r.inicio) golpe($('valor-saldo'));
@@ -1212,6 +1236,83 @@ $('boton-editar-reserva').addEventListener('click', () => {
   abrirGasto(reservaAbierta.g);
 });
 
+// Te entró plata: un ingreso en cualquier momento del mes (o cobrar el sueldo antes de tiempo).
+function abrirIngreso() {
+  const f = $('form-ingreso');
+  f.reset();
+  mostrarError('error-ingreso', null);
+  pintarIngresos();
+  $('hoja-ingreso').showModal();
+  f.monto.focus();
+}
+
+function pintarIngresos() {
+  const p = estado.datos.perfil;
+  const sueldo = $('boton-cobrar-sueldo');
+  sueldo.hidden = !p.ingresoMensual || p.ingresoCobradoMes === mesActual;
+  if (!sueldo.hidden) sueldo.textContent = t('💰 Ya cobré mi sueldo: +{monto}', { monto: plata(p.ingresoMensual.monto) });
+  const lista = (estado.datos.ingresosExtra ?? []).filter((i) => i.mes === mesActual);
+  $('lista-ingresos').replaceChildren(
+    ...lista.map((i) => {
+      const li = document.createElement('li');
+      const txt = document.createElement('span');
+      txt.textContent = `${i.detalle || t('Ingreso extra')} · +${plata(i.monto)}`;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'quitar';
+      x.textContent = '✕';
+      x.setAttribute('aria-label', t('Quitar'));
+      x.addEventListener('click', async () => {
+        x.disabled = true;
+        try {
+          await acciones.borrarIngreso(i.id);
+          sonar('caer');
+          pintarIngresos();
+          ofrecerDeshacer(t('Sacaste {monto} de tu saldo', { monto: plata(i.monto) }), () => acciones.sumarIngreso(i.monto, i.detalle), '↩️');
+        } catch (err) {
+          x.disabled = false;
+          mostrarError('error-ingreso', err.message);
+        }
+      });
+      li.append(txt, x);
+      return li;
+    }),
+  );
+}
+
+$('boton-cobrar-sueldo').addEventListener('click', async () => {
+  try {
+    await acciones.cobrar();
+    $('hoja-ingreso').close();
+    sonar('fanfarria');
+    saltoMono();
+  } catch (err) {
+    mostrarError('error-ingreso', err.message);
+  }
+});
+
+$('form-ingreso').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const monto = centavos(f.monto.value);
+  if (!monto) return mostrarError('error-ingreso', t('Poné cuánto te entró'));
+  try {
+    const id = await acciones.sumarIngreso(monto, f.detalle.value.trim());
+    $('hoja-ingreso').close();
+    sonar('fanfarria');
+    saltoMono();
+    $('frase').textContent = t('¡Más bananas! 🍌');
+    ofrecerDeshacer(t('Sumaste {monto} a tu saldo', { monto: plata(monto) }), () => acciones.borrarIngreso(id), '🍌');
+  } catch (err) {
+    mostrarError('error-ingreso', err.message);
+  }
+});
+
+$('boton-corregir-plata').addEventListener('click', () => {
+  $('hoja-ingreso').close();
+  abrirPlata();
+});
+
 // Saldo e ingreso
 function abrirPlata() {
   const f = $('form-plata');
@@ -1520,6 +1621,7 @@ function textoPropuesta(p) {
   if (p.accion === 'terminar_gasto') return t('{nombre} hasta {mes} y después no va más', { nombre: p.nombre, mes: nombreMes(p.mesFin) });
   if (p.accion === 'borrar_gasto') return t('Borrar {nombre}', { nombre: p.nombre });
   if (p.accion === 'cambiar_saldo') return t('Saldo de hoy: {monto}', { monto: plata(p.saldo) });
+  if (p.accion === 'sumar_ingreso') return `🍌 ${t('Sumar {monto} a tu saldo', { monto: plata(p.monto) })}${p.detalle ? ` · ${p.detalle}` : ''}`;
   if (p.accion === 'cambiar_ingreso') return t('Ingreso: {monto} por mes, cobrás el día {dia}', { monto: plata(p.monto), dia: p.diaCobro });
   if (p.accion === 'cargar_cartera')
     return `📈 ${t('Cartera')}: ${p.posiciones
@@ -1577,6 +1679,7 @@ function tarjetaPropuesta(p) {
         }
       }
       else if (p.accion === 'cambiar_saldo') await acciones.guardarPlata(p.saldo, estado.datos.perfil.ingresoMensual ?? null);
+      else if (p.accion === 'sumar_ingreso') await acciones.sumarIngreso(p.monto, p.detalle);
       else if (p.accion === 'cambiar_ingreso') await acciones.guardarPlata(estado.datos.perfil.saldo, { monto: p.monto, diaCobro: p.diaCobro });
       else if (p.accion === 'cargar_cartera') {
         const cargadas = await cargarCartera(p.posiciones);

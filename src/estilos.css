@@ -747,3 +747,8 @@ html, body { overflow-x: clip; }
 .comentario-campos { display: grid; gap: 12px; }
 .comentario-campos[hidden] { display: none; }
 .boton-mejora { display: block; margin: 8px auto 96px; }
+
+/* Te entró plata: el sueldo de un toque y los ingresos extra del mes */
+.cobro-sueldo { width: 100%; margin-bottom: 12px; }
+.ingresos-extra li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ingresos-extra .quitar { font: inherit; background: none; border: 0; color: var(--suave); cursor: pointer; padding: 4px 8px; }

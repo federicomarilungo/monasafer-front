@@ -204,6 +204,23 @@
       </form>
     </dialog>
 
+    <!-- Hoja: te entró plata (ingreso en cualquier momento del mes) -->
+    <dialog class="hoja" id="hoja-ingreso">
+      <form method="dialog" id="form-ingreso">
+        <h3 data-t>¿Te entró plata? 🍌</h3>
+        <button type="button" class="boton cobro-sueldo" id="boton-cobrar-sueldo" hidden></button>
+        <label class="campo monto-campo"><span data-t>¿Cuánto te entró?</span><input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        <label class="campo"><span data-t>¿De dónde?</span><input name="detalle" maxlength="120" placeholder="Changa, reintegro, regalo…" data-t-ph autocomplete="off" /></label>
+        <p class="ayuda" data-t>Se suma a tu saldo y a lo que te sobra este mes.</p>
+        <ul class="usos ingresos-extra" id="lista-ingresos"></ul>
+        <p class="error" id="error-ingreso" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" id="boton-corregir-plata" data-t>Corregir saldo o sueldo</button>
+          <button type="submit" class="boton principal" data-t>Sumar</button>
+        </div>
+      </form>
+    </dialog>
+
     <!-- Hoja: saldo e ingreso -->
     <dialog class="hoja" id="hoja-plata">
       <form method="dialog" id="form-plata">
