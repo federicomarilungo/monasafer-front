@@ -12,6 +12,22 @@ import { aplicarIdioma, cambiarIdioma, idiomaActual, IDIOMAS, locale, t } from '
 import { cambiarTema, TEMAS, temaActual } from './tema.js';
 import { abrirAhorrar, abrirCajon, cargarCajon, cargarCartera, iniciarCajon, resumenCajon, sugerenciaCajon } from './cajon.js';
 import { abrirComentarios, iniciarComentarios } from './comentarios.js';
+import { convertirHoy } from './cajon.js';
+import {
+  abrirCuenta,
+  cuentaDe,
+  cuentas,
+  enOtras,
+  escucharHojaCuenta,
+  hayCuentas,
+  iniciarCuentas,
+  monedaDe,
+  pintarDestinos,
+  pintarListaCuentas,
+  plataEn,
+  saldoPrincipal,
+  sumarCuentas,
+} from './cuentas.js';
 
 const $ = (id) => document.getElementById(id);
 const hoy = new Date();
@@ -223,6 +239,7 @@ function empezarOnboarding() {
 
 async function cargar() {
   const [datos, perfil] = await Promise.all([api('GET', '/datos'), api('GET', '/perfil')]);
+  await sumarCuentas(datos, perfil);
   estado.datos = datos;
   estado.perfil = perfil;
   if (perfil.idioma && perfil.idioma !== idiomaActual()) {
@@ -290,17 +307,23 @@ const acciones = {
   guardarPlata: (saldo, ingresoMensual) =>
     ejecutar(
       () => api('PATCH', '/perfil', { saldo, ingresoMensual }),
-      (d) => Object.assign(d.perfil, { saldo, ingresoMensual }),
+      // `saldo` es el de la cuenta principal; las otras cuentas se suman aparte.
+      (d) => Object.assign(d.perfil, { saldo: saldo + (d.enOtras ?? 0), ingresoMensual }),
     ),
   /** Ingreso extra en cualquier momento del mes; devuelve su id para el Deshacer. */
-  sumarIngreso: async (monto, detalle) => {
+  // Con `cuentaId`, entra a esa cuenta: `cantidad` en su moneda, `monto` en la de la persona.
+  sumarIngreso: async (monto, detalle, cuentaId = null, cantidad = null) => {
     let id = null;
     await ejecutar(
-      async () => (id = (await api('POST', '/ingresos', { monto, detalle })).ingreso.id),
+      async () => (id = (await api('POST', '/ingresos', { monto, detalle, cuentaId, cantidad })).ingreso.id),
       (d) => {
         id = `demo-${Date.now()}`;
-        d.ingresosExtra = [...(d.ingresosExtra ?? []), { id, mes: mesActual, monto, detalle }];
+        d.ingresosExtra = [...(d.ingresosExtra ?? []), { id, mes: mesActual, monto, detalle, cuentaId, cantidad }];
         d.perfil.saldo += monto;
+        if (cuentaId) {
+          d.cuentas.find((c) => c.id === cuentaId).saldo += cantidad;
+          d.enOtras += monto;
+        }
       },
     );
     return id;
@@ -313,6 +336,11 @@ const acciones = {
         if (!i) return;
         d.ingresosExtra = d.ingresosExtra.filter((x) => x !== i);
         d.perfil.saldo -= i.monto;
+        const c = i.cuentaId && d.cuentas.find((x) => x.id === i.cuentaId);
+        if (c) {
+          c.saldo -= i.cantidad;
+          d.enOtras -= i.monto;
+        }
       },
     ),
   cobrar: () =>
@@ -532,7 +560,7 @@ function pintar(direccion = 0) {
   // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).
   const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
   $('resumen').innerHTML = `
-    <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? t('Saldo hoy ✎') : t('Arrancás con')}</p><p id="valor-saldo"></p></button>
+    <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${!esActual ? t('Arrancás con') : hayCuentas() ? t('Saldo · {n} 💳', { n: cuentas().length + 1 }) : t('Saldo hoy ✎')}</p><p id="valor-saldo"></p></button>
     <button class="celda" id="celda-ingreso" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? t('Ingreso ＋') : t('Ingreso')}</p><p class="mas">+${plata(r.ingreso)}</p></button>
     <div class="celda" id="celda-gastar"><p class="etiqueta">${t('Por gastar')}</p><p class="menos" id="valor-gastar"></p></div>`;
   $('celda-saldo').addEventListener('click', abrirIngreso);
@@ -1237,13 +1265,33 @@ $('boton-editar-reserva').addEventListener('click', () => {
 });
 
 // Te entró plata: un ingreso en cualquier momento del mes (o cobrar el sueldo antes de tiempo).
-function abrirIngreso() {
+let destinoIngreso = 'principal';
+
+/** `conservar`: vuelve de crear una cuenta, con lo que ya había escrito. */
+function abrirIngreso(destino = 'principal', conservar = false) {
   const f = $('form-ingreso');
-  f.reset();
+  if (!conservar) f.reset();
   mostrarError('error-ingreso', null);
+  elegirDestino(destino === 'principal' || cuentaDe(destino) ? destino : 'principal');
   pintarIngresos();
   $('hoja-ingreso').showModal();
   f.monto.focus();
+}
+
+function elegirDestino(id) {
+  destinoIngreso = id;
+  const m = monedaDe(id);
+  $('etiqueta-monto-ingreso').textContent = m === (estado.perfil?.moneda ?? 'USD') ? t('¿Cuánto te entró?') : t('¿Cuánto te entró? ({moneda})', { moneda: m });
+  pintarDestinos($('destinos-ingreso'), id, elegirDestino, () => {
+    const f = $('form-ingreso');
+    const escrito = { monto: f.monto.value, detalle: f.detalle.value };
+    $('hoja-ingreso').close();
+    abrirCuenta(null, (c) => {
+      abrirIngreso(c?.id ?? destinoIngreso, true);
+      f.monto.value = escrito.monto;
+      f.detalle.value = escrito.detalle;
+    });
+  });
 }
 
 function pintarIngresos() {
@@ -1256,7 +1304,8 @@ function pintarIngresos() {
     ...lista.map((i) => {
       const li = document.createElement('li');
       const txt = document.createElement('span');
-      txt.textContent = `${i.detalle || t('Ingreso extra')} · +${plata(i.monto)}`;
+      const c = i.cuentaId ? cuentaDe(i.cuentaId) : null;
+      txt.textContent = `${i.detalle || t('Ingreso extra')} · +${c ? plataEn(i.cantidad, c.moneda) : plata(i.monto)}${c ? ` · ${c.nombre}` : ''}`;
       const x = document.createElement('button');
       x.type = 'button';
       x.className = 'quitar';
@@ -1268,7 +1317,7 @@ function pintarIngresos() {
           await acciones.borrarIngreso(i.id);
           sonar('caer');
           pintarIngresos();
-          ofrecerDeshacer(t('Sacaste {monto} de tu saldo', { monto: plata(i.monto) }), () => acciones.sumarIngreso(i.monto, i.detalle), '↩️');
+          ofrecerDeshacer(t('Sacaste {monto} de tu saldo', { monto: plata(i.monto) }), () => acciones.sumarIngreso(i.monto, i.detalle, c ? i.cuentaId : null, c ? i.cantidad : null), '↩️');
         } catch (err) {
           x.disabled = false;
           mostrarError('error-ingreso', err.message);
@@ -1294,15 +1343,23 @@ $('boton-cobrar-sueldo').addEventListener('click', async () => {
 $('form-ingreso').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  const monto = centavos(f.monto.value);
-  if (!monto) return mostrarError('error-ingreso', t('Poné cuánto te entró'));
+  const cantidad = centavos(f.monto.value);
+  if (!cantidad) return mostrarError('error-ingreso', t('Poné cuánto te entró'));
+  const cuentaId = destinoIngreso === 'principal' ? null : destinoIngreso;
   try {
-    const id = await acciones.sumarIngreso(monto, f.detalle.value.trim());
+    // En otra moneda, el ingreso del mes se cuenta con la cotización de hoy.
+    const monto = cuentaId ? await convertirHoy(cantidad, monedaDe(cuentaId), estado.perfil?.moneda ?? 'USD') : cantidad;
+    if (monto === null) return mostrarError('error-ingreso', t('No tengo la cotización de hoy. Probá en un rato.'));
+    const id = await acciones.sumarIngreso(monto, f.detalle.value.trim(), cuentaId, cuentaId ? cantidad : null);
     $('hoja-ingreso').close();
     sonar('fanfarria');
     saltoMono();
     $('frase').textContent = t('¡Más bananas! 🍌');
-    ofrecerDeshacer(t('Sumaste {monto} a tu saldo', { monto: plata(monto) }), () => acciones.borrarIngreso(id), '🍌');
+    ofrecerDeshacer(
+      cuentaId ? t('Sumaste {monto} a {cuenta}', { monto: plataEn(cantidad, monedaDe(cuentaId)), cuenta: cuentaDe(cuentaId)?.nombre ?? '' }) : t('Sumaste {monto} a tu saldo', { monto: plata(monto) }),
+      () => acciones.borrarIngreso(id),
+      '🍌',
+    );
   } catch (err) {
     mostrarError('error-ingreso', err.message);
   }
@@ -1318,7 +1375,12 @@ function abrirPlata() {
   const f = $('form-plata');
   const p = estado.datos.perfil;
   mostrarError('error-plata', null);
-  f.saldo.value = paraEditar(p.saldo);
+  f.saldo.value = paraEditar(saldoPrincipal());
+  // Con varias cuentas, el saldo se corrige en cada una.
+  $('campo-saldo-plata').hidden = hayCuentas();
+  $('boton-nueva-cuenta').hidden = hayCuentas();
+  if (hayCuentas()) pintarListaCuentas($('cuentas-plata'), (id) => volverAPlata(() => abrirCuenta(id, abrirPlata)));
+  else $('cuentas-plata').replaceChildren();
   f.ingreso.value = p.ingresoMensual ? paraEditar(p.ingresoMensual.monto) : '';
   f.dia.value = p.ingresoMensual?.diaCobro ?? '';
   $('hoja-plata').showModal();
@@ -1327,7 +1389,7 @@ function abrirPlata() {
 $('form-plata').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
-  const saldo = centavos(f.saldo.value, true);
+  const saldo = hayCuentas() ? saldoPrincipal() : centavos(f.saldo.value, true);
   if (saldo === null) return mostrarError('error-plata', t('Poné tu saldo'));
   const ingreso = f.ingreso.value.trim() ? centavos(f.ingreso.value) : 0;
   if (ingreso === null) return mostrarError('error-plata', t('Ingreso inválido'));
@@ -1340,6 +1402,16 @@ $('form-plata').addEventListener('submit', async (e) => {
     mostrarError('error-plata', err.message);
   }
 });
+
+function volverAPlata(abrir) {
+  $('hoja-plata').close();
+  abrir();
+}
+
+$('boton-nueva-cuenta').addEventListener('click', () => volverAPlata(() => abrirCuenta(null, abrirPlata)));
+
+iniciarCuentas({ estado, recargar: cargar, pintar: () => pintar(), alertaSuave: (texto, emoji) => alertaSuave(texto, emoji) });
+escucharHojaCuenta();
 
 // ---------- Idioma y moneda ----------
 
@@ -1678,9 +1750,9 @@ function tarjetaPropuesta(p) {
           return;
         }
       }
-      else if (p.accion === 'cambiar_saldo') await acciones.guardarPlata(p.saldo, estado.datos.perfil.ingresoMensual ?? null);
+      else if (p.accion === 'cambiar_saldo') await acciones.guardarPlata(p.saldo - enOtras(), estado.datos.perfil.ingresoMensual ?? null);
       else if (p.accion === 'sumar_ingreso') await acciones.sumarIngreso(p.monto, p.detalle);
-      else if (p.accion === 'cambiar_ingreso') await acciones.guardarPlata(estado.datos.perfil.saldo, { monto: p.monto, diaCobro: p.diaCobro });
+      else if (p.accion === 'cambiar_ingreso') await acciones.guardarPlata(saldoPrincipal(), { monto: p.monto, diaCobro: p.diaCobro });
       else if (p.accion === 'cargar_cartera') {
         const cargadas = await cargarCartera(p.posiciones);
         alertaSuave(t('Cartera al día: {lista}', { lista: cargadas.join(' · ') }), '📈');

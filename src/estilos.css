@@ -752,3 +752,14 @@ html, body { overflow-x: clip; }
 .cobro-sueldo { width: 100%; margin-bottom: 12px; }
 .ingresos-extra li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ingresos-extra .quitar { font: inherit; background: none; border: 0; color: var(--suave); cursor: pointer; padding: 4px 8px; }
+
+/* Cuentas del saldo */
+.destinos { margin-bottom: 12px; }
+.destinos .etiqueta { margin: 0 0 6px; }
+.lista-cuentas { list-style: none; padding: 0; margin: 0 0 6px; display: grid; gap: 6px; }
+.fila-cuenta {
+  font: inherit; font-weight: 700; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  background: var(--fondo); color: var(--texto); border: 2px solid var(--borde); border-radius: 14px; padding: 10px 14px; cursor: pointer;
+}
+.pasar-cuenta { margin: 8px 0; }
+.pasar-cuenta summary { font-weight: 800; cursor: pointer; padding: 6px 0; color: var(--selva); }

@@ -128,6 +128,13 @@ export function cantidadTexto(c, b) {
 
 const llamar = (metodo, ruta, cuerpo) => (ctx.estado.modo === 'real' ? api : demoApi)(metodo, ruta, cuerpo);
 
+/** Centavos de `de` pasados a `a` con la cotización de hoy (null si no hay). La usan las cuentas del saldo. */
+export async function convertirHoy(c, de, a) {
+  if (de === a) return c;
+  await cargarCotizaciones();
+  return convertir(c, de, a);
+}
+
 async function cargarCotizaciones() {
   if (cotizaciones && Date.now() - Date.parse(cotizaciones.fecha) < 60 * 60 * 1000) return;
   // Públicas: la demo también las usa.

@@ -209,7 +209,8 @@
       <form method="dialog" id="form-ingreso">
         <h3 data-t>¿Te entró plata? 🍌</h3>
         <button type="button" class="boton cobro-sueldo" id="boton-cobrar-sueldo" hidden></button>
-        <label class="campo monto-campo"><span data-t>¿Cuánto te entró?</span><input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        <div class="destinos" id="destinos-ingreso"></div>
+        <label class="campo monto-campo"><span id="etiqueta-monto-ingreso">¿Cuánto te entró?</span><input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
         <label class="campo"><span data-t>¿De dónde?</span><input name="detalle" maxlength="120" placeholder="Changa, reintegro, regalo…" data-t-ph autocomplete="off" /></label>
         <p class="ayuda" data-t>Se suma a tu saldo y a lo que te sobra este mes.</p>
         <ul class="usos ingresos-extra" id="lista-ingresos"></ul>
@@ -221,11 +222,38 @@
       </form>
     </dialog>
 
+    <!-- Hoja: una cuenta del saldo (Mercado Pago, efectivo, dólares) -->
+    <dialog class="hoja" id="hoja-cuenta-saldo">
+      <form method="dialog" id="form-cuenta-saldo">
+        <h3 id="titulo-cuenta-saldo"></h3>
+        <p class="ayuda" id="ayuda-cuenta-saldo" data-t>Para la plata que tenés en otro lado: otra cuenta, efectivo u otra moneda. Suma a tu saldo.</p>
+        <label class="campo"><span data-t>Nombre</span><input name="nombre" maxlength="40" placeholder="Mercado Pago, efectivo, dólares…" data-t-ph autocomplete="off" /></label>
+        <label class="campo"><span data-t>Emoji</span><input name="emoji" maxlength="8" placeholder="💳" autocomplete="off" /></label>
+        <label class="campo" id="campo-moneda-cuenta"><span data-t>Moneda</span><select name="moneda"></select></label>
+        <label class="campo monto-campo"><span data-t>¿Cuánto hay hoy?</span><input name="saldo" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        <details class="pasar-cuenta" id="pasar-cuenta">
+          <summary data-t>🔁 Pasar plata a otra cuenta</summary>
+          <label class="campo"><span data-t>¿A cuál?</span><select name="hacia"></select></label>
+          <label class="campo"><span id="etiqueta-pasar"></span><input name="pasar" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+          <label class="campo" id="campo-llega" hidden><span id="etiqueta-llega"></span><input name="llega" inputmode="decimal" autocomplete="off" /></label>
+          <button type="button" class="boton" id="boton-pasar" data-t>Pasar</button>
+        </details>
+        <p class="error" id="error-cuenta-saldo" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton peligro" id="boton-borrar-cuenta" data-t>Borrar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
     <!-- Hoja: saldo e ingreso -->
     <dialog class="hoja" id="hoja-plata">
       <form method="dialog" id="form-plata">
         <h3 data-t>Tu plata</h3>
-        <label class="campo monto-campo"><span data-t>Saldo en cuenta hoy</span><input name="saldo" inputmode="decimal" required autocomplete="off" /></label>
+        <label class="campo monto-campo" id="campo-saldo-plata"><span data-t>Saldo en cuenta hoy</span><input name="saldo" inputmode="decimal" autocomplete="off" /></label>
+        <div id="cuentas-plata"></div>
+        <button type="button" class="boton enlace chico" id="boton-nueva-cuenta" data-t>＋ Tengo plata en otra cuenta o moneda</button>
         <label class="campo"><span data-t>Ingreso mensual</span><input name="ingreso" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
         <label class="campo"><span data-t>Día de cobro</span><input name="dia" type="number" min="1" max="31" placeholder="1" /></label>
         <p class="error" id="error-plata" hidden></p>
