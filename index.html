@@ -228,7 +228,7 @@
         <h3 id="titulo-cuenta-saldo"></h3>
         <p class="ayuda" id="ayuda-cuenta-saldo" data-t>Para la plata que tenés en otro lado: otra cuenta, efectivo u otra moneda. Suma a tu saldo.</p>
         <label class="campo"><span data-t>Nombre</span><input name="nombre" maxlength="40" placeholder="Mercado Pago, efectivo, dólares…" data-t-ph autocomplete="off" /></label>
-        <label class="campo"><span data-t>Emoji</span><input name="emoji" maxlength="8" placeholder="💳" autocomplete="off" /></label>
+        <div class="campo" id="campo-emoji-cuenta"><span data-t>Emoji</span><input type="hidden" name="emoji" /><div class="emojis" id="emojis-cuenta"></div></div>
         <label class="campo" id="campo-moneda-cuenta"><span data-t>Moneda</span><select name="moneda"></select></label>
         <label class="campo monto-campo"><span data-t>¿Cuánto hay hoy?</span><input name="saldo" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
         <details class="pasar-cuenta" id="pasar-cuenta">

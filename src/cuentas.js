@@ -12,6 +12,28 @@ import { convertirHoy } from './cajon.js';
 let ctx = null;
 const $ = (id) => document.getElementById(id);
 const MONEDAS = ['USD', 'ARS', 'EUR', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN'];
+const EMOJIS = ['💳', '🏦', '💵', '💶', '💴', '💷', '🪙', '💰', '👛', '🐷', '📱', '💙', '💜', '🟢', '🟡', '🇦🇷', '🇺🇸', '🇪🇺', '🇧🇷', '🇺🇾', '🇨🇱', '🇲🇽', '🇨🇴', '🇵🇪', '🏠', '✈️', '🍌'];
+
+/** Grilla de emojis como la de los gastos: el elegido queda marcado. */
+function pintarEmojis(elegido) {
+  const f = $('form-cuenta-saldo');
+  f.emoji.value = elegido;
+  const lista = [...new Set([elegido, ...EMOJIS].filter(Boolean))];
+  $('emojis-cuenta').replaceChildren(
+    ...lista.map((e) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `emoji-boton${e === elegido ? ' activo' : ''}`;
+      b.textContent = e;
+      b.addEventListener('click', () => {
+        sonar('pop');
+        f.emoji.value = e;
+        for (const x of $('emojis-cuenta').children) x.classList.toggle('activo', x === b);
+      });
+      return b;
+    }),
+  );
+}
 
 const moneda = () => ctx.estado.perfil?.moneda ?? 'USD';
 export const cuentas = () => ctx.estado.datos?.cuentas ?? [];
@@ -189,8 +211,8 @@ export function abrirCuenta(id, listo = null) {
   const c = id === 'principal' ? { id, emoji: '🏦', nombre: nombrePrincipal(), saldo: saldoPrincipal(), moneda: moneda() } : id ? cuentaDe(id) : null;
   abierta = c;
   $('titulo-cuenta-saldo').textContent = c ? `${c.emoji || '💳'} ${c.nombre}` : t('Otra cuenta');
-  f.emoji.value = c?.emoji ?? '';
-  f.emoji.disabled = id === 'principal';
+  pintarEmojis(c?.emoji || '💳');
+  $('campo-emoji-cuenta').hidden = id === 'principal';
   f.nombre.value = c?.nombre ?? '';
   f.moneda.replaceChildren(...MONEDAS.map((m) => new Option(m, m, false, m === (c?.moneda ?? moneda()))));
   $('campo-moneda-cuenta').hidden = !!c;
