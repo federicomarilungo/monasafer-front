@@ -112,7 +112,7 @@
     </main>
 
     <!-- Hoja: nuevo o editar gasto -->
-    <dialog class="hoja" id="hoja-gasto">
+    <dialog autofocus class="hoja" id="hoja-gasto">
       <form method="dialog" id="form-gasto">
         <h3 id="titulo-hoja-gasto">Nuevo gasto</h3>
         <label class="campo nombre-campo"><span data-t>¿Qué es?</span><input name="nombre" maxlength="80" required placeholder="Alquiler, súper, cuota…" data-t-ph autocomplete="off" /></label>
@@ -166,7 +166,7 @@
     </dialog>
 
     <!-- Hoja: borrar un gasto que se repite (qué meses se tocan) -->
-    <dialog class="hoja" id="hoja-borrar">
+    <dialog autofocus class="hoja" id="hoja-borrar">
       <form method="dialog">
         <h3 id="titulo-borrar"></h3>
         <p class="ayuda" id="ayuda-borrar"></p>
@@ -185,7 +185,7 @@
     </div>
 
     <!-- Hoja: usos de una reserva -->
-    <dialog class="hoja" id="hoja-reserva">
+    <dialog autofocus class="hoja" id="hoja-reserva">
       <form method="dialog" id="form-uso">
         <h3 id="titulo-reserva">Reserva</h3>
         <div class="frasco grande"><span id="frasco-reserva"></span></div>
@@ -205,7 +205,7 @@
     </dialog>
 
     <!-- Hoja: te entró plata (ingreso en cualquier momento del mes) -->
-    <dialog class="hoja" id="hoja-ingreso">
+    <dialog autofocus class="hoja" id="hoja-ingreso">
       <form method="dialog" id="form-ingreso">
         <h3 data-t>¿Te entró plata? 🍌</h3>
         <button type="button" class="boton cobro-sueldo" id="boton-cobrar-sueldo" hidden></button>
@@ -223,7 +223,7 @@
     </dialog>
 
     <!-- Hoja: una cuenta del saldo (Mercado Pago, efectivo, dólares) -->
-    <dialog class="hoja" id="hoja-cuenta-saldo">
+    <dialog autofocus class="hoja" id="hoja-cuenta-saldo">
       <form method="dialog" id="form-cuenta-saldo">
         <h3 id="titulo-cuenta-saldo"></h3>
         <p class="ayuda" id="ayuda-cuenta-saldo" data-t>Para la plata que tenés en otro lado: otra cuenta, efectivo u otra moneda. Suma a tu saldo.</p>
@@ -248,7 +248,7 @@
     </dialog>
 
     <!-- Hoja: saldo e ingreso -->
-    <dialog class="hoja" id="hoja-plata">
+    <dialog autofocus class="hoja" id="hoja-plata">
       <form method="dialog" id="form-plata">
         <h3 data-t>Tu plata</h3>
         <label class="campo monto-campo" id="campo-saldo-plata"><span data-t>Saldo en cuenta hoy</span><input name="saldo" inputmode="decimal" autocomplete="off" /></label>
@@ -264,7 +264,7 @@
       </form>
     </dialog>
 
-    <dialog class="hoja" id="hoja-olvide">
+    <dialog autofocus class="hoja" id="hoja-olvide">
       <form method="dialog" id="form-olvide">
         <h3 data-t>¿Te olvidaste la contraseña?</h3>
         <p data-t>Poné tu email y te mandamos un link para elegir una nueva. Vale una hora.</p>
@@ -278,7 +278,7 @@
       </form>
     </dialog>
 
-    <dialog class="hoja" id="hoja-recuperar">
+    <dialog autofocus class="hoja" id="hoja-recuperar">
       <form method="dialog" id="form-recuperar">
         <h3 data-t>Elegí tu contraseña nueva</h3>
         <label class="campo"><span data-t>Contraseña nueva</span><input name="clave" type="password" autocomplete="new-password" minlength="8" required /></label>
@@ -290,7 +290,7 @@
       </form>
     </dialog>
 
-    <dialog class="hoja" id="hoja-cuenta">
+    <dialog autofocus class="hoja" id="hoja-cuenta">
       <form method="dialog" id="form-cuenta">
         <h3 data-t>Tu cuenta</h3>
         <p id="cuenta-email"></p>
@@ -314,7 +314,7 @@
     </dialog>
 
     <!-- Comentarios de mejora -->
-    <dialog class="hoja" id="hoja-comentario">
+    <dialog autofocus class="hoja" id="hoja-comentario">
       <form method="dialog" id="form-comentario">
       <div class="premium-hero">
         <div class="comentario-mono" id="comentario-mono" aria-hidden="true"></div>
@@ -342,7 +342,7 @@
     </dialog>
 
     <!-- Métricas (S2): pantalla completa, partida en Gastos y Ahorros -->
-    <dialog class="pantalla-completa" id="pantalla-metricas" aria-labelledby="titulo-metricas">
+    <dialog autofocus class="pantalla-completa" id="pantalla-metricas" aria-labelledby="titulo-metricas">
       <header class="pm-cabecera">
         <div class="pm-barra">
           <button type="button" class="flecha" data-cerrar aria-label="Volver" data-t-aria>‹</button>
@@ -357,7 +357,7 @@
     </dialog>
 
     <!-- Chat con Mona (S3, S4) -->
-    <dialog class="hoja hoja-chat" id="hoja-chat">
+    <dialog autofocus class="hoja hoja-chat" id="hoja-chat">
       <form method="dialog" id="form-chat">
         <h3><span data-t>Mona te ayuda</span> <small class="quedan" id="chat-quedan"></small></h3>
         <div class="chat" id="chat"></div>
@@ -374,7 +374,7 @@
     </dialog>
 
     <!-- Premium (S1, S8) -->
-    <dialog class="hoja" id="hoja-premium">
+    <dialog autofocus class="hoja" id="hoja-premium">
       <form method="dialog" id="form-premium" class="premium">
         <div class="premium-hero">
           <div class="premium-mono" id="premium-mono"></div>

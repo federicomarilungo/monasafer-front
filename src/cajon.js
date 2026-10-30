@@ -265,8 +265,8 @@ export function iniciarCajon(contexto) {
   ctx = contexto;
   document.body.insertAdjacentHTML(
     'beforeend',
-    `<dialog class="hoja" id="hoja-cajon"><form method="dialog" id="form-cajon" class="cajon"></form></dialog>
-     <dialog class="hoja" id="hoja-ahorro"><form method="dialog" id="form-ahorro" class="cajon"></form></dialog>`,
+    `<dialog autofocus class="hoja" id="hoja-cajon"><form method="dialog" id="form-cajon" class="cajon"></form></dialog>
+     <dialog autofocus class="hoja" id="hoja-ahorro"><form method="dialog" id="form-ahorro" class="cajon"></form></dialog>`,
   );
   for (const id of ['hoja-cajon', 'hoja-ahorro']) {
     const d = document.getElementById(id);
@@ -314,7 +314,6 @@ function paso(html, alMostrar) {
   const d = document.getElementById('hoja-ahorro');
   if (!d.open) d.showModal();
   f.animate([{ opacity: 0, transform: 'translateX(24px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
-  f.querySelector('input:not([type=hidden]):not([data-sin-foco])')?.focus();
 }
 
 function error(msg) {
@@ -606,7 +605,6 @@ function pasoNuevaCategoria(listo, volver = pasoDonde, b = null) {
           document.getElementById('campo-unidad').hidden = !('otra' in x.dataset);
           unidad = x.dataset.unidad ?? null;
           mostrarValor();
-          if (!unidad) f.unidad.focus();
         }),
       );
       f.onsubmit = (e) => {
@@ -665,7 +663,7 @@ function pasoCedear(listo, volver) {
     `<h3>${t('📈 ¿Qué CEDEAR?')}</h3>
      <p class="ayuda">${t('Se valúa solo con el precio de hoy en pesos (BYMA, con unos minutos de demora).')}</p>
      <div class="cajon-opciones">${opciones.map(([s, n]) => `<button type="button" class="cajon-opcion" data-s="${s}"><span>📈</span><b>${s}</b><small>${esc(n)}</small></button>`).join('')}</div>
-     <label class="campo"><span>${t('¿Otro? Poné el ticker')}</span><input name="ticker" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="VIST, YPF, KO…" data-sin-foco /></label>
+     <label class="campo"><span>${t('¿Otro? Poné el ticker')}</span><input name="ticker" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="VIST, YPF, KO…" /></label>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Buscar')}</button></div>`,
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', volver);

@@ -30,6 +30,16 @@ import {
 } from './cuentas.js';
 
 const $ = (id) => document.getElementById(id);
+
+// Fede, 30/10/2026: ninguna hoja abre el teclado sola, solo al tocar un campo. Cada
+// <dialog> tiene autofocus (el foco queda en la hoja y no en su primer input); esto cubre
+// el navegador que igual se lo dé a un campo.
+const abrirHoja = HTMLDialogElement.prototype.showModal;
+HTMLDialogElement.prototype.showModal = function () {
+  abrirHoja.call(this);
+  const foco = document.activeElement;
+  if (foco && this.contains(foco) && foco.matches('input, textarea, select')) foco.blur();
+};
 const hoy = new Date();
 const mesActual = mesDe(hoy);
 
@@ -883,7 +893,6 @@ function abrirGasto(g = null) {
   pintarForma();
   $('hoja-gasto').showModal();
   // Primero el nombre (Fede, 21/10): con él se adivina el ícono y después va el monto.
-  if (!g) f.nombre.focus();
 }
 
 $('boton-nuevo').addEventListener('click', () => {
@@ -1228,7 +1237,6 @@ async function abrirReserva(l, g, aCargar = false) {
   $('boton-usar').hidden = !puedeUsar;
   $('lista-usos').replaceChildren();
   $('hoja-reserva').showModal();
-  if (aCargar) f.monto.focus();
   if (manual && esActual) {
     const usos = estado.modo === 'real' ? await api('GET', `/gastos/${l.gastoId}/usos?mes=${mesActual}`).catch(() => []) : estado.datos.usos.filter((u) => u.gastoId === l.gastoId && u.mes === mesActual);
     $('lista-usos').replaceChildren(
@@ -1275,7 +1283,6 @@ function abrirIngreso(destino = 'principal', conservar = false) {
   elegirDestino(destino === 'principal' || cuentaDe(destino) ? destino : 'principal');
   pintarIngresos();
   $('hoja-ingreso').showModal();
-  f.monto.focus();
 }
 
 function elegirDestino(id) {
@@ -1777,7 +1784,6 @@ function abrirChat() {
   $('chat-quedan').textContent = estado.modo === 'real' && !esPremium() && q != null ? t('{n} mensajes gratis', { n: q }) : '';
   $('boton-mic').hidden = !Reconocimiento;
   $('hoja-chat').showModal();
-  $('form-chat').texto.focus();
 }
 $('boton-chat').addEventListener('click', () => {
   sonar('toque');
@@ -1824,7 +1830,6 @@ $('chat-foto').addEventListener('change', async (e) => {
     adjunto = await achicarImagen(archivo);
     mostrarAdjunto();
     sonar('pop');
-    $('form-chat').texto.focus();
   } catch {
     alertaSuave(t('No pude abrir esa imagen. Probá con otra captura.'));
   }

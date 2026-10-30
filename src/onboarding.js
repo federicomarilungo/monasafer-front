@@ -109,7 +109,6 @@ export function iniciarOnboarding(op) {
       sonar('toque');
     });
     botones(t('Seguir'));
-    form.saldo.focus();
     form.onsubmit = async (e) => {
       e.preventDefault();
       const c = centavos(form.saldo.value, true);
@@ -130,7 +129,6 @@ export function iniciarOnboarding(op) {
     form.innerHTML = `<label class="campo monto-campo">${t('Ingreso por mes')} (${moneda})<input name="ingreso" inputmode="decimal" placeholder="0" /></label>
       <label class="campo">${t('¿Qué día cobrás?')}<input name="dia" type="number" min="1" max="31" placeholder="1" /></label>`;
     botones(t('Seguir'), { texto: t('No tengo fijo'), accion: () => guardar(null) });
-    form.ingreso.focus();
     async function guardar(ingreso) {
       try {
         await op.guardarPlata(saldo, ingreso);
@@ -172,7 +170,6 @@ export function iniciarOnboarding(op) {
         caja.hidden = false;
         form.querySelector('.onb-que').textContent = t('¿Cuánto es {que} por mes?', { que: t(item.nombre).toLowerCase() });
         form.monto.value = '';
-        form.monto.focus();
       });
       chips.append(b);
     }

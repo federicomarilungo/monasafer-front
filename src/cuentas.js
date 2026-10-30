@@ -225,7 +225,6 @@ export function abrirCuenta(id, listo = null) {
   f.hacia.replaceChildren(...otras.map((x) => new Option(`${x.nombre} (${x.moneda})`, x.id)));
   pintarLlega();
   $('hoja-cuenta-saldo').showModal();
-  if (!c) f.nombre.focus();
 }
 
 function error(msg) {
