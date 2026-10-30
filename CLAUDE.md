@@ -16,3 +16,6 @@ proyecto en `proyecto/`: empezá por ahí.
 4. **Estilo**: divertido, dinámico, el mono (Mona) siempre reacciona. Animaciones con CSS
    y la Web Animations API, sin librerías. Mobile primero (ancho base 480 px).
 5. `VITE_API_URL` apunta al back (se lee en el build).
+6. **Nunca abrir el teclado solo** (Fede, 30/10/2026): ninguna hoja ni paso hace `.focus()`
+   en un campo; el teclado se abre cuando la persona toca el input. Cada `<dialog>` lleva
+   `autofocus` y `showModal` saca el foco de un campo si el navegador igual se lo da (`main.js`).
