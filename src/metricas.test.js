@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { armarMeses, categoriaDe, guardadoPorMes, porCategoria, porTipo } from './metricas.js';
+import { armarMeses, categoriaDe, guardadoPorMes, porCategoria, porTipo, lineasPorTipo } from './metricas.js';
 import { datosDemo } from './demo.js';
 
 const hoy = new Date(2026, 9, 15);
@@ -44,8 +44,36 @@ test('el gasto de un mes se parte en fijos, reservas y de una vez', () => {
       { tipo: 'puntual', monto: 4500 },
       { tipo: 'fijo', monto: 3000 },
     ]),
-    { fijo: 53000, reserva: 20000, puntual: 4500 },
+    { fijo: 53000, reserva: 20000, puntual: 4500, grupo: 0 },
   );
+});
+
+test('una reserva de "Solo este mes" cuenta como de una vez', () => {
+  const todos = [
+    { id: 's', tipo: 'reserva', recurrente: true },
+    { id: 'r', tipo: 'reserva', recurrente: false },
+  ];
+  assert.deepEqual(
+    porTipo([{ gastoId: 's', tipo: 'reserva', monto: 30000 }, { gastoId: 'r', tipo: 'reserva', monto: 8000 }], todos),
+    { fijo: 0, reserva: 30000, puntual: 8000, grupo: 0 },
+  );
+});
+
+test('un grupo se abre: cada gasto de adentro va a su tipo y lo estimado sin cargar queda aparte', () => {
+  const visa = {
+    gastoId: 'v',
+    nombre: 'Visa',
+    tipo: 'grupo',
+    monto: 30000,
+    items: [
+      { gastoId: 'c', nombre: 'Cena', tipo: 'puntual', monto: 8000 },
+      { gastoId: 'z', nombre: 'Zapatillas', tipo: 'fijo', monto: 6000 },
+    ],
+  };
+  const l = lineasPorTipo([visa, { gastoId: 'a', nombre: 'Alquiler', tipo: 'fijo', monto: 50000 }]);
+  assert.deepEqual(l.fijo.map((x) => [x.nombre, x.monto, x.en]), [['Alquiler', 50000, undefined], ['Zapatillas', 6000, 'Visa']]);
+  assert.deepEqual(l.puntual.map((x) => [x.nombre, x.en]), [['Cena', 'Visa']]);
+  assert.deepEqual(l.grupo.map((x) => [x.nombre, x.monto]), [['Visa', 16000]]);
 });
 
 test('lo guardado por mes es lo ahorrado menos lo que volvió; ajustes y traspasos no cuentan', () => {

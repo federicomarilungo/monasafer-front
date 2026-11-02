@@ -73,11 +73,43 @@ export function armarMeses(datos, hoy, n, pasados = null) {
 }
 
 
-/** Fijos, reservas y de una vez: cómo se reparte el gasto de un mes. */
-export function porTipo(gastos) {
-  const r = { fijo: 0, reserva: 0, puntual: 0 };
-  for (const l of gastos) r[l.tipo in r ? l.tipo : 'puntual'] += l.monto;
+/**
+ * A qué grupo de la tarjeta "Fijos, reservas y de una vez" va un gasto. Se mira el gasto
+ * guardado cuando está (las líneas del motor no traen `recurrente`): una reserva de "Solo
+ * este mes" es de una vez, igual que un puntual.
+ */
+function tipoDe(l, porId) {
+  const g = porId.get(l.gastoId);
+  const tipo = g?.tipo ?? l.tipo;
+  if (tipo === 'fijo') return 'fijo';
+  if (tipo === 'reserva') return g && !g.recurrente ? 'puntual' : 'reserva';
+  return 'puntual';
+}
+
+/**
+ * Las líneas de un mes repartidas en fijos, reservas y de una vez. Un grupo (la Visa) se
+ * abre: cada gasto de adentro va a lo suyo, y lo estimado que todavía no tiene gastos
+ * cargados queda aparte en `grupo`.
+ */
+export function lineasPorTipo(gastos, todos = []) {
+  const porId = new Map(todos.map((g) => [g.id, g]));
+  const r = { fijo: [], reserva: [], puntual: [], grupo: [] };
+  for (const l of gastos) {
+    if (l.tipo === 'grupo' || l.items) {
+      const items = l.items ?? [];
+      for (const i of items) if (i.monto > 0) r[tipoDe(i, porId)].push({ ...i, emoji: i.emoji || l.emoji, en: l.nombre });
+      const falta = l.monto - items.reduce((s, i) => s + i.monto, 0);
+      if (falta > 0) r.grupo.push({ ...l, items: undefined, monto: falta });
+    } else if (l.monto > 0) r[tipoDe(l, porId)].push(l);
+  }
+  for (const k in r) r[k].sort((a, b) => b.monto - a.monto);
   return r;
+}
+
+/** Fijos, reservas y de una vez: cómo se reparte el gasto de un mes. */
+export function porTipo(gastos, todos = []) {
+  const lineas = lineasPorTipo(gastos, todos);
+  return Object.fromEntries(Object.entries(lineas).map(([k, ls]) => [k, ls.reduce((s, l) => s + l.monto, 0)]));
 }
 
 /**
@@ -165,22 +197,46 @@ function filasCategorias(cats, total, premium, catElegida) {
 }
 
 const TIPOS = [
-  ['fijo', 'Fijos'],
-  ['reserva', 'Reservas'],
-  ['puntual', 'De una vez'],
+  ['fijo', 'Fijos', 'Se repiten todos los meses'],
+  ['reserva', 'Reservas', 'Plata apartada que vas usando'],
+  ['puntual', 'De una vez', 'Solo este mes'],
+  ['grupo', 'Por cargar en grupos', 'Lo estimado que todavía no tiene gastos adentro'],
 ];
 
-/** Una barra partida en fijos, reservas y de una vez, con su leyenda (y los montos). */
-function barraTipos(gastos, total) {
-  const tipos = porTipo(gastos);
-  const hay = TIPOS.filter(([id]) => tipos[id] > 0);
-  if (!total || !hay.length) return `<p class="ayuda">${t('Todavía no hay gastos en este mes.')}</p>`;
-  return `<div class="barra-tipos" role="img">${hay
-    .map(([id, nombre]) => `<span class="tipo-${id}" style="flex-grow:${tipos[id]}" title="${esc(t(nombre))}: ${plata(tipos[id])}"></span>`)
-    .join('')}</div>
-    <ul class="leyenda">${hay
-      .map(([id, nombre]) => `<li><i class="tipo-${id}"></i>${t(nombre)} <b>${plata(tipos[id])}</b> <small>${Math.round((tipos[id] / total) * 100)}%</small></li>`)
-      .join('')}</ul>`;
+/**
+ * Una barra partida en fijos, reservas y de una vez y debajo cada tipo con su monto. Tocar
+ * un tipo despliega sus gastos. Los tres tipos se ven siempre, aunque estén en cero, para
+ * que se entienda qué falta; lo de grupos, solo si hay.
+ */
+function barraTipos(gastos, total, todos, { abiertos, ingreso, pasado }) {
+  if (!total) return `<p class="ayuda">${t('Todavía no hay gastos en este mes.')}</p>`;
+  const lineas = lineasPorTipo(gastos, todos);
+  const suma = (k) => lineas[k].reduce((s, l) => s + l.monto, 0);
+  const tipos = TIPOS.map(([id, nombre, ayuda]) => ({ id, nombre, ayuda, monto: suma(id), lineas: lineas[id] })).filter(
+    (x) => x.id !== 'grupo' || x.monto > 0,
+  );
+  const pct = (m) => Math.round((m / total) * 100);
+  const barra = `<div class="barra-tipos" role="img" aria-label="${esc(tipos.map((x) => `${t(x.nombre)} ${pct(x.monto)}%`).join(', '))}">${tipos
+    .filter((x) => x.monto > 0)
+    .map((x) => `<span class="tipo-${x.id}" style="flex-grow:${x.monto}" title="${esc(t(x.nombre))}: ${plata(x.monto)}"></span>`)
+    .join('')}</div>`;
+  const filas = tipos
+    .map((x) => {
+      const cabeza = `<i class="tipo-${x.id}"></i><span>${t(x.nombre)}<small>${x.lineas.length ? t(x.lineas.length === 1 ? '1 gasto' : '{n} gastos', { n: x.lineas.length }) + ' · ' : ''}${t(x.ayuda)}</small></span><b>${plata(x.monto)}</b><em>${pct(x.monto)}%</em>`;
+      if (!x.lineas.length) return `<li class="vacio"><div class="tipo-fila">${cabeza}</div></li>`;
+      const lista = x.lineas
+        .map((l) => `<li><span>${esc(l.emoji || '💸')} ${esc(l.nombre)}${l.en ? ` <small>${t('en {grupo}', { grupo: esc(l.en) })}</small>` : ''}</span><b>${plata(l.monto)}</b></li>`)
+        .join('');
+      return `<li><details data-tipo="${x.id}"${abiertos.has(x.id) ? ' open' : ''}><summary class="tipo-fila">${cabeza}</summary><ul class="tipo-lista">${lista}</ul></details></li>`;
+    })
+    .join('');
+  const fijo = suma('fijo');
+  const unaVez = suma('puntual');
+  let dato;
+  if (ingreso && fijo && !pasado) dato = t('Los fijos se llevan el {pct}% de lo que ganás.', { pct: Math.round((fijo / ingreso) * 100) });
+  else if (unaVez && pct(unaVez) >= 30) dato = t('Este mes pesan los gastos de una vez: son el {pct}%.', { pct: pct(unaVez) });
+  else if (fijo) dato = t('El {pct}% es fijo: lo que se repite todos los meses.', { pct: pct(fijo) });
+  return `${barra}<ul class="tipos">${filas}</ul>${dato ? `<p class="ayuda">🐒 ${dato} ${t('Tocá un tipo para ver sus gastos.')}</p>` : ''}`;
 }
 
 function candado(lista) {
@@ -225,6 +281,7 @@ export function montarMetricas(
   const ingreso = datos.perfil.ingresoMensual?.monto ?? 0;
   let mesCat = meses.some((m) => m.mes === mesVisto) ? mesVisto : actual;
   let catElegida = null;
+  const abiertos = new Set();
   let primera = true;
 
   const gastosHtml = () => {
@@ -262,7 +319,7 @@ export function montarMetricas(
 
     if (premium) {
       const caro = meses.reduce((a, b) => (b.total > a.total ? b : a), meses[0]);
-      const fijos = porTipo(futuros[0].gastos).fijo;
+      const fijos = porTipo(futuros[0].gastos, datos.gastos).fijo;
       html += `<div class="fichas">
         <div><small>${t('Gastás por mes')}</small><b>${plata(promedio)}</b><span>${t('en promedio')}</span></div>
         <div><small>${t('Mes más caro')}</small><b>${plata(caro.total)}</b><span>${esc(nombreMes(caro.mes))}</span></div>
@@ -277,7 +334,7 @@ export function montarMetricas(
       </div>
       <div class="pm-tarjeta">
         <h4>${t('Fijos, reservas y de una vez')}</h4>
-        ${barraTipos(visto.gastos, visto.total)}
+        ${barraTipos(visto.gastos, visto.total, datos.gastos, { abiertos, ingreso, pasado: visto.pasado })}
       </div>
       <div class="pm-tarjeta">
         <h4>${t('Por categoría en {mes}', { mes })}</h4>
@@ -390,6 +447,11 @@ export function montarMetricas(
       else s.scrollLeft = Math.max(0, Number(s.dataset.hoyX) - s.clientWidth / 2);
     });
     if (primera) caja.querySelectorAll('[data-contar]').forEach(contar);
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      caja.querySelectorAll('.barra-tipos span').forEach((s, i) =>
+        s.animate([{ transform: 'scaleX(0)' }, { transform: 'none' }], { duration: 380, delay: i * 90, easing: 'cubic-bezier(.3,1.4,.6,1)', fill: 'backwards' }),
+      );
+    }
     primera = false;
   };
 
@@ -418,6 +480,20 @@ export function montarMetricas(
     else if (cat) catElegida = cat.dataset.cat;
     else return;
     pintar();
+  };
+  // Lo que la persona desplegó sigue abierto al cambiar de mes. `toggle` no burbujea.
+  if (!caja.dataset.toggleTipos) {
+    caja.dataset.toggleTipos = '1';
+    caja.addEventListener('toggle', (e) => caja._alToggleTipo?.(e), true);
+  }
+  caja._alToggleTipo = (e) => {
+    const d = e.target;
+    if (!d.matches?.('details[data-tipo]')) return;
+    if (d.open) {
+      abiertos.add(d.dataset.tipo);
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches)
+        d.querySelector('.tipo-lista')?.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
+    } else abiertos.delete(d.dataset.tipo);
   };
   caja.onkeydown = (e) => {
     if (e.key === 'Enter' && e.target.matches('[data-cat]')) e.target.click();
