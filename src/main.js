@@ -566,10 +566,13 @@ function pintar(direccion = 0) {
   $('tarjeta-balance').dataset.animo = animo;
   // Fede (2/11): el balance es lo que tenés en las cuentas menos los gastos, y ya. Lo que
   // sobró de meses anteriores ya está en el saldo: no se muestra aparte.
+  // En un mes futuro (Fede, 2/11) el balance del mes es ingreso menos gastos de ese mes, y
+  // abajo el acumulado: con lo que arrancás más ese balance (lo que quedaría a fin de mes).
   const esActual = estado.mesVisto === mesActual;
-  animarNumero($('balance'), estado.balanceMostrado, r.balance);
-  estado.balanceMostrado = r.balance;
-  $('linea-acumulado').textContent = '';
+  const grande = esActual ? r.balance : r.ingreso - r.totalPendiente;
+  animarNumero($('balance'), estado.balanceMostrado, grande);
+  estado.balanceMostrado = grande;
+  $('linea-acumulado').textContent = esActual ? '' : t('Acumulado: {monto}', { monto: plata(r.balance) });
   $('ahorrar-mes').hidden = !esActual || r.balance <= 0;
 
   // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).

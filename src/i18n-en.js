@@ -628,4 +628,5 @@ export const EN = {
   'pagado ✓': 'paid ✓',
   'En este mes no hubo gastos cargados.': 'No expenses were logged this month.',
   'Con Premium ves todos tus meses anteriores, sin límite 📅': 'With Premium you can see all your previous months, no limit 📅',
+  'Acumulado: {monto}': 'Running total: {monto}',
 };
