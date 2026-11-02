@@ -2008,6 +2008,29 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 }
 
+// Versión nueva (Fede, 2/11): la pestaña puede quedar abierta días y mostrar la versión
+// vieja. Al volver a la pestaña (y cada 30 min) se mira si el deploy cambió el bundle; si
+// cambió y no hay nada abierto a medio cargar, se recarga sola.
+if (import.meta.env.PROD) {
+  const bundle = () => document.querySelector('script[type=module][src*="/assets/"]')?.getAttribute('src');
+  let mirando = false;
+  const revisarVersion = async () => {
+    if (mirando || document.hidden || !bundle()) return;
+    mirando = true;
+    try {
+      const html = await (await fetch('/', { cache: 'no-store' })).text();
+      const nuevo = html.match(/<script[^>]+src="(\/assets\/[^"]+\.js)"/)?.[1];
+      if (nuevo && nuevo !== bundle() && !document.querySelector('dialog[open]')) location.reload();
+    } catch {
+      /* sin red: se revisa la próxima */
+    } finally {
+      mirando = false;
+    }
+  };
+  document.addEventListener('visibilitychange', revisarVersion);
+  setInterval(revisarVersion, 30 * 60 * 1000);
+}
+
 pintarIdioma();
 
 (async () => {
