@@ -1,5 +1,5 @@
 import './estilos.css';
-import { mesDe, montoBase, partirBalance, resumenDelMes, sumarMeses } from './motor.js';
+import { historial, mesDe, montoBase, partirBalance, resumenDelMes, sumarMeses } from './motor.js';
 import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
@@ -44,7 +44,7 @@ const hoy = new Date();
 const mesActual = mesDe(hoy);
 
 // modo: 'real' (API) o 'demo' (todo en memoria, mismas reglas)
-const estado = { modo: 'demo', datos: null, perfil: null, mesVisto: mesActual, balanceMostrado: 0, resumenMostrado: null, filas: [] };
+const estado = { modo: 'demo', datos: null, perfil: null, mesVisto: mesActual, balanceMostrado: 0, resumenMostrado: null, filas: [], pasados: {} };
 
 // ---------- Entrada ----------
 
@@ -211,6 +211,7 @@ function entrarApp() {
   cargarConfigPremium();
   configurarMoneda(estado.perfil?.moneda ?? 'USD');
   estado.mesVisto = mesActual;
+  estado.pasados = {};
   chat.length = 0;
   cargarCajon();
   const nuevo = estado.modo === 'real' && estado.datos.gastos.length === 0 && estado.datos.perfil.saldo === 0 && !estado.datos.perfil.ingresoMensual;
@@ -252,6 +253,7 @@ async function cargar() {
   await sumarCuentas(datos, perfil);
   estado.datos = datos;
   estado.perfil = perfil;
+  estado.pasados = {};
   if (perfil.idioma && perfil.idioma !== idiomaActual()) {
     cambiarIdioma(perfil.idioma);
     pintarIdioma();
@@ -543,10 +545,15 @@ function saltoMono() {
 }
 
 function pintar(direccion = 0) {
+  if (estado.mesVisto < mesActual) return pintarPasado(direccion);
+  $('pantalla-app').classList.remove('viendo-pasado');
+  $('vacio-pasado').hidden = true;
+  $('etiqueta-balance').textContent = t('Balance del mes');
   const d = estado.datos;
   const r = resumenDelMes(d, hoy, estado.mesVisto);
   $('titulo-mes').textContent = estado.mesVisto === mesActual ? `${nombreMes(estado.mesVisto)} · ${t('hoy')}` : nombreMes(estado.mesVisto);
-  $('mes-anterior').disabled = estado.mesVisto <= mesActual;
+  // Para atrás solo si hay algo que ver: algún gasto que empezó antes de este mes.
+  $('mes-anterior').disabled = estado.mesVisto === mesActual && !d.gastos.some((g) => g.mesInicio < mesActual);
 
   const animo = animoPara(r.balance, d.perfil.ingresoMensual?.monto ?? 0);
   const premium = esPremium();
@@ -557,15 +564,13 @@ function pintar(direccion = 0) {
   $('frase').textContent = t(opciones[(Number(r.mes.slice(5)) + r.gastos.length) % opciones.length]);
   pintarBotonPruebaPremium();
   $('tarjeta-balance').dataset.animo = animo;
-  // K1: en grande lo que da el mes solo; abajo lo que viene de antes. Mona mira la suma.
+  // Fede (2/11): el balance es lo que tenés en las cuentas menos los gastos, y ya. Lo que
+  // sobró de meses anteriores ya está en el saldo: no se muestra aparte.
   const esActual = estado.mesVisto === mesActual;
-  const partes = partirBalance(d, r, d.ahorros ?? []);
-  animarNumero($('balance'), estado.balanceMostrado, partes.delMes);
-  estado.balanceMostrado = partes.delMes;
-  $('linea-acumulado').textContent = partes.acumulado
-    ? t(esActual ? '+ {monto} de meses anteriores' : '+ {monto} que traés de antes', { monto: plata(partes.acumulado) })
-    : '';
-  $('ahorrar-mes').hidden = !esActual || (partes.delMes <= 0 && partes.acumulado <= 0);
+  animarNumero($('balance'), estado.balanceMostrado, r.balance);
+  estado.balanceMostrado = r.balance;
+  $('linea-acumulado').textContent = '';
+  $('ahorrar-mes').hidden = !esActual || r.balance <= 0;
 
   // Mismo mes que antes: los números cuentan desde el valor anterior (se nota el impacto).
   const previo = estado.resumenMostrado?.mes === r.mes ? estado.resumenMostrado : r;
@@ -683,12 +688,90 @@ function pintarSugerencias(esActual) {
   }
 }
 
+// Meses anteriores (Fede, 2/11): hasta 3 atrás para todos, sin tope con Premium.
+const MESES_ATRAS_GRATIS = 3;
+
 function moverMes(n) {
   const nuevo = sumarMeses(estado.mesVisto, n);
-  if (nuevo < mesActual || $('pantalla-app').hidden || document.querySelector('dialog[open]')) return;
+  if ($('pantalla-app').hidden || document.querySelector('dialog[open]')) return;
+  if (n < 0 && $('mes-anterior').disabled) return;
+  if (nuevo < sumarMeses(mesActual, -MESES_ATRAS_GRATIS) && !esPremium()) {
+    sonar('toque');
+    abrirPremium(t('Con Premium ves todos tus meses anteriores, sin límite 📅'));
+    return;
+  }
   estado.mesVisto = nuevo;
   sonar('pasar');
   pintar(n);
+}
+
+/** Lo gastado en un mes pasado: del back en la cuenta real, del motor en la demo. */
+async function mesPasado(mes) {
+  if (estado.modo === 'real') return api('GET', `/historial?mes=${mes}`);
+  const [h] = historial(estado.datos, mes, mes);
+  return { ...h, hayAntes: estado.datos.gastos.some((g) => g.mesInicio < mes) };
+}
+
+/**
+ * Un mes que ya pasó: no hay saldo guardado de entonces, así que se ve lo que se gastó,
+ * sin tocar nada. Lo que sobró se entiende que quedó en el saldo.
+ */
+async function pintarPasado(direccion) {
+  const mes = estado.mesVisto;
+  $('pantalla-app').classList.add('viendo-pasado');
+  $('titulo-mes').textContent = nombreMes(mes);
+  $('etiqueta-balance').textContent = t('Gastaste');
+  $('linea-acumulado').textContent = '';
+  $('ahorrar-mes').hidden = true;
+  $('aviso-cobro').hidden = true;
+  $('sugerencias').replaceChildren();
+  $('mono').innerHTML = svgMono('feliz', esPremium());
+  $('tarjeta-balance').dataset.animo = 'feliz';
+  let h = estado.pasados[mes];
+  if (!h) {
+    $('mes-anterior').disabled = true;
+    $('frase').textContent = t('Buscando ese mes… 🔎');
+    try {
+      h = await mesPasado(mes);
+    } catch (err) {
+      if (estado.mesVisto !== mes) return;
+      estado.mesVisto = sumarMeses(mes, 1);
+      pintar();
+      if (err instanceof ErrorApi && err.status === 403) abrirPremium(t('Con Premium ves todos tus meses anteriores, sin límite 📅'));
+      else avisar(err);
+      return;
+    }
+    estado.pasados[mes] = h;
+    if (estado.mesVisto !== mes) return;
+  }
+  // En la demo no hay Premium: se frena en el tope gratis.
+  $('mes-anterior').disabled = !h.hayAntes || (estado.modo !== 'real' && mes <= sumarMeses(mesActual, -MESES_ATRAS_GRATIS));
+  animarNumero($('balance'), estado.balanceMostrado, h.total);
+  estado.balanceMostrado = h.total;
+  $('frase').textContent = t('Lo que sobró ese mes ya está en tu saldo 🐒');
+  estado.filas = [];
+  const lista = $('gastos');
+  lista.replaceChildren(...h.gastos.map(filaPasada));
+  $('vacio').hidden = true;
+  $('vacio-pasado').hidden = h.gastos.length > 0;
+  if (direccion) {
+    for (const li of lista.children) {
+      li.animate([{ opacity: 0, transform: `translateX(${direccion * 40}px)` }, { opacity: 1, transform: 'none' }], { duration: 280, easing: 'ease-out' });
+    }
+  }
+}
+
+/** Fila de un mes pasado: solo para mirar (sin data-fila, el click no abre nada). */
+function filaPasada(l) {
+  const li = document.createElement('li');
+  li.className = `gasto gasto-${l.tipo} solo-lectura${l.pagado ? ' pagado' : ''}`;
+  const detalle = l.pagado ? t('pagado ✓') : l.tipo === 'reserva' ? t('reserva') : '';
+  li.innerHTML = `
+    <span class="emoji">${l.emoji || '💸'}</span>
+    <div class="info"><p class="nombre"></p><p class="tipo">${detalle}</p></div>
+    <div class="montos"><p class="monto">${plata(l.monto)}</p></div>`;
+  li.querySelector('.nombre').textContent = l.nombre;
+  return li;
 }
 
 $('mes-anterior').addEventListener('click', () => moverMes(-1));
@@ -897,6 +980,11 @@ function abrirGasto(g = null) {
 
 $('boton-nuevo').addEventListener('click', () => {
   sonar('toque');
+  // En un mes pasado no se cargan gastos: se vuelve a hoy y se carga ahí.
+  if (estado.mesVisto < mesActual) {
+    estado.mesVisto = mesActual;
+    pintar(1);
+  }
   abrirGasto();
 });
 

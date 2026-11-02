@@ -763,3 +763,7 @@ html, body { overflow-x: clip; }
 }
 .pasar-cuenta { margin: 8px 0; }
 .pasar-cuenta summary { font-weight: 800; cursor: pointer; padding: 6px 0; color: var(--selva); }
+
+/* Mes pasado (solo para mirar): sin saldo, ingreso ni sugerencias. */
+.viendo-pasado #resumen, .viendo-pasado #aviso-cobro, .viendo-pasado #sugerencias { display: none; }
+.gasto.solo-lectura { cursor: default; }

@@ -622,4 +622,10 @@ export const EN = {
   '🔁 Pasar plata a otra cuenta': '🔁 Move money to another account',
   '¿A cuál?': 'To which one?',
   'Pasar': 'Move',
+  'Gastaste': 'You spent',
+  'Buscando ese mes… 🔎': 'Looking up that month… 🔎',
+  'Lo que sobró ese mes ya está en tu saldo 🐒': 'Whatever was left that month is already in your balance 🐒',
+  'pagado ✓': 'paid ✓',
+  'En este mes no hubo gastos cargados.': 'No expenses were logged this month.',
+  'Con Premium ves todos tus meses anteriores, sin límite 📅': 'With Premium you can see all your previous months, no limit 📅',
 };
