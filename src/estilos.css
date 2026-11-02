@@ -839,3 +839,15 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 .interruptor.activo .perilla { background: var(--selva); }
 .interruptor.activo .perilla::after { transform: translateX(12px); }
 @media (prefers-reduced-motion: reduce) { .interruptor .perilla, .interruptor .perilla::after { transition: none; } }
+
+/* ---- Grupos del cajón (Fede, 2/11) ---- */
+.grupo-cajon { display: flex; align-items: flex-start; gap: 8px; }
+.grupo-cajon-caja {
+  flex: 1; min-width: 0; display: grid; gap: 6px; padding: 6px; border-radius: 20px;
+  border: 2px dashed color-mix(in srgb, var(--banana) 60%, var(--borde));
+}
+.grupo-cajon .grupo-cabeza { border: 0; box-shadow: none; background: transparent; padding: 6px 8px; }
+.bolsillos.adentro { grid-template-columns: minmax(0, 1fr) !important; gap: 6px; padding-left: 10px; }
+.bolsillos.adentro .bolsillo { padding: 8px 10px; }
+.bolsillos.adentro .bolsillo-emoji { font-size: 1.4rem; }
+.bolsillos.adentro .bolsillo-cantidad { font-size: 1.1rem; }

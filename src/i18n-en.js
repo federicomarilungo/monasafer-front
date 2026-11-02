@@ -720,4 +720,15 @@ export const EN = {
   'Tu ahorro de verdad: lo que hay en el cajón 🍌 hoy, más lo que venís guardando por mes. Tocá "Sumar lo que sobra" para ver cuánto tendrías si ahorraras todo lo que te sobra.': 'Your real savings: what’s in the drawer 🍌 today, plus what you’ve been saving each month. Tap "Add what’s left over" to see how much you’d have if you saved everything left over.',
   'Lo que entró a tu cajón cada mes: lo que guardaste y lo que sumaste a mano a tus bolsillos (el primer mes, todo lo que ya tenías), menos lo que sacaste o gastaste. Los traspasos entre bolsillos no cuentan.': 'What went into your drawer each month: what you saved and what you added by hand to your pockets (the first month, everything you already had), minus what you took out or spent. Transfers between pockets don’t count.',
   'En estos meses no entró plata al cajón. Cuando te sobre, tocá Ahorrar 🍌': 'No money went into the drawer these months. When you have some left over, tap Save 🍌',
+  // Grupos del cajón
+  '1 bolsillo': '1 pocket',
+  '{n} bolsillos': '{n} pockets',
+  'Vacío: tocá para sumarle bolsillos': 'Empty: tap to add pockets',
+  'Nuevo grupo': 'New group',
+  'Junta bolsillos y muestra cuánto suman, como la cartera de cada broker con sus índices adentro.':
+    "Groups pockets and shows what they add up to, like each broker's portfolio with its holdings inside.",
+  'Cartera IOL, cripto, viaje…': 'Broker portfolio, crypto, trip…',
+  '¿Qué va adentro?': "What's inside?",
+  'Borré el grupo. Sus bolsillos siguen en el cajón, sueltos.': 'Group deleted. Its pockets are still in the drawer, on their own.',
+  '🗂️ Grupo': '🗂️ Group',
 };
