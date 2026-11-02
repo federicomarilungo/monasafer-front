@@ -4,6 +4,7 @@
 // moneda de la cuenta con la cotización de hoy. Quien no crea ninguna no ve nada distinto.
 // Pagar un gasto y usar una reserva salen de la principal.
 import { api } from './api.js';
+import { unaVez } from './ocupado.js';
 import { centavos, configurarMoneda, paraEditar } from './formato.js';
 import { locale, t } from './i18n.js';
 import { sonar } from './sonidos.js';
@@ -268,7 +269,7 @@ export function escucharHojaCuenta() {
   const f = $('form-cuenta-saldo');
   f.hacia.addEventListener('change', pintarLlega);
   f.pasar.addEventListener('input', pintarLlega);
-  f.addEventListener('submit', async (e) => {
+  f.addEventListener('submit', unaVez(async (e) => {
     e.preventDefault();
     const nombre = f.nombre.value.trim();
     if (!nombre) return error(t('Ponele un nombre'));
@@ -287,8 +288,8 @@ export function escucharHojaCuenta() {
     } catch (err) {
       error(err.message);
     }
-  });
-  $('boton-pasar').addEventListener('click', async () => {
+  }));
+  $('boton-pasar').addEventListener('click', unaVez(async () => {
     const monto = centavos(f.pasar.value);
     if (!monto) return error(t('Poné cuánto pasás'));
     const hacia = f.hacia.value;
@@ -303,9 +304,9 @@ export function escucharHojaCuenta() {
     } catch (err) {
       error(err.message);
     }
-  });
+  }));
   // Se borra aunque tenga plata (Fede, 2/11), pero con un segundo toque para confirmar.
-  $('boton-borrar-cuenta-saldo').addEventListener('click', async (e) => {
+  $('boton-borrar-cuenta-saldo').addEventListener('click', unaVez(async (e) => {
     if (abierta.saldo && !confirmarBorrar) {
       confirmarBorrar = true;
       sonar('toque');
@@ -319,5 +320,5 @@ export function escucharHojaCuenta() {
     } catch (err) {
       error(err.message);
     }
-  });
+  }));
 }

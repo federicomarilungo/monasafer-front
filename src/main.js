@@ -3,6 +3,7 @@ import { historial, mesDe, montoBase, partirBalance, resumenDelMes, sumarMeses }
 import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
+import { unaVez } from './ocupado.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
 import { centavos, plata, nombreMes, configurarMoneda, conMiles, paraEditar, monedaSugerida } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
@@ -143,7 +144,7 @@ function codigoRecupero() {
   return m ? m[1] : null;
 }
 
-$('form-recuperar').addEventListener('submit', async (e) => {
+$('form-recuperar').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   mostrarError('error-recuperar', null);
   try {
@@ -155,7 +156,7 @@ $('form-recuperar').addEventListener('submit', async (e) => {
   } catch (err) {
     mostrarError('error-recuperar', err.message);
   }
-});
+}));
 window.addEventListener('hashchange', () => {
   if (codigoRecupero() && !$('hoja-recuperar').open) {
     mostrarError('error-recuperar', null);
@@ -181,7 +182,7 @@ $('cuenta-mejora').addEventListener('click', () => {
   abrirComentarios('cuenta');
 });
 
-$('boton-borrar-cuenta').addEventListener('click', async () => {
+$('boton-borrar-cuenta').addEventListener('click', unaVez(async () => {
   mostrarError('error-cuenta', null);
   try {
     await api('DELETE', '/perfil', { confirmacion: $('form-cuenta').confirmacion.value });
@@ -190,7 +191,7 @@ $('boton-borrar-cuenta').addEventListener('click', async () => {
   } catch (err) {
     mostrarError('error-cuenta', err.message);
   }
-});
+}));
 
 function salir() {
   guardarToken(null);
@@ -1032,7 +1033,7 @@ $('boton-prueba-premium').addEventListener('click', async () => {
   b.disabled = false;
 });
 
-$('form-gasto').addEventListener('submit', async (e) => {
+$('form-gasto').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   const f = e.target;
   const monto = centavos(f.monto.value);
@@ -1053,7 +1054,7 @@ $('form-gasto').addEventListener('submit', async (e) => {
   } catch (err) {
     mostrarError('error-gasto', err.message);
   }
-});
+}));
 
 $('boton-borrar-gasto').addEventListener('click', () => {
   if (!gastoEditado) return;
@@ -1340,7 +1341,7 @@ async function abrirReserva(l, g, aCargar = false) {
   }
 }
 
-$('form-uso').addEventListener('submit', async (e) => {
+$('form-uso').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   const monto = centavos(e.target.monto.value);
   if (!monto) return mostrarError('error-uso', t('Poné cuánto usaste'));
@@ -1356,7 +1357,7 @@ $('form-uso').addEventListener('submit', async (e) => {
   } catch (err) {
     mostrarError('error-uso', err.message);
   }
-});
+}));
 
 $('boton-editar-reserva').addEventListener('click', () => {
   $('hoja-reserva').close();
@@ -1427,7 +1428,7 @@ function pintarIngresos() {
   );
 }
 
-$('boton-cobrar-sueldo').addEventListener('click', async () => {
+$('boton-cobrar-sueldo').addEventListener('click', unaVez(async () => {
   try {
     await acciones.cobrar();
     $('hoja-ingreso').close();
@@ -1436,9 +1437,9 @@ $('boton-cobrar-sueldo').addEventListener('click', async () => {
   } catch (err) {
     mostrarError('error-ingreso', err.message);
   }
-});
+}));
 
-$('form-ingreso').addEventListener('submit', async (e) => {
+$('form-ingreso').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   const f = e.target;
   const cantidad = centavos(f.monto.value);
@@ -1461,7 +1462,7 @@ $('form-ingreso').addEventListener('submit', async (e) => {
   } catch (err) {
     mostrarError('error-ingreso', err.message);
   }
-});
+}));
 
 $('boton-corregir-plata').addEventListener('click', () => {
   $('hoja-ingreso').close();
@@ -1484,7 +1485,7 @@ function abrirPlata() {
   $('hoja-plata').showModal();
 }
 
-$('form-plata').addEventListener('submit', async (e) => {
+$('form-plata').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   const f = e.target;
   const saldo = hayCuentas() ? saldoPrincipal() : centavos(f.saldo.value, true);
@@ -1499,7 +1500,7 @@ $('form-plata').addEventListener('submit', async (e) => {
   } catch (err) {
     mostrarError('error-plata', err.message);
   }
-});
+}));
 
 function volverAPlata(abrir) {
   $('hoja-plata').close();
@@ -1579,14 +1580,14 @@ function pintarCuenta() {
   if (prem?.activo) {
     caja.innerHTML = `<p>⭐ <b>${t('Sos Premium')}</b> · ${t('hasta el {fecha}', { fecha: new Date(prem.hasta).toLocaleDateString(locale()) })}</p>
       <button type="button" class="boton enlace chico" id="boton-cancelar-premium">${t('Cancelar la renovación')}</button>`;
-    caja.querySelector('#boton-cancelar-premium').addEventListener('click', async () => {
+    caja.querySelector('#boton-cancelar-premium').addEventListener('click', unaVez(async () => {
       try {
         await api('POST', '/premium/cancelar');
         alertaSuave(t('Listo, no se renueva más. Seguís con Premium hasta el final del mes pagado.'));
       } catch (err) {
         avisar(err);
       }
-    });
+    }));
   } else {
     caja.innerHTML = `<button type="button" class="boton principal" id="boton-ir-premium">⭐ ${t('Hacete Premium')}</button>`;
     caja.querySelector('#boton-ir-premium').addEventListener('click', () => {
@@ -1616,7 +1617,7 @@ function abrirPremium(motivo) {
   $('hoja-premium').showModal();
 }
 
-$('form-premium').addEventListener('submit', async (e) => {
+$('form-premium').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   mostrarError('error-premium', null);
   $('boton-suscribir').disabled = true;
@@ -1636,7 +1637,7 @@ $('form-premium').addEventListener('submit', async (e) => {
     mostrarError('error-premium', err.message);
   }
   $('boton-suscribir').disabled = false;
-});
+}));
 
 /** Al volver de Mercado Pago (#premium): se pregunta el estado sin esperar la notificación. */
 async function volverDePago() {
@@ -1687,7 +1688,7 @@ $('aviso-hablar').addEventListener('click', () => abrirChat());
 
 // S2: métricas. Todos ven las normales (3 meses y categorías); las Premium gastan una vista
 // gratis a quien no paga. Sin vistas se avisa y se ven las normales: nunca se cortan.
-$('boton-metricas').addEventListener('click', async () => {
+$('boton-metricas').addEventListener('click', unaVez(async () => {
   sonar('toque');
   let premium = estado.modo !== 'real' || esPremium();
   let encabezado = '';
@@ -1733,7 +1734,7 @@ $('boton-metricas').addEventListener('click', async () => {
       abrirPremium(t('Con Premium ves 12 meses para atrás y para adelante y cada categoría en el tiempo.'));
     },
   });
-});
+}));
 
 let seccionMetricas = 'gastos';
 $('pantalla-metricas').addEventListener('close', () => {

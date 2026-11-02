@@ -19,3 +19,7 @@ proyecto en `proyecto/`: empezá por ahí.
 6. **Nunca abrir el teclado solo** (Fede, 30/10/2026): ninguna hoja ni paso hace `.focus()`
    en un campo; el teclado se abre cuando la persona toca el input. Cada `<dialog>` lleva
    `autofocus` y `showModal` saca el foco de un campo si el navegador igual se lo da (`main.js`).
+7. **Guardar una sola vez** (Fede, 2/11/2026): todo handler que guarda va con `unaVez` o
+   `mientrasGuarda` de `src/ocupado.js` (en el cajón, `enviar`): mientras espera la API, el
+   form no vuelve a disparar y su botón queda apagado y latiendo. Si no, tocar varias veces
+   creaba 3 gastos, bolsillos o cuentas.

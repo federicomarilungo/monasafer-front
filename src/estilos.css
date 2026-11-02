@@ -160,6 +160,9 @@ body {
 .boton.principal { background: var(--selva); border-color: var(--selva-oscura); color: #fff; box-shadow: 0 4px 0 var(--selva-oscura); }
 .boton.peligro { color: var(--rojo); margin-right: auto; }
 .boton:disabled { opacity: 0.6; }
+/* Guardando (ocupado.js): apagado y latiendo, así se ve que ya va y no hace falta volver a tocar. */
+.boton.guardando { cursor: progress; animation: latido 0.7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .boton.guardando { animation: none; } }
 .boton.enlace { border: 0; box-shadow: none; background: transparent; color: var(--selva); text-decoration: underline; }
 .boton.enlace.chico { padding: 4px; font-size: 0.85rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
