@@ -11,8 +11,14 @@ let ctx = null;
 let cajon = { bolsillos: [], movimientos: [] };
 /** Cotizaciones del día del back: unidades de cada código por 1 USD (null si no hay). */
 let cotizaciones = null;
-/** Precios de los CEDEARs que se usan, en centavos de peso: { SPY: 2096000 }. */
-let cedears = { precios: {}, fecha: null };
+/**
+ * Inversiones en acciones (Fede: CEDEARs 25/10, acciones 02/11): en qué moneda viene el
+ * precio de cada mercado. Las cripto se valúan con las cotizaciones, como cualquier unidad.
+ */
+const ACCIONES = { cedear: 'ARS', byma: 'ARS', usa: 'USD' };
+/** Precios de las acciones que se usan, por mercado, en centavos de su moneda: { cedear: { SPY: 2096000 } }. */
+const precios = { cedear: {}, byma: {}, usa: {} };
+const fechaPrecios = {};
 const MONEDAS_BASE = ['USD', 'ARS', 'EUR', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN'];
 const GRAMOS_POR_ONZA = 31.1035;
 
@@ -44,10 +50,10 @@ function convertir(c, de, a) {
 function enBase(cantidad, b) {
   const base = monedaBase();
   const n = cantidad / 10 ** b.decimales;
-  // Un CEDEAR vale su precio en pesos de hoy, pasado a la base con el MEP.
-  if (b.mercado === 'cedear' && !b.cotizacion) {
-    const precio = cedears.precios[b.unidad];
-    return precio ? convertir(n * precio, 'ARS', base) : null;
+  // Una acción o un CEDEAR vale su precio de hoy (en pesos o dólares), pasado a la base.
+  if (ACCIONES[b.mercado] && !b.cotizacion) {
+    const precio = precios[b.mercado][b.unidad];
+    return precio ? convertir(n * precio, ACCIONES[b.mercado], base) : null;
   }
   // El valor puesto a mano manda sobre el de mercado.
   if (b.cotizacion) {
@@ -66,41 +72,108 @@ function enBase(cantidad, b) {
 const plataBase = (c) =>
   new Intl.NumberFormat(locale(), { style: 'currency', currency: monedaBase(), maximumFractionDigits: 0 }).format(c / 100);
 
-// Lo que se ofrece en "¿Dónde lo guardás?". Acciones y plazo fijo se anotan en la moneda
-// de la cuenta (lo que valen), el resto en su unidad.
+// Lo que se ofrece en "¿Dónde lo guardás?". El plazo fijo se anota en la moneda de la
+// cuenta (lo que vale), el resto en su unidad. Acciones y cripto van por "Inversión".
 const PRESETS = [
   { nombre: 'Dólar', emoji: '💵', unidad: 'USD', decimales: 2 },
   { nombre: 'Euro', emoji: '💶', unidad: 'EUR', decimales: 2 },
   { nombre: 'Oro', emoji: '🪙', unidad: 'g', decimales: 2 },
-  { nombre: 'Bitcoin', emoji: '₿', unidad: 'BTC', decimales: 8 },
-  { nombre: 'Ethereum', emoji: '💠', unidad: 'ETH', decimales: 8 },
-  { nombre: 'Solana', emoji: '🟣', unidad: 'SOL', decimales: 8 },
   { nombre: 'USDT', emoji: '💲', unidad: 'USDT', decimales: 2 },
   { nombre: 'USDC', emoji: '🔵', unidad: 'USDC', decimales: 2 },
-  { nombre: 'Acciones', emoji: '📈', unidad: null, decimales: 2 },
   { nombre: 'Plazo fijo', emoji: '🏦', unidad: null, decimales: 2 },
 ];
-// Cartera de inversiones (premium): los CEDEARs que más se usan. El resto se agrega por
-// ticker, así no se cargan ~400 precios si nadie los usa (Fede, 25/10).
-const CEDEARS_POPULARES = [
-  ['SPY', 'S&P 500'],
-  ['QQQ', 'Nasdaq 100'],
-  ['DIA', 'Dow Jones'],
-  ['AAPL', 'Apple'],
-  ['GOOGL', 'Google'],
-  ['MSFT', 'Microsoft'],
-  ['AMZN', 'Amazon'],
-  ['NVDA', 'Nvidia'],
-  ['META', 'Meta'],
-  ['TSLA', 'Tesla'],
-  ['MELI', 'Mercado Libre'],
-  ['KO', 'Coca-Cola'],
-  ['BRKB', 'Berkshire'],
-  ['IBIT', 'Bitcoin ETF'],
-];
+// Cartera de inversiones: lo que más se usa de cada mercado. El resto se agrega por ticker,
+// así no se cargan cientos de precios si nadie los usa (Fede, 25/10).
+const POPULARES = {
+  cedear: [
+    ['SPY', 'S&P 500'],
+    ['QQQ', 'Nasdaq 100'],
+    ['DIA', 'Dow Jones'],
+    ['AAPL', 'Apple'],
+    ['GOOGL', 'Google'],
+    ['MSFT', 'Microsoft'],
+    ['AMZN', 'Amazon'],
+    ['NVDA', 'Nvidia'],
+    ['META', 'Meta'],
+    ['TSLA', 'Tesla'],
+    ['MELI', 'Mercado Libre'],
+    ['KO', 'Coca-Cola'],
+    ['BRKB', 'Berkshire'],
+    ['IBIT', 'Bitcoin ETF'],
+  ],
+  byma: [
+    ['GGAL', 'Galicia'],
+    ['YPFD', 'YPF'],
+    ['PAMP', 'Pampa Energía'],
+    ['BMA', 'Banco Macro'],
+    ['TXAR', 'Ternium'],
+    ['ALUA', 'Aluar'],
+    ['CEPU', 'Central Puerto'],
+    ['TGSU2', 'TGS'],
+    ['LOMA', 'Loma Negra'],
+    ['BBAR', 'BBVA'],
+    ['SUPV', 'Supervielle'],
+    ['CRES', 'Cresud'],
+    ['EDN', 'Edenor'],
+    ['TECO2', 'Telecom'],
+  ],
+  usa: [
+    ['AAPL', 'Apple'],
+    ['MSFT', 'Microsoft'],
+    ['NVDA', 'Nvidia'],
+    ['GOOGL', 'Google'],
+    ['AMZN', 'Amazon'],
+    ['META', 'Meta'],
+    ['TSLA', 'Tesla'],
+    ['MELI', 'Mercado Libre'],
+    ['KO', 'Coca-Cola'],
+    ['BRK.B', 'Berkshire'],
+    ['VOO', 'S&P 500 (Vanguard)'],
+    ['YPF', 'YPF'],
+    ['GGAL', 'Galicia'],
+    ['VIST', 'Vista'],
+  ],
+  // Las más comunes de Binance (el back completa con Binance las que no trae Coinbase).
+  cripto: [
+    ['BTC', 'Bitcoin'],
+    ['ETH', 'Ethereum'],
+    ['BNB', 'BNB'],
+    ['SOL', 'Solana'],
+    ['XRP', 'XRP'],
+    ['DOGE', 'Dogecoin'],
+    ['ADA', 'Cardano'],
+    ['TRX', 'TRON'],
+    ['TON', 'Toncoin'],
+    ['AVAX', 'Avalanche'],
+    ['LINK', 'Chainlink'],
+    ['DOT', 'Polkadot'],
+    ['SHIB', 'Shiba Inu'],
+    ['LTC', 'Litecoin'],
+    ['BCH', 'Bitcoin Cash'],
+    ['POL', 'Polygon'],
+    ['UNI', 'Uniswap'],
+    ['NEAR', 'NEAR'],
+    ['ATOM', 'Cosmos'],
+    ['XLM', 'Stellar'],
+    ['SUI', 'Sui'],
+    ['APT', 'Aptos'],
+    ['PEPE', 'Pepe'],
+    ['ARB', 'Arbitrum'],
+  ],
+};
+/** Cómo se muestra cada mercado y en qué se cuenta (como en el back). */
+const MERCADOS = {
+  byma: { titulo: 'Acciones argentinas', corto: 'BYMA', emoji: '🇦🇷', decimales: 0, ejemplo: 'GGAL, YPFD…' },
+  usa: { titulo: 'Acciones de EE.UU.', corto: 'EE.UU.', emoji: '🇺🇸', decimales: 4, ejemplo: 'AAPL, VOO…' },
+  cedear: { titulo: 'CEDEARs', corto: 'CEDEAR', emoji: '📈', decimales: 0, ejemplo: 'VIST, YPF, KO…' },
+  cripto: { titulo: 'Cripto', corto: 'Cripto', emoji: '🪙', decimales: 8, ejemplo: 'BTC, ETH…' },
+};
+const EMOJI_CRIPTO = { BTC: '₿', ETH: '💠', SOL: '🟣' };
+const CRIPTO = new Set(POPULARES.cripto.map(([s]) => s));
 const esCedear = (b) => b.mercado === 'cedear';
+/** Va en Inversiones: lo que tiene mercado y las cripto que se guardaban como bolsillo común. */
+const esInversion = (b) => Boolean(b.mercado) || (!b.generico && !b.cotizacion && b.decimales === 8 && CRIPTO.has(b.unidad.toUpperCase()));
 const EMOJIS = ['🐷', '💵', '💶', '₿', '💠', '💲', '🪙', '📈', '🏦', '✈️', '🏠', '🚗', '🎓', '💍', '🎁', '🆘', '💎', '🍌'];
-const CRIPTO = /^(BTC|ETH|SOL|XRP|ADA|DOGE|LTC|DOT|AVAX|BNB)$/i;
 
 /** 230 USD → 23000 si la unidad tiene 2 decimales. Mismas reglas que `centavos`. */
 export function leerCantidad(texto, decimales, negativo = false) {
@@ -142,14 +215,30 @@ async function cargarCotizaciones() {
   cotizaciones = await api('GET', '/cajon/cotizaciones').catch(() => cotizaciones);
 }
 
-/** Precios de los CEDEARs de la cartera (y de `extra`); solo si hay alguno. */
-async function cargarCedears(extra = []) {
-  const simbolos = [...new Set([...cajon.bolsillos.filter(esCedear).map((b) => b.unidad), ...extra])];
-  const faltan = simbolos.filter((s) => !(s in cedears.precios));
-  const viejos = !cedears.fecha || Date.now() - Date.parse(cedears.fecha) > 20 * 60 * 1000;
+/** Precios de las acciones de la cartera de un mercado (y de `extra`); solo si hay alguna. */
+async function cargarPrecios(mercado, extra = []) {
+  const simbolos = [...new Set([...cajon.bolsillos.filter((b) => b.mercado === mercado).map((b) => b.unidad), ...extra])];
+  const faltan = simbolos.filter((s) => !(s in precios[mercado]));
+  const viejos = !fechaPrecios[mercado] || Date.now() - Date.parse(fechaPrecios[mercado]) > 20 * 60 * 1000;
   if (!simbolos.length || (!faltan.length && !viejos)) return;
-  const r = await api('GET', `/cajon/cedears?simbolos=${encodeURIComponent((viejos ? simbolos : faltan).join(','))}`).catch(() => null);
-  if (r) cedears = { precios: { ...cedears.precios, ...r.precios }, fecha: r.fecha };
+  const lista = encodeURIComponent((viejos ? simbolos : faltan).join(','));
+  const r = await api('GET', `/cajon/precios?mercado=${mercado}&simbolos=${lista}`).catch(() => null);
+  if (r) {
+    Object.assign(precios[mercado], r.precios);
+    fechaPrecios[mercado] = r.fecha;
+  }
+}
+
+const cargarTodosLosPrecios = () => Promise.all(Object.keys(ACCIONES).map((m) => cargarPrecios(m)));
+
+/** Cuánto vale 1 unidad de una inversión hoy: `{precio (centavos), moneda}` o null. */
+function valorUnidad(b) {
+  if (ACCIONES[b.mercado]) {
+    const precio = precios[b.mercado][b.unidad];
+    return precio ? { precio, moneda: ACCIONES[b.mercado] } : null;
+  }
+  const x = porUsd(b.unidad);
+  return x ? { precio: 100 / x, moneda: 'USD' } : null;
 }
 
 export async function cargarCajon() {
@@ -245,7 +334,7 @@ async function demoApi(metodo, ruta, c = {}) {
 /** El cajón valuado en la moneda base, para la sección Ahorros de las métricas. */
 export async function resumenCajon() {
   await Promise.all([cargarCajon(), cargarCotizaciones()]);
-  await cargarCedears();
+  await cargarTodosLosPrecios();
   const bolsillos = cajon.bolsillos
     .filter((b) => b.cantidad)
     .map((b) => ({ id: b.id, emoji: b.emoji, nombre: nombreDe(b), texto: cantidadTexto(b.cantidad, b), valor: enBase(b.cantidad, b) }))
@@ -443,7 +532,7 @@ function pasoDonde() {
      <p class="ayuda">${t('{monto} van al cajón. Si los pasaste a otra cosa, elegila y te pregunto cuánto te quedó.', { monto: plata(flujo.monto) })}</p>
      <div class="cajon-opciones">
        ${opciones.map((o, i) => `<button type="button" class="cajon-opcion" data-i="${i}"><span>${esc(o.emoji)}</span><b>${esc(o.nombre)}</b><small>${esc(o.unidad)}</small></button>`).join('')}
-       <button type="button" class="cajon-opcion" data-cedear><span>📈</span><b>${t('CEDEAR')}</b><small>👑 Premium</small></button>
+       <button type="button" class="cajon-opcion" data-inversion><span>📈</span><b>${t('Inversión')}</b><small>${t('Acciones y cripto')}</small></button>
        <button type="button" class="cajon-opcion nueva" data-nueva><span>➕</span><b>${t('Crear categoría')}</b></button>
      </div>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="button" class="boton" data-omitir>${t('Omitir')}</button></div>
@@ -451,7 +540,7 @@ function pasoDonde() {
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', pasoMonto);
       f.querySelector('[data-nueva]').addEventListener('click', () => pasoNuevaCategoria((b) => elegir({ preset: b })));
-      f.querySelector('[data-cedear]').addEventListener('click', () => pasoCedear((b) => elegir({ preset: b }), pasoDonde));
+      f.querySelector('[data-inversion]').addEventListener('click', () => pasoInversion((b) => elegir({ preset: b }), pasoDonde));
       f.querySelector('[data-omitir]').addEventListener('click', (e) => enviar(e.currentTarget, () => guardarAhorro(null, null)));
       f.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => elegir(opciones[Number(b.dataset.i)])));
     },
@@ -469,18 +558,19 @@ function elegir(o) {
 
 function pasoCantidad() {
   const b = flujo.destino.datos;
-  const precio = esCedear(b) ? cedears.precios[b.unidad] : null;
-  const enPesos = precio ? convertir(flujo.monto, monedaCuenta(), 'ARS') : null;
-  const sugerida = enPesos ? Math.floor(enPesos / precio) : 0;
+  // Si es una inversión, cuántas te alcanzan con lo que sacaste al precio de hoy.
+  const v = b.mercado ? valorUnidad(b) : null;
+  const enSuMoneda = v ? convertir(flujo.monto, monedaCuenta(), v.moneda) : null;
+  const sugerida = enSuMoneda ? Math.floor((enSuMoneda / v.precio) * 10 ** b.decimales) : 0;
   paso(
     `<h3>${t('¿Cuántos {unidad} son?', { unidad: esc(b.unidad) })}</h3>
      <p class="ayuda">${t('Sacaste {monto}. Poné lo que te quedó en {nombre}: así solo te ocupás de lo que guardás.', { monto: plata(flujo.monto), nombre: `${esc(b.emoji)} ${esc(b.nombre)}` })}</p>
-     ${sugerida ? `<p class="ayuda">${t('Con el precio de hoy ({precio}) te alcanza para unos {n}.', { precio: esc(plataEn(precio, 'ARS')), n: sugerida })}</p>` : ''}
+     ${sugerida ? `<p class="ayuda">${t('Con el precio de hoy ({precio}) te alcanza para unos {n}.', { precio: esc(plataEn(v.precio, v.moneda)), n: paraInput(sugerida, b.decimales) })}</p>` : ''}
      <label class="campo monto-campo"><span>${esc(b.unidad)}</span><input name="cantidad" inputmode="decimal" autocomplete="off" placeholder="0" /></label>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Guardar 🍌')}</button></div>`,
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', pasoDonde);
-      if (sugerida) f.cantidad.value = sugerida;
+      if (sugerida) f.cantidad.value = paraInput(sugerida, b.decimales);
       f.onsubmit = (e) => {
         e.preventDefault();
         const c = leerCantidad(f.cantidad.value, b.decimales);
@@ -620,7 +710,7 @@ function pasoNuevaCategoria(listo, volver = pasoDonde, b = null) {
         if (!u) return error(t('Elegí en qué lo contás'));
         const cotizacion = conValor(u) ? leerValorUnidad(f) : null;
         if (cotizacion === false) return error(t('Poné un valor válido'));
-        const decimales = CRIPTO.test(u) ? 8 : 2;
+        const decimales = CRIPTO.has(u.toUpperCase()) ? 8 : 2;
         // Los decimales solo cambian con el bolsillo vacío (si no, cambiaría lo guardado).
         listo({ nombre, emoji, unidad: u, ...(b?.cantidad ? {} : { decimales }), cotizacion });
       };
@@ -646,52 +736,118 @@ function leerValorUnidad(f) {
   return valor ? { moneda: f.monedaUnidad.value, valor } : false;
 }
 
-// ---------- Cartera de inversiones (CEDEARs, premium) ----------
+// ---------- Cartera de inversiones (acciones y CEDEARs premium, cripto para todos) ----------
 
-const plataEn = (c, moneda) => new Intl.NumberFormat(locale(), { style: 'currency', currency: moneda, maximumFractionDigits: 0 }).format(c / 100);
+/** Precios por unidad: sin centavos si es grande, con 3 cifras si vale menos de 1 (PEPE, DOGE). */
+function plataEn(c, moneda) {
+  const n = c / 100;
+  const cifras = n < 1 ? { maximumSignificantDigits: 3 } : { maximumFractionDigits: n < 1000 ? 2 : 0 };
+  return new Intl.NumberFormat(locale(), { style: 'currency', currency: moneda, ...cifras }).format(n);
+}
 
 /** Si no es premium, ofrece serlo y devuelve false. */
 function puedeCartera() {
   if (ctx.esPremium()) return true;
   document.getElementById('hoja-ahorro').close();
-  ctx.abrirPremium(t('Con Premium armás tu cartera de inversiones: anotás tus CEDEARs y se valúan solos con el precio del día.'));
+  ctx.abrirPremium(t('Con Premium armás tu cartera de inversiones: anotás tus acciones y CEDEARs y se valúan solos con el precio del día.'));
   return false;
 }
 
-/** Elegir un CEDEAR: los populares o cualquiera por ticker. `listo` recibe los datos del bolsillo. */
-function pasoCedear(listo, volver) {
-  if (!puedeCartera()) return;
-  const tengo = new Set(cajon.bolsillos.filter(esCedear).map((b) => b.unidad));
-  const opciones = CEDEARS_POPULARES.filter(([s]) => !tengo.has(s));
-  const datos = (s, nombre) => ({ nombre: nombre ?? s, emoji: '📈', unidad: s, decimales: 0, mercado: 'cedear' });
+/** Elegir qué tipo de inversión: acciones (Argentina, EE.UU., CEDEARs) o cripto. */
+function pasoInversion(listo, volver) {
+  const opcion = (m, premium) =>
+    `<button type="button" class="cajon-opcion" data-mercado="${m}"><span>${MERCADOS[m].emoji}</span><b>${t(MERCADOS[m].titulo)}</b><small>${premium && !ctx.esPremium() ? '👑 Premium' : esc(MERCADOS[m].ejemplo)}</small></button>`;
   paso(
-    `<h3>${t('📈 ¿Qué CEDEAR?')}</h3>
-     <p class="ayuda">${t('Se valúa solo con el precio de hoy en pesos (BYMA, con unos minutos de demora).')}</p>
-     <div class="cajon-opciones">${opciones.map(([s, n]) => `<button type="button" class="cajon-opcion" data-s="${s}"><span>📈</span><b>${s}</b><small>${esc(n)}</small></button>`).join('')}</div>
-     <label class="campo"><span>${t('¿Otro? Poné el ticker')}</span><input name="ticker" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="VIST, YPF, KO…" /></label>
+    `<h3>${t('📈 ¿En qué invertiste?')}</h3>
+     <h4 class="subtitulo">${t('Acciones')}</h4>
+     <div class="cajon-opciones">${['byma', 'usa', 'cedear'].map((m) => opcion(m, true)).join('')}</div>
+     <h4 class="subtitulo">${t('Cripto')}</h4>
+     <div class="cajon-opciones">${opcion('cripto', false)}</div>
+     <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button></div>`,
+    (f) => {
+      f.querySelector('[data-atras]').addEventListener('click', volver);
+      f.querySelectorAll('[data-mercado]').forEach((el) =>
+        el.addEventListener('click', () => {
+          sonar('toque');
+          const m = el.dataset.mercado;
+          if (m !== 'cripto' && !puedeCartera()) return;
+          pasoTicker(m, listo, () => pasoInversion(listo, volver));
+        }),
+      );
+    },
+  );
+}
+
+/** Busca el precio de hoy de un ticker (true si lo encontró). */
+async function hayPrecio(mercado, s) {
+  if (mercado === 'cripto') {
+    await cargarCotizaciones();
+    return Boolean(porUsd(s));
+  }
+  await cargarPrecios(mercado, [s]);
+  return Boolean(precios[mercado][s]);
+}
+
+/** Elegir una acción, un CEDEAR o una cripto: los populares o cualquiera por ticker. `listo` recibe los datos del bolsillo. */
+function pasoTicker(mercado, listo, volver) {
+  const M = MERCADOS[mercado];
+  const tengo = new Set(cajon.bolsillos.filter((b) => b.mercado === mercado || (mercado === 'cripto' && esInversion(b))).map((b) => b.unidad.toUpperCase()));
+  const opciones = POPULARES[mercado].filter(([s]) => !tengo.has(s));
+  const emoji = (s) => (mercado === 'cripto' ? (EMOJI_CRIPTO[s] ?? '🪙') : '📈');
+  const datos = (s, nombre) => ({ nombre: nombre ?? s, emoji: emoji(s), unidad: s, decimales: M.decimales, mercado });
+  const fuente = {
+    cedear: 'Se valúa solo con el precio de hoy en pesos (BYMA, con unos minutos de demora).',
+    byma: 'Se valúa solo con el precio de hoy en pesos (BYMA, con unos minutos de demora).',
+    usa: 'Se valúa solo con el precio de hoy en dólares (NYSE y Nasdaq, con unos minutos de demora).',
+    cripto: 'Se valúa sola con la cotización del día (Coinbase y Binance).',
+  }[mercado];
+  paso(
+    `<h3>${M.emoji} ${t(M.titulo)}</h3>
+     <p class="ayuda">${t(fuente)}</p>
+     <div class="cajon-opciones">${opciones.map(([s, n]) => `<button type="button" class="cajon-opcion" data-s="${esc(s)}"><span>${emoji(s)}</span><b>${esc(s)}</b><small>${esc(n)}</small></button>`).join('')}</div>
+     <label class="campo"><span>${mercado === 'cripto' ? t('¿Otra? Poné el símbolo') : t('¿Otro? Poné el ticker')}</span><input name="ticker" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="${esc(M.ejemplo)}" /></label>
+     <div id="pedir-ticker" hidden></div>
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Buscar')}</button></div>`,
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', volver);
       f.querySelectorAll('[data-s]').forEach((el) =>
         el.addEventListener('click', unaVez(async () => {
           sonar('toque');
-          const [s, n] = CEDEARS_POPULARES.find(([x]) => x === el.dataset.s);
-          await cargarCedears([s]);
+          const [s, n] = POPULARES[mercado].find(([x]) => x === el.dataset.s);
+          if (mercado !== 'cripto') await cargarPrecios(mercado, [s]);
           listo(datos(s, n));
         })),
       );
+      f.ticker.addEventListener('input', () => (document.getElementById('pedir-ticker').hidden = true));
       f.onsubmit = (e) => {
         e.preventDefault();
         const s = f.ticker.value.trim().toUpperCase();
-        if (!/^[A-Z0-9.]{1,10}$/.test(s)) return error(t('Poné un ticker, como SPY'));
+        if (!/^[A-Z0-9.]{1,10}$/.test(s)) return error(mercado === 'cripto' ? t('Poné un símbolo, como BTC') : t('Poné un ticker, como {ejemplo}', { ejemplo: POPULARES[mercado][0][0] }));
         if (tengo.has(s)) return error(t('Ya tenés {s} en la cartera', { s }));
         enviar(f.querySelector('[type=submit]'), async () => {
-          await cargarCedears([s]);
-          if (!cedears.precios[s]) throw new Error(t('No encontré el CEDEAR {s}', { s }));
-          listo(datos(s));
+          if (await hayPrecio(mercado, s)) return listo(datos(s, POPULARES[mercado].find(([x]) => x === s)?.[1]));
+          ofrecerPedido(mercado, s);
+          throw new Error(t('No encontré {s} en {mercado}', { s, mercado: t(M.titulo) }));
         });
       };
     },
+  );
+}
+
+/** Lo que no está se puede pedir: le llega a Fede como pedido (los comentarios de mejora). */
+function ofrecerPedido(mercado, s) {
+  const caja = document.getElementById('pedir-ticker');
+  caja.hidden = false;
+  caja.innerHTML = `<p class="ayuda">${t('¿Existe y no lo tengo? Pedilo y lo sumamos.')}</p>
+    <button type="button" class="chip" data-pedir>${t('🙋 Pedir que sumen {s}', { s: esc(s) })}</button>`;
+  caja.querySelector('[data-pedir]').addEventListener('click', (e) =>
+    enviar(e.currentTarget, async () => {
+      if (ctx.estado.modo === 'real')
+        await api('POST', '/comentarios', { tipo: 'pedido', texto: `Sumar ${s} a ${MERCADOS[mercado].titulo}`, pantalla: 'inversiones' });
+      sonar('pop');
+      ctx.saltoMono();
+      caja.innerHTML = `<p class="ayuda">${t('¡Listo! Le avisé a Fede que querés {s}. Te avisamos cuando esté.', { s: esc(s) })}</p>`;
+    }),
   );
 }
 
@@ -702,10 +858,10 @@ function pasoCedear(listo, volver) {
  */
 export async function cargarCartera(posiciones) {
   await cargarCajon();
-  await cargarCedears(posiciones.map((p) => p.ticker));
+  await cargarPrecios('cedear', posiciones.map((p) => p.ticker));
   const hechas = [];
   for (const p of posiciones) {
-    const precio = cedears.precios[p.ticker];
+    const precio = precios.cedear[p.ticker];
     if (p.cantidad === null && !precio) throw new Error(t('No encontré el precio de {s} para saber cuántos son', { s: p.ticker }));
     const cantidad = p.cantidad ?? Math.round(p.valor / precio);
     let b = cajon.bolsillos.find((x) => esCedear(x) && x.unidad === p.ticker);
@@ -717,23 +873,24 @@ export async function cargarCartera(posiciones) {
   return hechas;
 }
 
-/** Sumar un CEDEAR que ya tenés: por cantidad o por lo que vale hoy (y se deduce la cantidad). */
-function pasoCargaCedear(datos) {
+/** Sumar una inversión que ya tenés: por cantidad o por lo que vale hoy (y se deduce la cantidad). */
+function pasoCargaInversion(datos) {
   paso(
-    `<h3>📈 ${esc(datos.unidad)}${datos.nombre !== datos.unidad ? ` · ${esc(datos.nombre)}` : ''}</h3>
-     ${htmlCantidadCedear(datos, null)}
+    `<h3>${esc(datos.emoji)} ${esc(datos.unidad)}${datos.nombre !== datos.unidad ? ` · ${esc(datos.nombre)}` : ''}</h3>
+     ${htmlCantidadInversion(datos, null)}
      <div class="acciones"><button type="button" class="boton" data-atras>${t('Atrás')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
     (f) => {
-      escucharCantidadCedear(f, datos);
-      f.querySelector('[data-atras]').addEventListener('click', () => pasoCedear(pasoCargaCedear, () => document.getElementById('hoja-ahorro').close()));
+      escucharCantidadInversion(f, datos);
+      const cerrar = () => document.getElementById('hoja-ahorro').close();
+      f.querySelector('[data-atras]').addEventListener('click', () => pasoTicker(datos.mercado, pasoCargaInversion, () => pasoInversion(pasoCargaInversion, cerrar)));
       f.onsubmit = (e) => {
         e.preventDefault();
-        const c = leerCantidad(f.cantidad.value, 0);
+        const c = leerCantidad(f.cantidad.value, datos.decimales);
         if (c === null) return error(t('Poné cuántos tenés'));
         enviar(f.querySelector('[type=submit]'), async () => {
           const b = await llamar('POST', '/cajon/bolsillos', datos);
           if (c) await llamar('POST', `/cajon/bolsillos/${b.id}/ajustar`, { cantidad: c, detalle: t('Lo que ya tenía') });
-          document.getElementById('hoja-ahorro').close();
+          cerrar();
           sonar('fanfarria');
           ctx.saltoMono();
           await refrescar(false);
@@ -743,36 +900,46 @@ function pasoCargaCedear(datos) {
   );
 }
 
-/** Cantidad de un CEDEAR, con la opción de poner cuánto vale hoy y deducirla. */
-function htmlCantidadCedear(b, cantidad) {
-  const precio = cedears.precios[b.unidad];
-  return `<label class="campo monto-campo"><span>${t('¿Cuántos {unidad} tenés?', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="numeric" autocomplete="off" placeholder="0" /></label>
+/** Cantidad de una inversión, con la opción de poner cuánto vale hoy y deducirla. */
+function htmlCantidadInversion(b, cantidad) {
+  const v = valorUnidad(b);
+  const valor = (c) => plataEn((c / 10 ** b.decimales) * v.precio, v.moneda);
+  return `<label class="campo monto-campo"><span>${t('¿Cuántos {unidad} tenés?', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="${b.decimales ? 'decimal' : 'numeric'}" autocomplete="off" placeholder="0" /></label>
      ${
-       precio
-         ? `<label class="campo"><span>${t('¿No sabés cuántos? Poné cuánto vale hoy (ARS)')}</span><input name="valorHoy" inputmode="decimal" autocomplete="off" /></label>
-     <p class="ayuda" id="cedear-cuenta">${t('Hoy 1 {unidad} = {precio}', { unidad: esc(b.unidad), precio: esc(plataEn(precio, 'ARS')) })}${cantidad ? ` · ${t('los tuyos valen {valor}', { valor: esc(plataEn(cantidad * precio, 'ARS')) })}` : ''}</p>`
+       v
+         ? `<label class="campo"><span>${t('¿No sabés cuántos? Poné cuánto vale hoy ({moneda})', { moneda: v.moneda })}</span><input name="valorHoy" inputmode="decimal" autocomplete="off" /></label>
+     <p class="ayuda" id="inversion-cuenta">${t('Hoy 1 {unidad} = {precio}', { unidad: esc(b.unidad), precio: esc(plataEn(v.precio, v.moneda)) })}${cantidad ? ` · ${t('los tuyos valen {valor}', { valor: esc(valor(cantidad)) })}` : ''}</p>`
          : `<p class="ayuda">${t('Ahora no tengo el precio de {unidad}: poné la cantidad y lo valúo cuando vuelva.', { unidad: esc(b.unidad) })}</p>`
      }`;
 }
 
-function escucharCantidadCedear(f, b) {
-  const precio = cedears.precios[b.unidad];
-  if (!f.valorHoy) return;
-  const cuenta = document.getElementById('cedear-cuenta');
+function escucharCantidadInversion(f, b) {
+  const v = valorUnidad(b);
+  if (!f.valorHoy || !v) return;
+  const cuenta = document.getElementById('inversion-cuenta');
   const base = cuenta.textContent.split(' · ')[0];
   f.valorHoy.addEventListener('input', () => {
-    const v = centavos(f.valorHoy.value);
-    if (!v) return (cuenta.textContent = base);
-    // Los CEDEARs vienen enteros: se redondea y se muestra para que lo confirmes.
-    const n = Math.round(v / precio);
+    const valor = centavos(f.valorHoy.value);
+    if (!valor) return (cuenta.textContent = base);
+    // Se redondea a lo que se puede tener (CEDEARs enteros, cripto con 8 decimales) y se muestra para que lo confirmes.
+    // Con 6 cifras alcanza: 1565,43 TRX y no 1565,43519098.
+    const exacta = valor / v.precio;
+    const decimales = Math.max(0, Math.min(b.decimales, 6 - Math.ceil(Math.log10(exacta))));
+    const n = paraInput(Math.round(exacta * 10 ** decimales), decimales);
     f.cantidad.value = n;
     cuenta.textContent = `${base} · ${t('son unos {n} {unidad}', { n, unidad: b.unidad })}`;
   });
   f.cantidad.addEventListener('input', () => {
     f.valorHoy.value = '';
-    const n = leerCantidad(f.cantidad.value, 0);
-    cuenta.textContent = n ? `${base} · ${t('los tuyos valen {valor}', { valor: plataEn(n * precio, 'ARS') })}` : base;
+    const n = leerCantidad(f.cantidad.value, b.decimales);
+    cuenta.textContent = n ? `${base} · ${t('los tuyos valen {valor}', { valor: plataEn((n / 10 ** b.decimales) * v.precio, v.moneda) })}` : base;
   });
+}
+
+/** Lo que muestra cada inversión en la cartera: el ticker, el nombre y en qué mercado está. */
+function etiquetaInversion(b) {
+  const mercado = MERCADOS[b.mercado ?? 'cripto'].corto;
+  return [b.nombre !== b.unidad ? b.nombre : null, t(mercado)].filter(Boolean).join(' · ');
 }
 
 function htmlCartera(cartera) {
@@ -784,7 +951,7 @@ function htmlCartera(cartera) {
       <ul class="bolsillos">${cartera
         .map(
           (b, i) => `<li><button type="button" class="bolsillo" data-b="${b.id}">
-          <span class="bolsillo-info"><b>${esc(b.unidad)}</b>${b.nombre !== b.unidad ? `<small>${esc(b.nombre)}</small>` : ''}</span>
+          <span class="bolsillo-info"><b>${esc(b.emoji)} ${esc(b.unidad)}</b><small>${esc(etiquetaInversion(b))}</small></span>
           ${total > 0 && valores[i] > 0 ? `<span class="cartera-porcentaje">${Math.round((valores[i] / total) * 100)}%</span>` : ''}
           <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`,
         )
@@ -799,7 +966,7 @@ export function abrirCajon() {
   ordenando = false;
   pintarCajon();
   document.getElementById('hoja-cajon').showModal();
-  Promise.all([cargarCajon().then(() => cargarCedears()), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
+  Promise.all([cargarCajon().then(cargarTodosLosPrecios), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
 }
 
 const TIPOS = {
@@ -816,8 +983,8 @@ function pintarCajon() {
   const f = document.getElementById('form-cajon');
   const porId = new Map(cajon.bolsillos.map((b) => [b.id, b]));
   const todos = cajon.bolsillos.filter((b) => !b.generico || b.cantidad);
-  const visibles = todos.filter((b) => !esCedear(b));
-  const cartera = todos.filter(esCedear).sort((a, b) => (enBase(b.cantidad, b) ?? 0) - (enBase(a.cantidad, a) ?? 0));
+  const visibles = todos.filter((b) => !esInversion(b));
+  const cartera = todos.filter(esInversion).sort((a, b) => (enBase(b.cantidad, b) ?? 0) - (enBase(a.cantidad, a) ?? 0));
   const fecha = (m) => (m.fecha ? new Date(m.fecha).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) : '');
   f.innerHTML = `
     <h3>${t('🍌 Cajón de bananas')}</h3>
@@ -882,7 +1049,7 @@ function pintarCajon() {
   );
   f.querySelector('[data-inversion]').addEventListener('click', () => {
     sonar('pop');
-    pasoCedear(pasoCargaCedear, () => document.getElementById('hoja-ahorro').close());
+    pasoInversion(pasoCargaInversion, () => document.getElementById('hoja-ahorro').close());
   });
   f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => !ordenando && abrirBolsillo(porId.get(el.dataset.b))));
   f.querySelector('[data-ordenar]')?.addEventListener('click', () => {
@@ -938,18 +1105,19 @@ async function cambiarBase(moneda) {
 function abrirBolsillo(b) {
   sonar('toque');
   if (b.generico) return pasoTraspaso(b);
-  const cedear = esCedear(b);
+  // Las inversiones con mercado se cargan por cantidad (o por lo que valen hoy) y no cambian de ticker.
+  const inversion = Boolean(b.mercado);
   paso(
     `<h3>${esc(b.emoji)} ${esc(b.nombre)}</h3>
      ${
-       cedear
-         ? htmlCantidadCedear(b, b.cantidad)
+       inversion
+         ? htmlCantidadInversion(b, b.cantidad)
          : `<label class="campo monto-campo"><span>${t('¿Cuánto tenés? ({unidad})', { unidad: esc(b.unidad) })}</span><input name="cantidad" inputmode="text" autocomplete="off" data-monto /></label>`
      }
      <p class="ayuda">${t('Si cambiás el total, te pregunto en qué se usó o de dónde salió. Queda en el historial y no toca los gastos del mes.')}</p>
-     ${cedear ? '' : `<p class="ayuda">${t('¿Es plata de otro que tenés guardada? Ponela en negativo (-200) y resta del total.')}</p>`}
+     ${inversion ? '' : `<p class="ayuda">${t('¿Es plata de otro que tenés guardada? Ponela en negativo (-200) y resta del total.')}</p>`}
      <div class="chips">
-       ${cedear ? '' : `<button type="button" class="chip" data-editar>${t('✏️ Nombre, moneda y valor')}</button>`}
+       ${inversion ? '' : `<button type="button" class="chip" data-editar>${t('✏️ Nombre, moneda y valor')}</button>`}
        ${b.cantidad > 0 ? `<button type="button" class="chip" data-retirar>${t('↩️ Volver a la cuenta')}</button>` : ''}
        ${b.cantidad > 0 && cajon.bolsillos.length > 1 ? `<button type="button" class="chip" data-pasar>${t('↔️ Pasar a otro bolsillo')}</button>` : ''}
        ${b.cantidad ? '' : `<button type="button" class="chip peligro" data-borrar>${t('🗑️ Borrar bolsillo')}</button>`}
@@ -957,7 +1125,7 @@ function abrirBolsillo(b) {
      <div class="acciones"><button type="button" class="boton" data-cerrar-ahorro>${t('Cerrar')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
     (f) => {
       f.cantidad.value = paraInput(b.cantidad, b.decimales);
-      if (cedear) escucharCantidadCedear(f, b);
+      if (inversion) escucharCantidadInversion(f, b);
       f.querySelector('[data-editar]')?.addEventListener('click', () => pasoEditarBolsillo(b));
       f.querySelector('[data-retirar]')?.addEventListener('click', () => pasoRetirar(b));
       f.querySelector('[data-pasar]')?.addEventListener('click', () => pasoTraspaso(b));
@@ -971,7 +1139,7 @@ function abrirBolsillo(b) {
       );
       f.onsubmit = (e) => {
         e.preventDefault();
-        const nueva = leerCantidad(f.cantidad.value, b.decimales, !cedear);
+        const nueva = leerCantidad(f.cantidad.value, b.decimales, !inversion);
         if (nueva === null) return error(t('Poné cuánto tenés'));
         if (nueva !== b.cantidad) return pasoDetalle(b, nueva);
         document.getElementById('hoja-ahorro').close();
