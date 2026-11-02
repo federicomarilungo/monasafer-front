@@ -21,6 +21,7 @@ export function vigente(g, mes) {
   if (mes < g.mesInicio) return false;
   if (g.tipo === 'puntual') return mes === g.mesInicio;
   if (g.tipo === 'reserva' && !g.recurrente) return mes === g.mesInicio;
+  // Un grupo dura como un fijo (`mesFin = mesInicio` si es de un mes).
   return !g.mesFin || mes <= g.mesFin;
 }
 
@@ -42,19 +43,47 @@ export function restanteReserva(monto, modo, usado, mes, hoy) {
   return Math.round((monto * (dias - hoy.getDate())) / dias);
 }
 
+function linea(datos, g, mes, hoy) {
+  const estado = datos.estados.find((e) => e.gastoId === g.id && e.mes === mes);
+  const monto = estado?.montoDelMes ?? montoBase(g, mes);
+  const pagado = !!estado?.pagado;
+  if (g.tipo !== 'reserva') {
+    return { gastoId: g.id, nombre: g.nombre, emoji: g.emoji, tipo: g.tipo, mesFin: g.mesFin, monto, pagado, pendiente: pagado ? 0 : monto };
+  }
+  const usado = datos.usos.filter((u) => u.gastoId === g.id && u.mes === mes).reduce((s, u) => s + u.monto, 0);
+  const pendiente = pagado ? 0 : restanteReserva(monto, g.modoReserva, usado, mes, hoy);
+  return { gastoId: g.id, nombre: g.nombre, emoji: g.emoji, tipo: g.tipo, modoReserva: g.modoReserva, monto, pagado, pendiente, usado };
+}
+
+/**
+ * Un grupo (la Visa) vale lo que suman sus gastos, o lo estimado si es más. Lo que falta
+ * es eso menos lo ya pagado de adentro; pagado entero, no falta nada. Igual que el back.
+ */
+export function lineaGrupo(g, items) {
+  const deAdentro = g.pagado ? items.map((i) => ({ ...i, pagado: true, pendiente: 0 })) : items;
+  const sumaItems = items.reduce((s, i) => s + i.monto, 0);
+  const pagadoItems = items.reduce((s, i) => s + (i.pagado ? i.monto : 0), 0);
+  const monto = Math.max(g.monto, sumaItems);
+  return { ...g, estimado: g.monto, monto, pendiente: g.pagado ? 0 : monto - pagadoItems, items: deAdentro, sumaItems };
+}
+
+/** Gastos que caen adentro de un grupo vigente ese mes, por id de grupo. */
+export function itemsPorGrupo(gastos, mes) {
+  const grupos = new Set(gastos.filter((g) => g.tipo === 'grupo' && vigente(g, mes)).map((g) => g.id));
+  const porGrupo = new Map();
+  for (const g of gastos) if (g.grupoId && grupos.has(g.grupoId) && vigente(g, mes)) porGrupo.set(g.grupoId, [...(porGrupo.get(g.grupoId) ?? []), g]);
+  return porGrupo;
+}
+
 function lineas(datos, mes, hoy) {
+  const porGrupo = itemsPorGrupo(datos.gastos, mes);
+  const adentro = new Set([...porGrupo.values()].flat().map((g) => g.id));
   return datos.gastos
-    .filter((g) => vigente(g, mes))
+    .filter((g) => vigente(g, mes) && !adentro.has(g.id))
     .map((g) => {
-      const estado = datos.estados.find((e) => e.gastoId === g.id && e.mes === mes);
-      const monto = estado?.montoDelMes ?? montoBase(g, mes);
-      const pagado = !!estado?.pagado;
-      if (g.tipo !== 'reserva') {
-        return { gastoId: g.id, nombre: g.nombre, emoji: g.emoji, tipo: g.tipo, mesFin: g.mesFin, monto, pagado, pendiente: pagado ? 0 : monto };
-      }
-      const usado = datos.usos.filter((u) => u.gastoId === g.id && u.mes === mes).reduce((s, u) => s + u.monto, 0);
-      const pendiente = pagado ? 0 : restanteReserva(monto, g.modoReserva, usado, mes, hoy);
-      return { gastoId: g.id, nombre: g.nombre, emoji: g.emoji, tipo: g.tipo, modoReserva: g.modoReserva, monto, pagado, pendiente, usado };
+      const l = linea(datos, g, mes, hoy);
+      if (g.tipo !== 'grupo') return l;
+      return lineaGrupo(l, (porGrupo.get(g.id) ?? []).map((i) => linea(datos, i, mes, hoy)));
     });
 }
 
@@ -89,22 +118,39 @@ export function resumenDelMes(datos, hoy, mes) {
 export function historial(datos, desde, hasta) {
   const meses = [];
   for (let mes = desde; mes <= hasta; mes = sumarMeses(mes, 1)) {
+    const vivos = datos.gastos.filter((g) => vigente(g, mes) && !(g.mesArchivo && mes > g.mesArchivo));
+    const porGrupo = itemsPorGrupo(vivos, mes);
+    const adentro = new Set([...porGrupo.values()].flat().map((g) => g.id));
     const gastos = [];
-    for (const g of datos.gastos) {
-      if (!vigente(g, mes)) continue;
-      if (g.mesArchivo && mes > g.mesArchivo) continue;
-      const estado = datos.estados.find((e) => e.gastoId === g.id && e.mes === mes);
-      const pagado = !!estado?.pagado;
-      const usado = datos.usos.filter((u) => u.gastoId === g.id && u.mes === mes).reduce((s, u) => s + u.monto, 0);
-      if (g.mesArchivo === mes && !pagado && !usado) continue;
-      const manual = g.tipo === 'reserva' && g.modoReserva === 'manual' && !(g.manualDesde && mes < g.manualDesde);
-      const monto = manual && !pagado ? usado : (estado?.montoDelMes ?? montoBase(g, mes));
-      if (monto <= 0) continue;
-      gastos.push({ gastoId: g.id, nombre: g.nombre, emoji: g.emoji ?? '', tipo: g.tipo, monto, pagado });
+    for (const g of vivos) {
+      if (adentro.has(g.id)) continue;
+      const l = lineaHistorial(datos, g, mes);
+      if (g.tipo === 'grupo') {
+        // Un grupo cuenta lo que sumaron sus gastos, o lo estimado si era más.
+        const items = (porGrupo.get(g.id) ?? []).map((i) => lineaHistorial(datos, i, mes)).filter(Boolean);
+        const suma = items.reduce((s, i) => s + i.monto, 0);
+        if (g.mesArchivo === mes && !l.pagado && !items.length) continue;
+        const monto = Math.max(l.monto, suma);
+        if (monto > 0) gastos.push({ ...l, monto, items });
+        continue;
+      }
+      if (l) gastos.push(l);
     }
     meses.push({ mes, gastos, total: gastos.reduce((s, l) => s + l.monto, 0) });
   }
   return meses;
+}
+
+function lineaHistorial(datos, g, mes) {
+  const estado = datos.estados.find((e) => e.gastoId === g.id && e.mes === mes);
+  const pagado = !!estado?.pagado;
+  const usado = datos.usos.filter((u) => u.gastoId === g.id && u.mes === mes).reduce((s, u) => s + u.monto, 0);
+  const manual = g.tipo === 'reserva' && g.modoReserva === 'manual' && !(g.manualDesde && mes < g.manualDesde);
+  const monto = manual && !pagado ? usado : (estado?.montoDelMes ?? montoBase(g, mes));
+  const l = { gastoId: g.id, nombre: g.nombre, emoji: g.emoji ?? '', tipo: g.tipo, monto, pagado };
+  if (g.tipo === 'grupo') return l;
+  if (g.mesArchivo === mes && !pagado && !usado) return null;
+  return monto > 0 ? l : null;
 }
 
 /**

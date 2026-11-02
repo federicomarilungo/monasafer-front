@@ -790,3 +790,24 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 /* Mes pasado (solo para mirar): sin saldo, ingreso ni sugerencias. */
 .viendo-pasado #resumen, .viendo-pasado #aviso-cobro, .viendo-pasado #sugerencias { display: none; }
 .gasto.solo-lectura { cursor: default; }
+
+/* ---- Grupos de gastos (la Visa, Fede 2/11) ---- */
+.gasto-grupo { border-style: dashed; border-color: color-mix(in srgb, var(--banana) 60%, var(--borde)); }
+.gasto-grupo .emoji { position: relative; }
+.items-grupo { list-style: none; padding: 0; margin: 4px 0 12px; display: grid; gap: 6px; max-height: 45vh; overflow-y: auto; }
+.item-grupo { display: flex; align-items: center; gap: 8px; }
+.item-grupo .abrir {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 10px; text-align: left;
+  background: var(--tarjeta); border: 2px solid var(--borde); border-radius: 14px; color: inherit; font: inherit; cursor: pointer;
+}
+.item-grupo .emoji { font-size: 1.3rem; }
+.item-grupo .info { display: grid; }
+.item-grupo .info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-grupo .info small { font-size: 0.72rem; color: var(--suave); }
+.item-grupo .monto { white-space: nowrap; }
+.item-grupo.pagado .abrir { opacity: 0.55; }
+.item-grupo.pagado b { text-decoration: line-through; }
+.item-grupo .check.hecho { display: grid; place-items: center; background: var(--selva); }
+.item-grupo { animation: entra-item 0.25s ease-out backwards; }
+@keyframes entra-item { from { opacity: 0; transform: translateY(6px); } }
+.pagar-grupo { width: 100%; margin-bottom: 12px; }

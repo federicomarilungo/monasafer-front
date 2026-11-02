@@ -117,7 +117,7 @@
       <form method="dialog" id="form-gasto">
         <h3 id="titulo-hoja-gasto">Nuevo gasto</h3>
         <label class="campo nombre-campo"><span data-t>¿Qué es?</span><input name="nombre" maxlength="80" required placeholder="Alquiler, súper, cuota…" data-t-ph autocomplete="off" /></label>
-        <label class="campo"><span data-t>Monto</span><input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
+        <label class="campo"><span id="etiqueta-monto-gasto">Monto</span><input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
         <div class="emojis" id="emojis" aria-label="Ícono" data-t-aria></div>
 
         <fieldset class="grupo">
@@ -141,8 +141,16 @@
           </div>
         </fieldset>
 
-        <fieldset class="grupo">
+        <fieldset class="grupo" id="campo-tipo">
           <label class="interruptor">
+            <span>
+              <b data-t>Es un grupo</b>
+              <small data-t>Junta varios gastos adentro, como la tarjeta: los vas cargando y lo pagás entero o de a uno.</small>
+            </span>
+            <input type="checkbox" id="es-grupo" />
+            <i aria-hidden="true"></i>
+          </label>
+          <label class="interruptor" id="campo-reserva">
             <span>
               <b data-t>Es una reserva</b>
               <small data-t>Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.</small>
@@ -162,6 +170,21 @@
           <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden data-t>Borrar</button>
           <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
           <button type="submit" class="boton principal" data-t>Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: un grupo de gastos (la Visa): lo de adentro, pagar todo o de a uno -->
+    <dialog autofocus class="hoja" id="hoja-grupo">
+      <form method="dialog" id="form-grupo">
+        <h3 id="titulo-grupo">Grupo</h3>
+        <p class="ayuda" id="texto-grupo"></p>
+        <ul class="items-grupo" id="lista-grupo"></ul>
+        <button type="button" class="boton pagar-grupo" id="boton-pagar-grupo"></button>
+        <div class="acciones">
+          <button type="button" class="boton" id="boton-editar-grupo" data-t>Editar</button>
+          <button type="button" class="boton" data-cerrar data-t>Cerrar</button>
+          <button type="button" class="boton principal" id="boton-agregar-grupo" data-t>＋ Agregar gasto</button>
         </div>
       </form>
     </dialog>

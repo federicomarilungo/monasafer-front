@@ -1,5 +1,5 @@
 import './estilos.css';
-import { historial, mesDe, montoBase, partirBalance, resumenDelMes, sumarMeses } from './motor.js';
+import { historial, mesDe, montoBase, partirBalance, resumenDelMes, sumarMeses, vigente } from './motor.js';
 import { animoPara, cosquillas, frases, svgMono } from './mono.js';
 import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
@@ -276,10 +276,13 @@ const acciones = {
     ejecutar(
       () => api(pagar ? 'POST' : 'DELETE', `/gastos/${l.gastoId}/meses/${estado.mesVisto}/pagar`),
       (d) => {
-        const e = d.estados.find((x) => x.gastoId === l.gastoId && x.mes === estado.mesVisto);
-        if (e) e.pagado = pagar;
-        else d.estados.push({ gastoId: l.gastoId, mes: estado.mesVisto, pagado: true });
-        d.perfil.saldo += pagar ? -l.monto : l.monto;
+        // Un grupo descuenta lo que le falta (sin lo ya pagado de adentro), como el back.
+        let e = d.estados.find((x) => x.gastoId === l.gastoId && x.mes === estado.mesVisto);
+        if (!e) d.estados.push((e = { gastoId: l.gastoId, mes: estado.mesVisto, pagado: false }));
+        const cuanto = pagar ? (l.tipo === 'grupo' ? l.pendiente : l.monto) : (e.montoPagado ?? l.monto);
+        e.pagado = pagar;
+        e.montoPagado = pagar ? cuanto : 0;
+        d.perfil.saldo += pagar ? -cuanto : cuanto;
       },
     ),
   guardarGasto: (id, g) =>
@@ -293,12 +296,16 @@ const acciones = {
   borrarGasto: (id) =>
     ejecutar(
       () => api('DELETE', `/gastos/${id}`),
-      (d) => (d.gastos = d.gastos.filter((x) => x.id !== id)),
+      // Borrar un grupo se lleva lo de adentro (y Deshacer lo trae), como el back.
+      (d) => {
+        d.borrados = { ...d.borrados, [id]: d.gastos.filter((x) => x.grupoId === id) };
+        d.gastos = d.gastos.filter((x) => x.id !== id && x.grupoId !== id);
+      },
     ),
   restaurarGasto: (g) =>
     ejecutar(
       () => api('POST', `/gastos/${g.id}/restaurar`),
-      (d) => d.gastos.push(g),
+      (d) => d.gastos.push(g, ...(d.borrados?.[g.id] ?? [])),
     ),
   montoDelMes: (gastoId, mes, montoDelMes) =>
     ejecutar(
@@ -419,6 +426,11 @@ function etiquetaTipo(l, g) {
   const corto = (m) => nombreMes(m).split(' ')[0].toLowerCase();
   const soloEste = l.tipo === 'puntual' || (l.tipo === 'reserva' && !g?.recurrente);
   const duracion = soloEste ? t('solo este mes') : g?.mesFin ? t('hasta {mes}', { mes: corto(g.mesFin) }) : t('todos los meses');
+  if (l.tipo === 'grupo') {
+    const n = l.items?.length ?? 0;
+    const cuantos = n === 1 ? t('1 gasto') : t('{n} gastos', { n });
+    return `${t('grupo')} · ${cuantos} · ${g?.mesFin === g?.mesInicio ? t('solo este mes') : duracion}`;
+  }
   if (!soloEste && l.monto === 0 && g?.monto) return t('salteado este mes');
   if (l.tipo !== 'reserva') return duracion;
   return `${t('reserva')} · ${g?.modoReserva === 'manual' ? t('cargás los usos') : t('baja con los días')} · ${duracion}`;
@@ -436,9 +448,11 @@ function filaGasto(l) {
   if (pasada) li.classList.add('pasada');
   const frasco = l.tipo === 'reserva' ? `<div class="frasco"><span style="width:${l.monto ? (Math.max(0, quedaReal) / l.monto) * 100 : 0}%"></span></div>` : '';
   const puedePagar = l.tipo !== 'reserva';
+  const grupo = l.tipo === 'grupo';
+  // Fede (2/11): a un grupo (la Visa) se le cargan gastos desde la fila, como a una reserva.
   // Fede (23/10): a una reserva se le carga un uso desde la fila, sin abrirla. Si bajaba
   // sola, al cargar el primero pasa a "cargo cada uso" (ver abrirReserva).
-  const puedeCargar = l.tipo === 'reserva' && !l.pagado && estado.mesVisto === mesActual;
+  const puedeCargar = (l.tipo === 'reserva' && !l.pagado && estado.mesVisto === mesActual) || (grupo && !l.pagado);
   li.innerHTML = `
     <span class="emoji">${g?.emoji || '💸'}</span>
     <div class="info">
@@ -449,9 +463,10 @@ function filaGasto(l) {
     <div class="montos">
       <p class="monto">${l.tipo === 'reserva' ? (pasada ? `−${plata(-quedaReal)}` : plata(quedaReal)) : plata(l.monto)}</p>
       ${l.tipo === 'reserva' ? `<p class="de">${pasada ? t('te pasaste de') : t('de')} ${plata(l.monto)}</p>` : ''}
+      ${grupo && l.estimado > l.sumaItems ? `<p class="de">${t('cargaste {monto}', { monto: plata(l.sumaItems) })}</p>` : ''}
     </div>
     ${puedePagar ? `<button class="check" aria-label="${l.pagado ? t('Desmarcar pagado') : t('Marcar pagado')}">${l.pagado ? '✓' : ''}</button>` : ''}
-    ${puedeCargar ? `<button class="cargar" aria-label="${t('Cargar un uso')}">+</button>` : ''}`;
+    ${puedeCargar ? `<button class="cargar" aria-label="${grupo ? t('Agregar un gasto al grupo') : t('Cargar un uso')}">+</button>` : ''}`;
   li.querySelector('.nombre').textContent = l.nombre;
   li.dataset.fila = estado.filas.length;
   estado.filas.push(l);
@@ -467,22 +482,26 @@ $('gastos').addEventListener('click', async (e) => {
   const g = estado.datos.gastos.find((x) => x.id === l.gastoId);
   if (e.target.closest('.cargar')) {
     sonar('pop');
-    abrirReserva(l, g, true);
+    if (l.tipo === 'grupo') abrirGasto(null, g);
+    else abrirReserva(l, g, true);
     return;
   }
   if (!e.target.closest('.check')) {
     sonar('toque');
     if (l.tipo === 'reserva') abrirReserva(l, g);
+    else if (l.tipo === 'grupo') abrirGrupo(l.gastoId);
     else abrirGasto(g);
     return;
   }
   const pagar = !l.pagado;
   if (pagar) {
     // M3: la moneda vuela de la fila al saldo y a "por gastar", suena y el mono la atrapa.
+    const cuanto = l.tipo === 'grupo' ? l.pendiente : l.monto;
     sonar('moneda');
-    volarMonto(li, $('valor-saldo'), `−${plata(l.monto)}`);
-    setTimeout(() => volarMonto(li, $('valor-gastar'), `−${plata(l.monto)}`), 120);
+    volarMonto(li, $('valor-saldo'), `−${plata(cuanto)}`);
+    setTimeout(() => volarMonto(li, $('valor-gastar'), `−${plata(cuanto)}`), 120);
     saltoMono();
+    if (l.tipo === 'grupo') $('frase').textContent = t('¡{nombre} pagada entera! Todo lo de adentro, listo 🍌', { nombre: l.nombre });
   } else sonar('toque');
   try {
     await acciones.pagar(l, pagar);
@@ -769,7 +788,8 @@ async function pintarPasado(direccion) {
 function filaPasada(l) {
   const li = document.createElement('li');
   li.className = `gasto gasto-${l.tipo} solo-lectura${l.pagado ? ' pagado' : ''}`;
-  const detalle = l.pagado ? t('pagado ✓') : l.tipo === 'reserva' ? t('reserva') : '';
+  const grupo = l.tipo === 'grupo' ? `${t('grupo')} · ${l.items?.length === 1 ? t('1 gasto') : t('{n} gastos', { n: l.items?.length ?? 0 })}` : '';
+  const detalle = [grupo, l.pagado ? t('pagado ✓') : l.tipo === 'reserva' ? t('reserva') : ''].filter(Boolean).join(' · ');
   li.innerHTML = `
     <span class="emoji">${l.emoji || '💸'}</span>
     <div class="info"><p class="nombre"></p><p class="tipo">${detalle}</p></div>
@@ -862,7 +882,7 @@ function elegirEmoji(e) {
 // o no, puede ser de este mes, de varios meses o para siempre. Se traduce al modelo así:
 // no reserva + este mes = puntual; no reserva + varios/siempre = fijo (mesFin o null);
 // reserva + este mes = reserva no recurrente; reserva + varios/siempre = recurrente.
-const forma = { duracion: 'mes', meses: 3, reserva: false, modo: 'proporcional' };
+const forma = { duracion: 'mes', meses: 3, reserva: false, modo: 'proporcional', grupo: false, enGrupo: null };
 
 function mesInicioDelForm() {
   return gastoEditado?.mesInicio ?? estado.mesVisto;
@@ -878,7 +898,13 @@ function pintarForma() {
   $('meses-menos').disabled = forma.meses <= 2;
   document.querySelectorAll('[data-meses]').forEach((b) => b.classList.toggle('activo', Number(b.dataset.meses) === forma.meses));
   $('es-reserva').checked = forma.reserva;
-  $('campo-modo').hidden = !forma.reserva;
+  $('es-grupo').checked = forma.grupo;
+  // Adentro de un grupo van gastos comunes (ni reservas ni otro grupo); un grupo no es reserva.
+  $('campo-tipo').hidden = !!forma.enGrupo || !!gastoEditado?.grupoId;
+  $('campo-reserva').hidden = forma.grupo;
+  $('campo-modo').hidden = !forma.reserva || forma.grupo;
+  $('etiqueta-monto-gasto').textContent = forma.grupo ? t('Estimado (opcional)') : t('Monto');
+  $('form-gasto').monto.required = !forma.grupo;
   document.querySelectorAll('#campo-modo [data-modo]').forEach((b) => b.classList.toggle('activo', b.dataset.modo === forma.modo));
 
   // Resumen en palabras de lo que va a pasar
@@ -896,6 +922,11 @@ function pintarForma() {
     texto = t('{cuanto} {verbo} por mes de {inicio} a {fin}. Último mes: {fin}.', { ...v, fin });
   }
   if (forma.reserva) texto += ' ' + (forma.modo === 'manual' ? t('Vas cargando cada uso.') : t('Baja sola a medida que pasan los días.'));
+  if (forma.grupo) {
+    const cuando = forma.duracion === 'mes' ? t('en {inicio}', v) : forma.duracion === 'siempre' ? t('todos los meses desde {inicio}', v) : t('de {inicio} a {fin}', { ...v, fin: mesCorto(sumarMeses(inicio, forma.meses - 1)) });
+    texto = `${t('Un grupo {cuando}: le cargás gastos adentro y vale lo que sumen.', { cuando })} ${monto ? t('Mientras sumen menos, cuenta lo estimado ({monto}).', { monto: plata(monto) }) : ''}`.trim();
+  }
+  if (forma.enGrupo) texto += ' ' + t('Va adentro de {grupo}.', { grupo: `${forma.enGrupo.emoji || '💳'} ${forma.enGrupo.nombre}` });
   $('resumen-gasto').textContent = texto;
 }
 
@@ -923,6 +954,12 @@ document.querySelectorAll('[data-meses]').forEach((b) =>
     pintarForma();
   }),
 );
+$('es-grupo').addEventListener('change', (e) => {
+  forma.grupo = e.target.checked;
+  if (forma.grupo) forma.reserva = false;
+  sonar(forma.grupo ? 'pop' : 'toque');
+  pintarForma();
+});
 $('es-reserva').addEventListener('change', (e) => {
   forma.reserva = e.target.checked;
   sonar(forma.reserva ? 'pop' : 'toque');
@@ -940,6 +977,7 @@ $('form-gasto').monto.addEventListener('input', pintarForma);
 /** Lee un gasto guardado y deja el formulario en los dos ejes. */
 function formaDesdeGasto(g) {
   forma.reserva = g?.tipo === 'reserva';
+  forma.grupo = g?.tipo === 'grupo';
   forma.modo = g?.modoReserva ?? 'proporcional';
   forma.meses = 3;
   if (!g || g.tipo === 'puntual' || (g.tipo === 'reserva' && !g.recurrente)) forma.duracion = 'mes';
@@ -957,6 +995,7 @@ function formaDesdeGasto(g) {
 function gastoDesdeForma() {
   const inicio = mesInicioDelForm();
   const mesFin = forma.duracion === 'hasta' ? sumarMeses(inicio, forma.meses - 1) : null;
+  if (forma.grupo) return { tipo: 'grupo', mesFin: forma.duracion === 'mes' ? inicio : mesFin };
   if (forma.reserva) {
     return { tipo: 'reserva', modoReserva: forma.modo, recurrente: forma.duracion !== 'mes', mesFin };
   }
@@ -964,12 +1003,15 @@ function gastoDesdeForma() {
   return { tipo: 'fijo', mesFin };
 }
 
-function abrirGasto(g = null) {
+/** `enGrupo`: un gasto nuevo que va adentro de ese grupo (la Visa), en el mes que se mira. */
+function abrirGasto(g = null, enGrupo = null) {
   gastoEditado = g;
   const f = $('form-gasto');
   f.reset();
   mostrarError('error-gasto', null);
-  $('titulo-hoja-gasto').textContent = g ? t('Editar gasto') : t('Nuevo gasto');
+  $('titulo-hoja-gasto').textContent = enGrupo
+    ? t('Nuevo gasto en {grupo}', { grupo: `${enGrupo.emoji || '💳'} ${enGrupo.nombre}` })
+    : g?.tipo === 'grupo' ? t('Editar grupo') : g ? t('Editar gasto') : t('Nuevo gasto');
   $('boton-borrar-gasto').hidden = !g;
   // El monto del mes que estás mirando: si cambió desde algún mes, el que rige ahí.
   f.monto.value = g ? paraEditar(montoEn(g, estado.mesVisto)) : '';
@@ -977,6 +1019,7 @@ function abrirGasto(g = null) {
   elegirEmoji(g?.emoji || '💸');
   emojiAMano = !!g;
   formaDesdeGasto(g);
+  forma.enGrupo = enGrupo;
   pintarForma();
   $('hoja-gasto').showModal();
   // Primero el nombre (Fede, 21/10): con él se adivina el ícono y después va el monto.
@@ -1036,10 +1079,13 @@ $('boton-prueba-premium').addEventListener('click', async () => {
 $('form-gasto').addEventListener('submit', unaVez(async (e) => {
   e.preventDefault();
   const f = e.target;
-  const monto = centavos(f.monto.value);
+  // Un grupo puede no tener estimado: vale lo que le cargues adentro.
+  const monto = forma.grupo && !f.monto.value.trim() ? 0 : centavos(f.monto.value);
   if (monto === null) return mostrarError('error-gasto', t('Poné un monto válido'));
   const g = { nombre: f.nombre.value.trim(), emoji: emojiElegido, monto, ...gastoDesdeForma() };
   if (!gastoEditado) g.mesInicio = estado.mesVisto;
+  if (!gastoEditado && forma.enGrupo) g.grupoId = forma.enGrupo.id;
+  const volverAlGrupo = forma.enGrupo?.id ?? gastoEditado?.grupoId;
   try {
     const directos = gastoEditado ? cambiosDirectos(gastoEditado, estado.mesVisto, g) : g;
     if (!directos) {
@@ -1051,6 +1097,11 @@ $('form-gasto').addEventListener('submit', unaVez(async (e) => {
     $('hoja-gasto').close();
     sonar('pop');
     saltoMono();
+    if (g.tipo === 'grupo' && !gastoEditado) $('frase').textContent = t('¡Listo el grupo! Tocá el + para ir cargándole gastos 🍌');
+    if (volverAlGrupo) {
+      $('frase').textContent = t('Adentro de {grupo}. Cuando llegue el resumen, comparamos 🧐', { grupo: estado.datos.gastos.find((x) => x.id === volverAlGrupo)?.nombre ?? '' });
+      abrirGrupo(volverAlGrupo);
+    }
   } catch (err) {
     mostrarError('error-gasto', err.message);
   }
@@ -1105,7 +1156,7 @@ $('boton-deshacer').addEventListener('click', async () => {
 
 /** Fijos y reservas recurrentes aparecen en varios meses: borrarlos pregunta cuáles. */
 function seRepite(g) {
-  return g.tipo === 'fijo' || (g.tipo === 'reserva' && !!g.recurrente);
+  return g.tipo === 'fijo' || (g.tipo === 'reserva' && !!g.recurrente) || (g.tipo === 'grupo' && g.mesFin !== g.mesInicio);
 }
 
 /**
@@ -1117,7 +1168,11 @@ function seRepite(g) {
 function opcionesBorrar(g, mes) {
   const d = estado.datos;
   const estadoMes = d.estados.find((e) => e.gastoId === g.id && e.mes === mes);
-  const empezado = !!estadoMes?.pagado || d.usos.some((u) => u.gastoId === g.id && u.mes === mes);
+  // Un grupo con gastos cargados en ese mes también empezó: terminarlo antes los dejaría sueltos.
+  const empezado =
+    !!estadoMes?.pagado ||
+    d.usos.some((u) => u.gastoId === g.id && u.mes === mes) ||
+    (g.tipo === 'grupo' && d.gastos.some((i) => i.grupoId === g.id && vigente(i, mes)));
   const { nombre } = g;
   // Copiado antes: en la demo guardarGasto cambia el mismo objeto.
   const finAntes = g.mesFin ?? null;
@@ -1304,6 +1359,89 @@ function elegirOpcion(titulo, ayuda, opciones) {
     hoja.showModal();
   });
 }
+
+// Grupo (la Visa): lo que tiene adentro, pagar todo o de a uno, y cargarle más.
+let grupoAbierto = null;
+
+function abrirGrupo(id) {
+  grupoAbierto = id;
+  pintarGrupo();
+  if (!$('hoja-grupo').open) $('hoja-grupo').showModal();
+}
+
+function pintarGrupo() {
+  const r = resumenDelMes(estado.datos, hoy, estado.mesVisto);
+  const l = r?.gastos.find((x) => x.gastoId === grupoAbierto);
+  const g = estado.datos.gastos.find((x) => x.id === grupoAbierto);
+  if (!l || !g) return $('hoja-grupo').open && $('hoja-grupo').close();
+  $('titulo-grupo').textContent = `${g.emoji || '💳'} ${g.nombre} · ${nombreMes(estado.mesVisto)}`;
+  const n = l.items.length;
+  $('texto-grupo').textContent = l.pagado
+    ? t('Pagado entero ✓ Todo lo de adentro quedó pagado.')
+    : !n
+      ? t('Todavía no tiene gastos. Cargale lo que pagás con {nombre} y cuando llegue el resumen lo comparás.', { nombre: g.nombre })
+      : `${t('Cargaste {suma} en {n}.', { suma: plata(l.sumaItems), n: n === 1 ? t('1 gasto') : t('{n} gastos', { n }) })}${l.estimado > l.sumaItems ? ' ' + t('Mientras, cuenta lo estimado: {monto}.', { monto: plata(l.estimado) }) : ''} ${t('Falta pagar {monto}.', { monto: plata(l.pendiente) })}`;
+  $('lista-grupo').replaceChildren(
+    ...l.items.map((i) => {
+      const li = document.createElement('li');
+      li.className = `item-grupo${i.pagado ? ' pagado' : ''}`;
+      const ig = estado.datos.gastos.find((x) => x.id === i.gastoId);
+      const cuotas = i.tipo === 'fijo' ? (ig?.mesFin ? t('hasta {mes}', { mes: nombreMes(ig.mesFin).split(' ')[0].toLowerCase() }) : t('todos los meses')) : '';
+      li.innerHTML = `
+        <button type="button" class="abrir"><span class="emoji">${i.emoji || '💸'}</span><span class="info"><b></b><small>${cuotas}</small></span><span class="monto">${plata(i.monto)}</span></button>
+        ${l.pagado ? '<span class="check hecho">✓</span>' : `<button type="button" class="check" aria-label="${i.pagado ? t('Desmarcar pagado') : t('Marcar pagado')}">${i.pagado ? '✓' : ''}</button>`}`;
+      li.querySelector('b').textContent = i.nombre;
+      li.querySelector('.abrir').addEventListener('click', () => {
+        sonar('toque');
+        $('hoja-grupo').close();
+        abrirGasto(ig);
+      });
+      li.querySelector('button.check')?.addEventListener('click', async () => {
+        sonar(i.pagado ? 'toque' : 'moneda');
+        try {
+          await acciones.pagar(i, !i.pagado);
+          if (!i.pagado) saltoMono();
+          pintarGrupo();
+        } catch (err) {
+          avisar(err);
+        }
+      });
+      return li;
+    }),
+  );
+  const pasado = estado.mesVisto < mesActual;
+  $('boton-pagar-grupo').hidden = pasado || (!l.pagado && !l.pendiente);
+  $('boton-pagar-grupo').textContent = l.pagado ? t('Desmarcar el pago del grupo') : t('Pagar todo ({monto})', { monto: plata(l.pendiente) });
+  $('boton-pagar-grupo').classList.toggle('principal', !l.pagado);
+  $('boton-agregar-grupo').hidden = l.pagado;
+}
+
+$('boton-pagar-grupo').addEventListener('click', async () => {
+  const l = resumenDelMes(estado.datos, hoy, estado.mesVisto)?.gastos.find((x) => x.gastoId === grupoAbierto);
+  if (!l) return;
+  const pagar = !l.pagado;
+  sonar(pagar ? 'moneda' : 'toque');
+  try {
+    await acciones.pagar(l, pagar);
+    if (pagar) {
+      saltoMono();
+      $('frase').textContent = t('¡{nombre} pagada entera! Todo lo de adentro, listo 🍌', { nombre: l.nombre });
+    }
+    pintarGrupo();
+  } catch (err) {
+    avisar(err);
+  }
+});
+$('boton-agregar-grupo').addEventListener('click', () => {
+  const g = estado.datos.gastos.find((x) => x.id === grupoAbierto);
+  sonar('pop');
+  $('hoja-grupo').close();
+  abrirGasto(null, g);
+});
+$('boton-editar-grupo').addEventListener('click', () => {
+  $('hoja-grupo').close();
+  abrirGasto(estado.datos.gastos.find((x) => x.id === grupoAbierto));
+});
 
 // Reserva
 let reservaAbierta = null;
@@ -1805,7 +1943,9 @@ function textoPropuesta(p) {
       : g.mesFin
         ? t('de {desde} a {hasta}', { desde: nombreMes(g.mesInicio), hasta: nombreMes(g.mesFin) })
         : t('todos los meses');
-  return `${g.emoji || '💸'} ${g.nombre} · ${plata(g.monto)}${g.tipo === 'puntual' ? '' : ` ${t('por mes')}`} · ${cuando}${g.tipo === 'reserva' ? ` · ${t('reserva')}` : ''}`;
+  if (g.tipo === 'grupo') return `${g.emoji || '💳'} ${g.nombre} · ${t('grupo')}${g.monto ? ` · ${t('estimado {monto}', { monto: plata(g.monto) })}` : ''} · ${cuando}`;
+  const grupo = g.grupoId && estado.datos.gastos.find((x) => x.id === g.grupoId);
+  return `${g.emoji || '💸'} ${g.nombre} · ${plata(g.monto)}${g.tipo === 'puntual' ? '' : ` ${t('por mes')}`} · ${cuando}${g.tipo === 'reserva' ? ` · ${t('reserva')}` : ''}${grupo ? ` · ${t('en {grupo}', { grupo: grupo.nombre })}` : ''}`;
 }
 
 function tarjetaPropuesta(p) {
@@ -1823,8 +1963,9 @@ function tarjetaPropuesta(p) {
     try {
       if (p.accion === 'crear_gasto') await acciones.guardarGasto(null, p.gasto);
       else if (p.accion === 'pagar') {
-        const l = { gastoId: p.gastoId, monto: estado.datos.gastos.find((g) => g.id === p.gastoId)?.monto ?? 0 };
         estado.mesVisto = p.mes;
+        // La línea del mes (un grupo descuenta lo que le falta, no su estimado).
+        const l = resumenDelMes(estado.datos, hoy, p.mes)?.gastos.find((x) => x.gastoId === p.gastoId) ?? { gastoId: p.gastoId, monto: estado.datos.gastos.find((g) => g.id === p.gastoId)?.monto ?? 0 };
         await acciones.pagar(l, true);
         sonar('moneda');
       } else if (p.accion === 'usar_reserva') await acciones.usar(p.gastoId, p.monto, p.nota);

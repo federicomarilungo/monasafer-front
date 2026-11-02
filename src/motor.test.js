@@ -141,3 +141,31 @@ test('balance partido: con gastos sin cargar el acumulado queda en 0 (igual que 
   const [oct] = proyectar(datos, hoy, '2026-10');
   assert.deepEqual(partirBalance(datos, oct), { delMes: USD(495030), acumulado: 0, total: USD(495030) });
 });
+
+test('grupos: mismos números que el motor del back', () => {
+  const visa = { id: 'v', nombre: 'Visa', monto: USD(300), tipo: 'grupo', mesInicio: '2026-10', mesFin: '2026-11' };
+  const cena = { id: 'c', nombre: 'Cena', monto: USD(80), tipo: 'puntual', mesInicio: '2026-10', grupoId: 'v' };
+  const zapas = { id: 'z', nombre: 'Zapatillas', monto: USD(60), tipo: 'fijo', mesInicio: '2026-10', mesFin: '2026-12', grupoId: 'v' };
+  const nafta = { id: 'n', nombre: 'Nafta', monto: USD(250), tipo: 'puntual', mesInicio: '2026-11', grupoId: 'v' };
+  const base = { perfil: { saldo: USD(1000), ingresoMensual: null }, gastos: [visa, cena, zapas, nafta], estados: [], usos: [] };
+  const [oct, nov, dic] = proyectar(base, hoy, '2026-12');
+  assert.deepEqual(oct.gastos.map((l) => l.gastoId), ['v']);
+  assert.equal(oct.gastos[0].sumaItems, USD(140));
+  assert.equal(nov.gastos[0].monto, USD(310));
+  assert.deepEqual(dic.gastos.map((l) => [l.gastoId, l.monto]), [['z', USD(60)]]);
+  assert.deepEqual([oct.balance, nov.balance, dic.balance], [USD(700), USD(390), USD(330)]);
+  const [pagoZapas] = proyectar({ ...base, perfil: { saldo: USD(940) }, estados: [{ gastoId: 'z', mes: '2026-10', pagado: true }] }, hoy, '2026-10');
+  assert.equal(pagoZapas.gastos[0].pendiente, USD(240));
+  const [visaPaga] = proyectar({ ...base, perfil: { saldo: USD(700) }, estados: [{ gastoId: 'v', mes: '2026-10', pagado: true }] }, hoy, '2026-10');
+  assert.equal(visaPaga.balance, USD(700));
+  assert.ok(visaPaga.gastos[0].items.every((i) => i.pagado));
+});
+
+test('historial con grupos: mismo caso que el back', () => {
+  const visa = { id: 'v', nombre: 'Visa', emoji: '💳', monto: USD(300), tipo: 'grupo', mesInicio: '2026-08' };
+  const cena = { id: 'c', nombre: 'Cena', monto: USD(80), tipo: 'puntual', mesInicio: '2026-08', grupoId: 'v' };
+  const nafta = { id: 'n', nombre: 'Nafta', monto: USD(400), tipo: 'puntual', mesInicio: '2026-09', grupoId: 'v' };
+  const h = historial({ gastos: [visa, cena, nafta], estados: [], usos: [] }, '2026-08', '2026-09');
+  assert.deepEqual(h.map((m) => m.total), [USD(300), USD(400)]);
+  assert.deepEqual(h[0].gastos[0].items.map((i) => i.gastoId), ['c']);
+});
