@@ -2,6 +2,7 @@
 // (230 USD, 0,0031 BTC) y los movimientos son la auditoría, aparte de los gastos de los
 // meses. En la demo, `demoApi` imita en memoria los endpoints del back (src/cajon/).
 import { api } from './api.js';
+import { mientrasGuarda, unaVez } from './ocupado.js';
 import { centavos, plata } from './formato.js';
 import { idiomaActual, locale, t } from './i18n.js';
 import { sonar } from './sonidos.js';
@@ -323,17 +324,21 @@ function error(msg) {
   el.textContent = msg ?? '';
 }
 
-async function enviar(boton, accion) {
-  error(null);
-  boton.disabled = true;
-  try {
-    await accion();
-  } catch (err) {
-    if (err?.status === 401) return ctx.avisar(err);
-    error(err.message);
-  } finally {
-    boton.disabled = false;
-  }
+/** Guarda con el form ocupado: tocar varias veces no repite el pedido (ver ocupado.js). */
+function enviar(boton, accion) {
+  return mientrasGuarda(
+    boton?.form ?? boton,
+    async () => {
+      error(null);
+      try {
+        await accion();
+      } catch (err) {
+        if (err?.status === 401) return ctx.avisar(err);
+        error(err.message);
+      }
+    },
+    boton,
+  );
 }
 
 // ---------- Ahorrar ----------
@@ -447,7 +452,7 @@ function pasoDonde() {
       f.querySelector('[data-atras]').addEventListener('click', pasoMonto);
       f.querySelector('[data-nueva]').addEventListener('click', () => pasoNuevaCategoria((b) => elegir({ preset: b })));
       f.querySelector('[data-cedear]').addEventListener('click', () => pasoCedear((b) => elegir({ preset: b }), pasoDonde));
-      f.querySelector('[data-omitir]').addEventListener('click', (e) => enviar(e.target, () => guardarAhorro(null, null)));
+      f.querySelector('[data-omitir]').addEventListener('click', (e) => enviar(e.currentTarget, () => guardarAhorro(null, null)));
       f.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => elegir(opciones[Number(b.dataset.i)])));
     },
   );
@@ -668,12 +673,12 @@ function pasoCedear(listo, volver) {
     (f) => {
       f.querySelector('[data-atras]').addEventListener('click', volver);
       f.querySelectorAll('[data-s]').forEach((el) =>
-        el.addEventListener('click', async () => {
+        el.addEventListener('click', unaVez(async () => {
           sonar('toque');
           const [s, n] = CEDEARS_POPULARES.find(([x]) => x === el.dataset.s);
           await cargarCedears([s]);
           listo(datos(s, n));
-        }),
+        })),
       );
       f.onsubmit = (e) => {
         e.preventDefault();
@@ -957,7 +962,7 @@ function abrirBolsillo(b) {
       f.querySelector('[data-retirar]')?.addEventListener('click', () => pasoRetirar(b));
       f.querySelector('[data-pasar]')?.addEventListener('click', () => pasoTraspaso(b));
       f.querySelector('[data-borrar]')?.addEventListener('click', (e) =>
-        enviar(e.target, async () => {
+        enviar(e.currentTarget, async () => {
           await llamar('DELETE', `/cajon/bolsillos/${b.id}`);
           document.getElementById('hoja-ahorro').close();
           sonar('caer');
@@ -1135,7 +1140,7 @@ function abrirMovimiento(m) {
       if (f.cantidad) f.cantidad.value = paraInput(Math.abs(m.cantidad), b.decimales);
       f.detalle.value = m.detalle ?? '';
       f.querySelector('[data-borrar]').addEventListener('click', (e) =>
-        enviar(e.target, async () => {
+        enviar(e.currentTarget, async () => {
           await llamar('DELETE', `/cajon/movimientos/${m.id}`);
           document.getElementById('hoja-ahorro').close();
           sonar('caer');

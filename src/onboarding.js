@@ -3,6 +3,7 @@ import { svgMono } from './mono.js';
 import { centavos, plata, configurarMoneda } from './formato.js';
 import { sonar } from './sonidos.js';
 import { t } from './i18n.js';
+import { mientrasGuarda, unaVez } from './ocupado.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -76,7 +77,7 @@ export function iniciarOnboarding(op) {
       b.type = 'button';
       b.className = 'boton';
       b.textContent = saltar.texto;
-      b.addEventListener('click', saltar.accion);
+      b.addEventListener('click', unaVez(saltar.accion));
       div.append(b);
     }
     const ok = document.createElement('button');
@@ -109,7 +110,7 @@ export function iniciarOnboarding(op) {
       sonar('toque');
     });
     botones(t('Seguir'));
-    form.onsubmit = async (e) => {
+    form.onsubmit = unaVez(async (e) => {
       e.preventDefault();
       const c = centavos(form.saldo.value, true);
       if (c === null) return error(t('Poné un número, aunque sea 0'));
@@ -121,7 +122,7 @@ export function iniciarOnboarding(op) {
       saldo = c;
       sonar('pop');
       ir(1);
-    };
+    });
   }
 
   function pasoIngreso() {
@@ -138,13 +139,13 @@ export function iniciarOnboarding(op) {
         error(err.message);
       }
     }
-    form.onsubmit = (e) => {
+    form.onsubmit = unaVez((e) => {
       e.preventDefault();
       const c = centavos(form.ingreso.value);
       if (!c) return error(t('Poné cuánto cobrás, o tocá "No tengo fijo"'));
       const dia = Math.min(31, Math.max(1, Number(form.dia.value || 1)));
-      guardar({ monto: c, diaCobro: dia });
-    };
+      return guardar({ monto: c, diaCobro: dia });
+    });
   }
 
   /** Grilla de chips: tocás uno, ponés el monto y queda cargado. */
@@ -194,11 +195,14 @@ export function iniciarOnboarding(op) {
         error(err.message);
       }
     }
-    form.querySelector('[data-agregar]').addEventListener('click', agregar);
+    // Agregar con el botón o con Enter: mientras guarda, ni uno ni otro lo repite.
+    const botonAgregar = form.querySelector('[data-agregar]');
+    const agregarUnaVez = () => mientrasGuarda(botonAgregar, agregar);
+    botonAgregar.addEventListener('click', agregarUnaVez);
     botones(t('Seguir'), { texto: t('Saltear'), accion: siguiente });
     form.onsubmit = (e) => {
       e.preventDefault();
-      if (!caja.hidden && form.monto.value) return agregar();
+      if (!caja.hidden && form.monto.value) return agregarUnaVez();
       siguiente();
     };
   }
