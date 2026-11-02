@@ -113,17 +113,72 @@ export function porTipo(gastos, todos = []) {
 }
 
 /**
- * Lo que entró al cajón desde la cuenta en cada mes: lo ahorrado menos lo que volvió.
- * Los ajustes a mano y los traspasos no cuentan: no movieron plata de la cuenta.
+ * Lo que entró al cajón en cada mes (Fede, 2/11/2026): lo ahorrado menos lo que volvió a la
+ * cuenta, más los ajustes a mano (crear un bolsillo con plata o editar su total, suba o
+ * baje) valuados hoy en la moneda de la cuenta (`valor`, lo pone resumenCajon). Los
+ * traspasos entre bolsillos no cuentan: la plata no entró ni salió.
  */
 export function guardadoPorMes(movimientos, meses) {
   const mapa = new Map(meses.map((m) => [m, 0]));
   for (const m of movimientos) {
     if (!mapa.has(m.mes)) continue;
-    if (m.tipo === 'ahorro') mapa.set(m.mes, mapa.get(m.mes) + (m.monto ?? 0));
-    else if (m.tipo === 'retiro') mapa.set(m.mes, mapa.get(m.mes) - (m.monto ?? 0));
+    const v = m.tipo === 'ahorro' ? (m.monto ?? 0) : m.tipo === 'retiro' ? -(m.monto ?? 0) : m.tipo === 'gasto' || m.tipo === 'ingreso' ? (m.valor ?? 0) : 0;
+    mapa.set(m.mes, mapa.get(m.mes) + v);
   }
   return meses.map((m) => mapa.get(m));
+}
+
+/**
+ * Cuánto guardás por mes en promedio: los meses cerrados con algo guardado, sin el primero
+ * en que usaste el cajón (ahí se carga de golpe lo que ya tenías).
+ */
+export function ritmoDeAhorro(movimientos, meses, guardado) {
+  const primero = movimientos.reduce((a, m) => (m.tipo !== 'traspaso' && (!a || m.mes < a) ? m.mes : a), null);
+  return promedioDe(guardado.filter((v, i) => i < meses.length - 1 && meses[i] !== primero && meses[i] >= (primero ?? '') && v > 0));
+}
+
+/**
+ * Lo que sobra en cada mes para el gráfico de gastos (Fede, 2/11/2026), con los mismos
+ * números del inicio. Sin acumular: lo que da el mes solo (ingreso menos gastos; en el mes
+ * actual, el "te sobra este mes"). Acumulando: lo que quedaría en la cuenta a fin de mes
+ * (el "Acumulado" del inicio). Los meses pasados no tienen: null.
+ */
+export function sobraPorMes(datos, meses, acumular) {
+  return meses.map((m, i) => {
+    if (m.pasado) return null;
+    if (acumular) return m.balance;
+    const anteriorPasado = i === 0 || meses[i - 1].pasado;
+    return anteriorPasado ? partirBalance(datos, m.resumen, datos.ahorros ?? []).delMes : m.resumen.ingreso - m.resumen.totalPendiente;
+  });
+}
+
+/**
+ * Ahorro proyectado: el real es lo que hay en el cajón hoy más lo que venís guardando por
+ * mes (lo que se ahorró de verdad); el ideal le suma, en cambio, todo lo que sobra
+ * acumulado, como si cada peso extra fuera al cajón.
+ */
+export function ahorroProyectado(futuros, enCajon, ritmo) {
+  return {
+    real: futuros.map((_, i) => enCajon + ritmo * i),
+    ideal: futuros.map((m) => enCajon + m.balance),
+  };
+}
+
+// Los botones "sumar lo que sobra" se recuerdan en este navegador (si se puede).
+const CLAVE_ACUMULAR = 'monasafer.metricas.acumular';
+function leerAcumular() {
+  try {
+    return { gastos: false, ahorro: false, ...JSON.parse(localStorage.getItem(CLAVE_ACUMULAR) ?? '{}') };
+  } catch {
+    return { gastos: false, ahorro: false };
+  }
+}
+function guardarAcumular(v) {
+  try {
+    localStorage.setItem(CLAVE_ACUMULAR, JSON.stringify(v));
+  } catch {
+    // Sin almacenamiento: vale para esta vez.
+  }
 }
 
 const corta = (c) => new Intl.NumberFormat(locale(), { notation: 'compact', maximumFractionDigits: 1 }).format(c / 100);
@@ -159,31 +214,89 @@ function barras(meses, valores, { elegido, actual, promedio = null, tocable = tr
   return `<div class="grafico-scroll" data-hoy-x="${i < 0 ? 0 : i * anchoBarra + anchoBarra / 2}"><svg class="grafico" viewBox="0 0 ${ancho} ${alto}" style="min-width:${ancho}px" role="img"><line x1="0" x2="${ancho}" y1="${cero}" y2="${cero}" class="eje"/>${media}${cols}</svg></div>`;
 }
 
-/** Línea con área para el ahorro proyectado: se lee como algo que crece (o se hunde). */
-function linea(meses, valores, actual) {
+/**
+ * Dos barras por mes: lo gastado en rojo y lo que sobra en verde (para abajo y rayado si
+ * falta). Los meses pasados solo tienen lo gastado. Cada mes se puede tocar.
+ */
+function barrasDobles(meses, gastos, sobra, { elegido, actual }) {
+  const paso = 44;
+  const ancho = Math.max(320, meses.length * paso);
+  const anchoMes = ancho / meses.length;
+  const grosor = Math.min((anchoMes - 10) / 2, 18);
+  const alto = 160;
+  const max = Math.max(1, ...gastos, ...sobra.map((v) => Math.abs(v ?? 0)));
+  const hayNeg = sobra.some((v) => v < 0);
+  const negMax = hayNeg ? Math.max(...sobra.map((v) => (v < 0 ? -v : 0))) : 0;
+  // El cero baja lo justo para que entren los negativos.
+  const util = alto - 30;
+  const cero = 14 + (util * max) / (max + negMax);
+  const escala = util / (max + negMax);
+  const barra = (v, x, clase) => {
+    if (!v) return '';
+    const h = Math.max(2, Math.abs(v) * escala);
+    return `<rect x="${x.toFixed(1)}" y="${(v >= 0 ? cero - h : cero).toFixed(1)}" width="${grosor.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="${clase}"/>`;
+  };
+  const cols = meses
+    .map((m, i) => {
+      const x = i * anchoMes + anchoMes / 2;
+      const s = sobra[i];
+      const marca = [m.pasado && 'pasado'].filter(Boolean).join(' ');
+      const titulo = `${nombreMes(m.mes)}: ${t('gastos')} ${plata(gastos[i])}${s === null ? '' : ` · ${t('sobra')} ${plata(s)}`}`;
+      const sel = m.mes === elegido ? `<rect x="${(i * anchoMes + 2).toFixed(1)}" y="2" width="${(anchoMes - 4).toFixed(1)}" height="${alto - 14}" rx="8" class="sel"/>` : '';
+      const barras =
+        s === null
+          ? barra(gastos[i], x - grosor / 2, `gasto ${marca}`)
+          : barra(gastos[i], x - grosor - 1, `gasto ${marca}`) + barra(s, x + 1, s < 0 ? 'falta' : 'sobra');
+      return `<g data-mes="${m.mes}">${sel}<rect class="toque" x="${i * anchoMes}" y="0" width="${anchoMes}" height="${alto}"><title>${esc(titulo)}</title></rect>${barras}
+        <text x="${x}" y="${alto - 2}" text-anchor="middle" class="${m.mes === actual ? 'hoy' : ''}">${esc(corto(m.mes))}</text></g>`;
+    })
+    .join('');
+  const i = meses.findIndex((m) => m.mes === actual);
+  return `<div class="grafico-scroll" data-hoy-x="${i < 0 ? 0 : i * anchoMes + anchoMes / 2}"><svg class="grafico dobles" viewBox="0 0 ${ancho} ${alto}" style="min-width:${ancho}px" role="img"><line x1="0" x2="${ancho}" y1="${cero.toFixed(1)}" y2="${cero.toFixed(1)}" class="eje"/>${cols}</svg></div>`;
+}
+
+/** El botón que prende o apaga "sumar lo que sobra" en un gráfico. */
+const botonAcumular = (cual, prendido, texto) =>
+  `<button type="button" class="interruptor${prendido ? ' activo' : ''}" data-acumular="${cual}" aria-pressed="${prendido}"><span class="perilla"></span>${t(texto)}</button>`;
+
+/**
+ * Línea con área para el ahorro proyectado: se lee como algo que crece (o se hunde).
+ * `ideal` (opcional) va punteada encima: lo que habría si todo lo que sobra fuera ahorro.
+ */
+function linea(meses, valores, actual, ideal = null) {
   const paso = 40;
   const ancho = Math.max(320, meses.length * paso);
   const alto = 160;
   const margen = 18;
-  const min = Math.min(0, ...valores);
-  const max = Math.max(1, ...valores);
+  const todos = [...valores, ...(ideal ?? [])];
+  const min = Math.min(0, ...todos);
+  const max = Math.max(1, ...todos);
   const y = (v) => margen + ((max - v) / (max - min || 1)) * (alto - margen * 2 - 12);
   const x = (i) => (meses.length === 1 ? ancho / 2 : 16 + (i * (ancho - 32)) / (meses.length - 1));
-  const puntos = valores.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const puntosDe = (vs) => vs.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const puntos = puntosDe(valores);
   const cero = y(0);
   const area = `M${x(0).toFixed(1)},${cero.toFixed(1)} L${puntos.join(' L')} L${x(valores.length - 1).toFixed(1)},${cero.toFixed(1)} Z`;
   const ultimo = valores.length - 1;
+  const titulo = (i) => `${nombreMes(meses[i].mes)}: ${plata(valores[i])}${ideal ? ` · ${t('ideal')} ${plata(ideal[i])}` : ''}`;
   const marcas = valores
     .map(
-      (v, i) => `<g><rect class="toque" x="${(x(i) - paso / 2).toFixed(1)}" y="0" width="${paso}" height="${alto}"><title>${esc(nombreMes(meses[i].mes))}: ${plata(v)}</title></rect>
+      (v, i) => `<g><rect class="toque" x="${(x(i) - paso / 2).toFixed(1)}" y="0" width="${paso}" height="${alto}"><title>${esc(titulo(i))}</title></rect>
+        ${ideal ? `<circle cx="${x(i).toFixed(1)}" cy="${y(ideal[i]).toFixed(1)}" r="3" class="ideal ${ideal[i] < 0 ? 'neg' : ''}"/>` : ''}
         <circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" class="${v < 0 ? 'neg' : 'pos'}"/>
         <text x="${x(i).toFixed(1)}" y="${alto - 2}" text-anchor="middle" class="${meses[i].mes === actual ? 'hoy' : ''}">${esc(corto(meses[i].mes))}</text></g>`,
     )
     .join('');
-  const etiqueta = `<text x="${x(ultimo).toFixed(1)}" y="${(y(valores[ultimo]) - 9).toFixed(1)}" text-anchor="end" class="valor">${esc(corta(valores[ultimo]))}</text>`;
+  // Las etiquetas del final: si están muy cerca, la del ideal va arriba y la real abajo.
+  const yReal = y(valores[ultimo]);
+  const yIdeal = ideal ? y(ideal[ultimo]) : null;
+  const realAbajo = ideal && yReal >= yIdeal;
+  const etiqueta = `<text x="${x(ultimo).toFixed(1)}" y="${(realAbajo ? Math.min(alto - 14, yReal + 16) : yReal - 9).toFixed(1)}" text-anchor="end" class="valor">${esc(corta(valores[ultimo]))}</text>`;
+  const etiquetaIdeal = ideal ? `<text x="${x(ultimo).toFixed(1)}" y="${(realAbajo ? yIdeal - 9 : Math.min(alto - 14, yIdeal + 16)).toFixed(1)}" text-anchor="end" class="valor ideal">${esc(corta(ideal[ultimo]))}</text>` : '';
+  const trazoIdeal = ideal ? `<polyline points="${puntosDe(ideal).join(' ')}" class="trazo-ideal"/>` : '';
   return `<div class="grafico-scroll" data-hoy-x="0"><svg class="grafico linea" viewBox="0 0 ${ancho} ${alto}" style="min-width:${ancho}px" role="img">
     <line x1="0" x2="${ancho}" y1="${cero.toFixed(1)}" y2="${cero.toFixed(1)}" class="eje"/>
-    <path d="${area}" class="area"/><polyline points="${puntos.join(' ')}" class="trazo"/>${marcas}${etiqueta}</svg></div>`;
+    <path d="${area}" class="area"/>${trazoIdeal}<polyline points="${puntos.join(' ')}" class="trazo"/>${marcas}${etiqueta}${etiquetaIdeal}</svg></div>`;
 }
 
 function filasCategorias(cats, total, premium, catElegida) {
@@ -283,6 +396,7 @@ export function montarMetricas(
   let catElegida = null;
   const abiertos = new Set();
   let primera = true;
+  const acumular = leerAcumular();
 
   const gastosHtml = () => {
     const visto = meses.find((m) => m.mes === mesCat);
@@ -327,10 +441,21 @@ export function montarMetricas(
       </div>`;
     }
 
+    const sobra = sobraPorMes(datos, meses, acumular.gastos);
+    const sobraVisto = sobra[meses.indexOf(visto)];
+    const etiquetaSobra = acumular.gastos ? 'Te quedaría a fin de mes' : 'Te sobra';
     html += `<div class="pm-tarjeta">
-        <h4>${t('Gastos de cada mes')}</h4>
-        ${barras(meses, meses.map((m) => m.total), { elegido: mesCat, actual, promedio })}
-        <p class="ayuda">${t('Los meses pasados, más claros, son lo que gastaste; los que vienen, lo que tenés anotado. La línea es tu promedio. Tocá un mes para verlo.')}</p>
+        <div class="pm-cabeza"><h4>${t('Gastos de cada mes')}</h4>${botonAcumular('gastos', acumular.gastos, 'Acumular lo que sobra')}</div>
+        <ul class="leyenda leyenda-dobles"><li><i class="l-gasto"></i>${t('Gastos')}</li><li><i class="l-sobra"></i>${t(acumular.gastos ? 'Lo que sobra, acumulado' : 'Lo que sobra en el mes')}</li></ul>
+        ${barrasDobles(meses, meses.map((m) => m.total), sobra, { elegido: mesCat, actual })}
+        <p class="pm-elegido"><b>${esc(nombreMes(mesCat))}</b> · ${t(visto.pasado ? 'gastaste' : 'gastos')} <b class="menos">${plata(visto.total)}</b>${
+          sobraVisto === null ? '' : ` · ${t(etiquetaSobra).toLowerCase()} <b class="${sobraVisto < 0 ? 'menos' : 'mas'}">${plata(sobraVisto)}</b>`
+        }</p>
+        <p class="ayuda">${
+          acumular.gastos
+            ? t('Verde: lo que te quedaría en la cuenta al final de cada mes si lo que sobra se va juntando (es el "Acumulado" del inicio). No es ahorro: no sabemos qué vas a hacer con esa plata. El ahorro es lo que pasás al cajón 🍌.')
+            : t('Rojo: lo que gastás (o tenés anotado) en el mes. Verde: lo que te sobra ese mes, lo que entra menos lo que sale; si falta, va para abajo. Así ves cómo cambia la relación entre lo que ganás y lo que gastás. De los meses pasados, más claros, solo se ve lo gastado. Tocá un mes para verlo.')
+        }</p>
       </div>
       <div class="pm-tarjeta">
         <h4>${t('Fijos, reservas y de una vez')}</h4>
@@ -376,16 +501,28 @@ export function montarMetricas(
     const meta = premium ? (futuros.find((m) => m.mes.endsWith('-12')) ?? futuros[futuros.length - 1]) : futuros[futuros.length - 1];
     const tasa = ingreso ? Math.round(((ingreso - delActual.total) / ingreso) * 100) : null;
     const delMes = partirBalance(datos, delActual.resumen, datos.ahorros ?? []).delMes;
-    const guardado = cajon ? guardadoPorMes(cajon.movimientos, hastaHoy.map((m) => m.mes)) : [];
-    const ritmo = promedioDe(guardado.slice(0, -1).filter((v) => v > 0));
+    const mesesHastaHoy = hastaHoy.map((m) => m.mes);
+    const guardado = cajon ? guardadoPorMes(cajon.movimientos, mesesHastaHoy) : [];
+    const ritmo = cajon ? ritmoDeAhorro(cajon.movimientos, mesesHastaHoy, guardado) : 0;
+    const enCajon = cajon?.enCuenta ?? 0;
+    const proy = ahorroProyectado(futuros, enCajon, ritmo);
+    const ideal = acumular.ahorro;
+    const iMeta = futuros.indexOf(meta);
+    const valorMeta = ideal ? proy.ideal[iMeta] : proy.real[iMeta];
 
     let html = `<h3 class="pm-titulo">🍌 ${t('Ahorros')}</h3>
       <div class="pm-hero hero-ahorros">
-        <div class="mono-chico">${svgMono(animoPara(meta.balance, ingreso), premium)}</div>
+        <div class="mono-chico">${svgMono(animoPara(valorMeta, ingreso), premium)}</div>
         <div>
-          <small>${t('En {mes} vas a tener ahorrado', { mes: nombreMes(meta.mes).toLowerCase() })}</small>
-          <b class="${meta.balance < 0 ? 'menos' : ''}" data-contar="${meta.balance}">${plata(meta.balance)}</b>
-          <span>${t('Si todo sale como lo anotaste.')}</span>
+          <small>${t(ideal ? 'En {mes} podrías tener ahorrado' : 'En {mes} vas a tener ahorrado', { mes: nombreMes(meta.mes).toLowerCase() })}</small>
+          <b class="${valorMeta < 0 ? 'menos' : ''}" data-contar="${valorMeta}">${plata(valorMeta)}</b>
+          <span>${
+            ideal
+              ? t('Si pasás al cajón todo lo que te sobra.')
+              : ritmo
+                ? t('Con tu cajón de hoy y guardando {ritmo} por mes, como venís haciendo.', { ritmo: plata(ritmo) })
+                : t('Lo que tenés hoy en el cajón 🍌.')
+          }</span>
         </div>
       </div>
       <div class="fichas">
@@ -394,9 +531,14 @@ export function montarMetricas(
         <div><small>${t('Tu cajón vale')}</small><b>${cajon ? `≈ ${esc(cajon.plataBase(cajon.total))}` : '—'}</b><span>${cajon ? esc(cajon.base) : t('sin datos')}</span></div>
       </div>
       <div class="pm-tarjeta">
-        <h4>${t('Ahorro proyectado, mes a mes')}</h4>
-        ${linea(futuros, futuros.map((m) => m.balance), actual)}
-        <p class="ayuda">${t('Lo que te sobra al final de cada mes, sumando lo de los meses anteriores.')}</p>
+        <div class="pm-cabeza"><h4>${t('Ahorro proyectado, mes a mes')}</h4>${botonAcumular('ahorro', ideal, 'Sumar lo que sobra')}</div>
+        ${ideal ? `<ul class="leyenda leyenda-dobles"><li><i class="l-real"></i>${t('Tu ahorro real')}</li><li><i class="l-ideal"></i>${t('Ideal: ahorrando todo lo que sobra')}</li></ul>` : ''}
+        ${linea(futuros, proy.real, actual, ideal ? proy.ideal : null)}
+        <p class="ayuda">${
+          ideal
+            ? t('La línea punteada es el ideal: tu cajón más todo lo que te sobra, acumulado, como si cada peso extra fuera al cajón. La línea llena es lo que ahorrás de verdad.')
+            : t('Tu ahorro de verdad: lo que hay en el cajón 🍌 hoy, más lo que venís guardando por mes. Tocá "Sumar lo que sobra" para ver cuánto tendrías si ahorraras todo lo que te sobra.')
+        }</p>
       </div>`;
 
     if (cajon) {
@@ -423,8 +565,8 @@ export function montarMetricas(
         ${
           guardado.some(Boolean)
             ? `${barras(hastaHoy, guardado, { actual, elegido: actual, tocable: false, promedio: ritmo || null })}
-        <p class="ayuda">${t('Lo que pasaste de la cuenta al cajón, menos lo que volvió.')}</p>`
-            : `<p class="ayuda">${t('En estos meses no pasaste plata de la cuenta al cajón. Cuando te sobre, tocá Ahorrar 🍌')}</p>`
+        <p class="ayuda">${t('Lo que entró a tu cajón cada mes: lo que guardaste y lo que sumaste a mano a tus bolsillos (el primer mes, todo lo que ya tenías), menos lo que sacaste o gastaste. Los traspasos entre bolsillos no cuentan.')}</p>`
+            : `<p class="ayuda">${t('En estos meses no entró plata al cajón. Cuando te sobre, tocá Ahorrar 🍌')}</p>`
         }
         ${
           premium && ritmo
@@ -474,6 +616,15 @@ export function montarMetricas(
   caja.onclick = (e) => {
     const mes = e.target.closest('[data-mes]');
     const cat = e.target.closest('[data-cat]');
+    const boton = e.target.closest('[data-acumular]');
+    if (boton) {
+      acumular[boton.dataset.acumular] = !acumular[boton.dataset.acumular];
+      guardarAcumular(acumular);
+      pintar();
+      const nuevo = caja.querySelector(`[data-acumular="${boton.dataset.acumular}"]`);
+      nuevo?.closest('.pm-tarjeta')?.querySelector('.grafico')?.animate([{ opacity: 0.3, transform: 'scaleY(0.85)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'ease-out' });
+      return;
+    }
     if (e.target.closest('[data-ir-premium]')) return alPremium();
     if (e.target.closest('[data-abrir-cajon]')) return alCajon();
     if (mes) mesCat = mes.dataset.mes;

@@ -811,3 +811,31 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 .item-grupo { animation: entra-item 0.25s ease-out backwards; }
 @keyframes entra-item { from { opacity: 0; transform: translateY(6px); } }
 .pagar-grupo { width: 100%; margin-bottom: 12px; }
+/* Gastos de cada mes en rojo y lo que sobra en verde, y los botones "acumular" (Fede, 2/11/2026). */
+.pm-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.grafico.dobles rect.gasto { fill: var(--rojo); }
+.grafico.dobles rect.gasto.pasado { opacity: 0.45; }
+.grafico.dobles rect.sobra { fill: var(--selva); }
+.grafico.dobles rect.falta { fill: var(--rojo); opacity: 0.55; stroke: var(--rojo); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.grafico.dobles rect.sel { fill: var(--banana); opacity: 0.18; stroke: var(--banana); stroke-width: 2; }
+.leyenda-dobles { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; }
+.leyenda-dobles i.l-gasto { background: var(--rojo); }
+.leyenda-dobles i.l-sobra, .leyenda-dobles i.l-real { background: var(--selva); }
+.leyenda-dobles i.l-ideal { background: transparent; border: 2px dashed var(--banana); }
+.pm-elegido { margin: 0; font-size: 0.9rem; }
+.grafico.linea .trazo-ideal { fill: none; stroke: var(--banana); stroke-width: 2.5; stroke-dasharray: 6 4; stroke-linejoin: round; }
+.grafico.linea circle.ideal { fill: var(--banana); }
+.grafico.linea circle.ideal.neg { fill: var(--rojo); }
+.grafico text.valor.ideal { fill: var(--banana); }
+.interruptor {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px;
+  border: 2px solid var(--borde); background: transparent; color: var(--texto); font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer;
+}
+.interruptor .perilla { width: 30px; height: 18px; border-radius: 999px; background: var(--borde); position: relative; transition: background 0.2s; flex-shrink: 0; }
+.interruptor .perilla::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 0.2s ease-out;
+}
+.interruptor.activo { border-color: var(--selva); }
+.interruptor.activo .perilla { background: var(--selva); }
+.interruptor.activo .perilla::after { transform: translateX(12px); }
+@media (prefers-reduced-motion: reduce) { .interruptor .perilla, .interruptor .perilla::after { transition: none; } }

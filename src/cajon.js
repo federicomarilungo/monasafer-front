@@ -341,10 +341,20 @@ export async function resumenCajon() {
     .sort((a, b) => (b.valor ?? 0) - (a.valor ?? 0));
   return {
     bolsillos,
-    movimientos: cajon.movimientos,
+    // Los ajustes a mano (gasto / ingreso) no movieron plata de la cuenta: se valúan hoy en
+    // la moneda de la cuenta para "Lo que guardaste cada mes" (Fede, 2/11/2026).
+    movimientos: cajon.movimientos.map((m) => {
+      const b = cajon.bolsillos.find((x) => x.id === m.bolsilloId);
+      const v = b && (m.tipo === 'gasto' || m.tipo === 'ingreso') ? enBase(m.cantidad, b) : null;
+      return v === null ? m : { ...m, valor: convertir(v, monedaBase(), monedaCuenta()) };
+    }),
     total: bolsillos.reduce((s, b) => s + (b.valor ?? 0), 0),
     sinCotizar: bolsillos.filter((b) => b.valor === null).length,
     base: monedaBase(),
+    // El total en la moneda de la cuenta, para sumarlo con los balances (null sin cotización).
+    get enCuenta() {
+      return convertir(this.total, monedaBase(), monedaCuenta());
+    },
     plataBase,
   };
 }
