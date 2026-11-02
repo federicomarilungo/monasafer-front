@@ -215,7 +215,9 @@ export function abrirCuenta(id, listo = null) {
   $('campo-emoji-cuenta').hidden = id === 'principal';
   f.nombre.value = c?.nombre ?? '';
   f.moneda.replaceChildren(...MONEDAS.map((m) => new Option(m, m, false, m === (c?.moneda ?? moneda()))));
-  $('campo-moneda-cuenta').hidden = !!c;
+  // La principal va en la moneda de los gastos; las otras pueden estar en cualquiera y se
+  // pasan solas al balance con la cotización del día (Fede, 2/11).
+  $('campo-moneda-cuenta').hidden = id === 'principal';
   f.saldo.value = c ? paraEditar(c.saldo) : '';
   $('ayuda-cuenta-saldo').hidden = !!c;
   $('boton-borrar-cuenta').hidden = !c || id === 'principal';
@@ -269,7 +271,7 @@ export function escucharHojaCuenta() {
     try {
       let c;
       if (abierta) {
-        await accionesCuentas.editar(abierta.id, abierta.id === 'principal' ? { nombre, saldo } : { nombre, emoji: f.emoji.value.trim(), saldo });
+        await accionesCuentas.editar(abierta.id, abierta.id === 'principal' ? { nombre, saldo } : { nombre, emoji: f.emoji.value.trim(), moneda: f.moneda.value, saldo });
         c = abierta.id === 'principal' ? { id: 'principal' } : cuentaDe(abierta.id);
       } else {
         c = await accionesCuentas.crear({ nombre, emoji: f.emoji.value.trim(), moneda: f.moneda.value, saldo });
