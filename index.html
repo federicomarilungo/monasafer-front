@@ -230,7 +230,7 @@
         <p class="ayuda" id="ayuda-cuenta-saldo" data-t>Para la plata que tenés en otro lado: otra cuenta, efectivo u otra moneda. Suma a tu saldo.</p>
         <label class="campo"><span data-t>Nombre</span><input name="nombre" maxlength="40" placeholder="Mercado Pago, efectivo, dólares…" data-t-ph autocomplete="off" /></label>
         <div class="campo" id="campo-emoji-cuenta"><span data-t>Emoji</span><input type="hidden" name="emoji" /><div class="emojis" id="emojis-cuenta"></div></div>
-        <label class="campo" id="campo-moneda-cuenta"><span data-t>Moneda</span><select name="moneda"></select></label>
+        <label class="campo" id="campo-moneda-cuenta"><span data-t>Moneda</span><select name="moneda"></select><small class="ayuda" id="ayuda-moneda-principal" hidden data-t>Es la moneda de tus gastos y del balance.</small></label>
         <label class="campo monto-campo"><span data-t>¿Cuánto hay hoy?</span><input name="saldo" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
         <details class="pasar-cuenta" id="pasar-cuenta">
           <summary data-t>🔁 Pasar plata a otra cuenta</summary>
@@ -241,7 +241,7 @@
         </details>
         <p class="error" id="error-cuenta-saldo" hidden></p>
         <div class="acciones">
-          <button type="button" class="boton peligro" id="boton-borrar-cuenta" data-t>Borrar</button>
+          <button type="button" class="boton peligro" id="boton-borrar-cuenta-saldo" data-t>Borrar</button>
           <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
           <button type="submit" class="boton principal" data-t>Guardar</button>
         </div>

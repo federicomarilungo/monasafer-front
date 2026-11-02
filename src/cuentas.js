@@ -4,12 +4,13 @@
 // moneda de la cuenta con la cotización de hoy. Quien no crea ninguna no ve nada distinto.
 // Pagar un gasto y usar una reserva salen de la principal.
 import { api } from './api.js';
-import { centavos, paraEditar } from './formato.js';
+import { centavos, configurarMoneda, paraEditar } from './formato.js';
 import { locale, t } from './i18n.js';
 import { sonar } from './sonidos.js';
 import { convertirHoy } from './cajon.js';
 
 let ctx = null;
+let confirmarBorrar = false;
 const $ = (id) => document.getElementById(id);
 const MONEDAS = ['USD', 'ARS', 'EUR', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN'];
 const EMOJIS = ['💳', '🏦', '💵', '💶', '💴', '💷', '🪙', '💰', '👛', '🐷', '📱', '💙', '💜', '🟢', '🟡', '🇦🇷', '🇺🇸', '🇪🇺', '🇧🇷', '🇺🇾', '🇨🇱', '🇲🇽', '🇨🇴', '🇵🇪', '🏠', '✈️', '🍌'];
@@ -99,7 +100,11 @@ export const accionesCuentas = {
   editar: (id, cambios) =>
     id === 'principal'
       ? hacer(
-          () => api('PATCH', '/perfil', { nombreCuentaPrincipal: cambios.nombre, saldo: cambios.saldo }),
+          async () => {
+            const r = await api('PATCH', '/perfil', { nombreCuentaPrincipal: cambios.nombre, saldo: cambios.saldo, moneda: cambios.moneda });
+            if (cambios.moneda) configurarMoneda(cambios.moneda);
+            return r;
+          },
           (d, p) => {
             p.saldo = cambios.saldo;
             ctx.estado.perfil.nombreCuentaPrincipal = cambios.nombre;
@@ -113,7 +118,6 @@ export const accionesCuentas = {
     hacer(
       () => api('DELETE', `/cuentas/${id}`),
       (d) => {
-        if (d.cuentas.find((c) => c.id === id)?.saldo) throw new Error(t('Pasá la plata a otra cuenta antes de borrarla'));
         d.cuentas = d.cuentas.filter((c) => c.id !== id);
       },
     ),
@@ -215,12 +219,14 @@ export function abrirCuenta(id, listo = null) {
   $('campo-emoji-cuenta').hidden = id === 'principal';
   f.nombre.value = c?.nombre ?? '';
   f.moneda.replaceChildren(...MONEDAS.map((m) => new Option(m, m, false, m === (c?.moneda ?? moneda()))));
-  // La principal va en la moneda de los gastos; las otras pueden estar en cualquiera y se
-  // pasan solas al balance con la cotización del día (Fede, 2/11).
-  $('campo-moneda-cuenta').hidden = id === 'principal';
+  // La principal va en la moneda de los gastos (cambiarla cambia la de la app); las otras
+  // pueden estar en cualquiera y se pasan solas al balance con la cotización del día (Fede, 2/11).
+  $('ayuda-moneda-principal').hidden = id !== 'principal';
   f.saldo.value = c ? paraEditar(c.saldo) : '';
   $('ayuda-cuenta-saldo').hidden = !!c;
-  $('boton-borrar-cuenta').hidden = !c || id === 'principal';
+  $('boton-borrar-cuenta-saldo').hidden = !c || id === 'principal';
+  $('boton-borrar-cuenta-saldo').textContent = t('Borrar');
+  confirmarBorrar = false;
   const otras = c ? [{ id: 'principal', nombre: nombrePrincipal(), moneda: moneda() }, ...cuentas()].filter((x) => x.id !== c.id) : [];
   $('pasar-cuenta').hidden = !otras.length;
   $('pasar-cuenta').open = false;
@@ -271,7 +277,7 @@ export function escucharHojaCuenta() {
     try {
       let c;
       if (abierta) {
-        await accionesCuentas.editar(abierta.id, abierta.id === 'principal' ? { nombre, saldo } : { nombre, emoji: f.emoji.value.trim(), moneda: f.moneda.value, saldo });
+        await accionesCuentas.editar(abierta.id, abierta.id === 'principal' ? { nombre, saldo, moneda: f.moneda.value } : { nombre, emoji: f.emoji.value.trim(), moneda: f.moneda.value, saldo });
         c = abierta.id === 'principal' ? { id: 'principal' } : cuentaDe(abierta.id);
       } else {
         c = await accionesCuentas.crear({ nombre, emoji: f.emoji.value.trim(), moneda: f.moneda.value, saldo });
@@ -298,8 +304,14 @@ export function escucharHojaCuenta() {
       error(err.message);
     }
   });
-  $('boton-borrar-cuenta').addEventListener('click', async () => {
-    if (abierta.saldo) return error(t('Pasá la plata a otra cuenta antes de borrarla'));
+  // Se borra aunque tenga plata (Fede, 2/11), pero con un segundo toque para confirmar.
+  $('boton-borrar-cuenta-saldo').addEventListener('click', async (e) => {
+    if (abierta.saldo && !confirmarBorrar) {
+      confirmarBorrar = true;
+      sonar('toque');
+      e.currentTarget.textContent = t('¿Seguro? {monto} dejan de contar', { monto: plataEn(abierta.saldo, abierta.moneda) });
+      return;
+    }
     try {
       await accionesCuentas.borrar(abierta.id);
       sonar('caer');

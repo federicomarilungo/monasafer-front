@@ -629,4 +629,6 @@ export const EN = {
   'En este mes no hubo gastos cargados.': 'No expenses were logged this month.',
   'Con Premium ves todos tus meses anteriores, sin límite 📅': 'With Premium you can see all your previous months, no limit 📅',
   'Acumulado: {monto}': 'Running total: {monto}',
+  'Es la moneda de tus gastos y del balance.': 'This is the currency of your expenses and balance.',
+  '¿Seguro? {monto} dejan de contar': 'Sure? {monto} will stop counting',
 };
