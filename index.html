@@ -92,7 +92,10 @@
         <div class="sugerencias" id="sugerencias"></div>
 
         <section>
-          <h3 class="subtitulo" data-t>Gastos del mes</h3>
+          <div class="titulo-gastos">
+            <h3 class="subtitulo" data-t>Gastos del mes</h3>
+            <button type="button" class="chip chico" id="boton-crear-grupo" data-t>🗂️ Crear grupo</button>
+          </div>
           <ul class="gastos" id="gastos"></ul>
           <p class="vacio" id="vacio" hidden data-t-html>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
           <p class="vacio" id="vacio-pasado" hidden data-t>En este mes no hubo gastos cargados.</p>
@@ -142,14 +145,6 @@
         </fieldset>
 
         <fieldset class="grupo" id="campo-tipo">
-          <label class="interruptor">
-            <span>
-              <b data-t>Es un grupo</b>
-              <small data-t>Junta varios gastos adentro, como la tarjeta: los vas cargando y lo pagás entero o de a uno.</small>
-            </span>
-            <input type="checkbox" id="es-grupo" />
-            <i aria-hidden="true"></i>
-          </label>
           <label class="interruptor" id="campo-reserva">
             <span>
               <b data-t>Es una reserva</b>
@@ -170,6 +165,29 @@
           <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden data-t>Borrar</button>
           <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
           <button type="submit" class="boton principal" data-t>Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: crear un grupo (Fede, 3/11: aparte de "nuevo gasto"), vacío o con gastos que ya están -->
+    <dialog autofocus class="hoja" id="hoja-nuevo-grupo">
+      <form method="dialog" id="form-nuevo-grupo">
+        <h3 data-t>🗂️ Crear grupo</h3>
+        <p class="ayuda" data-t>Junta gastos bajo un nombre, como la tarjeta: lo pagás entero o de a uno.</p>
+        <label class="campo"><span data-t>¿Cómo se llama?</span><input name="nombre" maxlength="80" required placeholder="Visa, viaje, cumple…" data-t-ph autocomplete="off" /></label>
+        <div class="segmentos" role="radiogroup">
+          <button type="button" class="segmento activo" data-dura-grupo="mes" data-t>Solo este mes</button>
+          <button type="button" class="segmento" data-dura-grupo="siempre" data-t>Todos los meses</button>
+        </div>
+        <fieldset class="grupo" id="campo-gastos-grupo">
+          <legend data-t>¿Qué gastos van adentro?</legend>
+          <div class="chips" id="gastos-para-grupo"></div>
+        </fieldset>
+        <p class="ayuda" data-t>Si no elegís ninguno, queda vacío y le vas sumando gastos con el +.</p>
+        <p class="error" id="error-nuevo-grupo" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Crear grupo</button>
         </div>
       </form>
     </dialog>

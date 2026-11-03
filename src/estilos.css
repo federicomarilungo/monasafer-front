@@ -851,3 +851,6 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 .bolsillos.adentro .bolsillo { padding: 8px 10px; }
 .bolsillos.adentro .bolsillo-emoji { font-size: 1.4rem; }
 .bolsillos.adentro .bolsillo-cantidad { font-size: 1.1rem; }
+.titulo-gastos { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.titulo-gastos .subtitulo { margin-bottom: 0; }
+.titulo-gastos .chip { font-size: 0.8rem; padding: 4px 10px; }

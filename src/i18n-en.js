@@ -733,4 +733,12 @@ export const EN = {
   '🗂️ Grupo': '🗂️ Group',
   Vale: 'Worth',
   'Vacío: tocá Editar para sumarle bolsillos': 'Empty: tap Edit to add pockets',
+  '🗂️ Crear grupo': '🗂️ New group',
+  'Junta gastos bajo un nombre, como la tarjeta: lo pagás entero o de a uno.': 'Groups expenses under one name, like a credit card: pay it all at once or one by one.',
+  'Visa, viaje, cumple…': 'Visa, trip, birthday…',
+  '¿Qué gastos van adentro?': 'Which expenses go inside?',
+  'Si no elegís ninguno, queda vacío y le vas sumando gastos con el +.': "If you don't pick any, it starts empty and you add expenses with the +.",
+  'Crear grupo': 'Create group',
+  '¡Grupo {nombre} armado! 🍌': 'Group {nombre} ready! 🍌',
+  'vacío, tocá + para sumar': 'empty, tap + to add',
 };

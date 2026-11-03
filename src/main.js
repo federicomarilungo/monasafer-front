@@ -302,6 +302,19 @@ const acciones = {
         d.gastos = d.gastos.filter((x) => x.id !== id && x.grupoId !== id);
       },
     ),
+  /** Crea un grupo y mete adentro los gastos elegidos (Fede, 3/11). */
+  crearGrupo: (grupo, ids) =>
+    ejecutar(
+      async () => {
+        const g = await api('POST', '/gastos', grupo);
+        for (const id of ids) await api('PATCH', `/gastos/${id}`, { grupoId: g.id });
+      },
+      (d) => {
+        const id = `demo-${Date.now()}`;
+        d.gastos.push({ ...grupo, id });
+        for (const x of d.gastos) if (ids.includes(x.id)) x.grupoId = id;
+      },
+    ),
   restaurarGasto: (g) =>
     ejecutar(
       () => api('POST', `/gastos/${g.id}/restaurar`),
@@ -428,7 +441,7 @@ function etiquetaTipo(l, g) {
   const duracion = soloEste ? t('solo este mes') : g?.mesFin ? t('hasta {mes}', { mes: corto(g.mesFin) }) : t('todos los meses');
   if (l.tipo === 'grupo') {
     const n = l.items?.length ?? 0;
-    const cuantos = n === 1 ? t('1 gasto') : t('{n} gastos', { n });
+    const cuantos = !n ? t('vacío, tocá + para sumar') : n === 1 ? t('1 gasto') : t('{n} gastos', { n });
     return `${t('grupo')} · ${cuantos} · ${g?.mesFin === g?.mesInicio ? t('solo este mes') : duracion}`;
   }
   if (!soloEste && l.monto === 0 && g?.monto) return t('salteado este mes');
@@ -447,8 +460,9 @@ function filaGasto(l) {
   const pasada = l.tipo === 'reserva' && quedaReal < 0;
   if (pasada) li.classList.add('pasada');
   const frasco = l.tipo === 'reserva' ? `<div class="frasco"><span style="width:${l.monto ? (Math.max(0, quedaReal) / l.monto) * 100 : 0}%"></span></div>` : '';
-  const puedePagar = l.tipo !== 'reserva';
   const grupo = l.tipo === 'grupo';
+  // Un grupo vacío no tiene nada que pagar: solo el + para sumarle el primer gasto.
+  const puedePagar = l.tipo !== 'reserva' && !(grupo && !l.items?.length && !l.monto);
   // Fede (2/11): a un grupo (la Visa) se le cargan gastos desde la fila, como a una reserva.
   // Fede (23/10): a una reserva se le carga un uso desde la fila, sin abrirla. Si bajaba
   // sola, al cargar el primero pasa a "cargo cada uso" (ver abrirReserva).
@@ -898,9 +912,9 @@ function pintarForma() {
   $('meses-menos').disabled = forma.meses <= 2;
   document.querySelectorAll('[data-meses]').forEach((b) => b.classList.toggle('activo', Number(b.dataset.meses) === forma.meses));
   $('es-reserva').checked = forma.reserva;
-  $('es-grupo').checked = forma.grupo;
   // Adentro de un grupo van gastos comunes (ni reservas ni otro grupo); un grupo no es reserva.
-  $('campo-tipo').hidden = !!forma.enGrupo || !!gastoEditado?.grupoId;
+  // Un grupo se crea aparte (Crear grupo); en este formulario solo se edita.
+  $('campo-tipo').hidden = !!forma.enGrupo || !!gastoEditado?.grupoId || forma.grupo;
   $('campo-reserva').hidden = forma.grupo;
   $('campo-modo').hidden = !forma.reserva || forma.grupo;
   $('etiqueta-monto-gasto').textContent = forma.grupo ? t('Estimado (opcional)') : t('Monto');
@@ -954,12 +968,6 @@ document.querySelectorAll('[data-meses]').forEach((b) =>
     pintarForma();
   }),
 );
-$('es-grupo').addEventListener('change', (e) => {
-  forma.grupo = e.target.checked;
-  if (forma.grupo) forma.reserva = false;
-  sonar(forma.grupo ? 'pop' : 'toque');
-  pintarForma();
-});
 $('es-reserva').addEventListener('change', (e) => {
   forma.reserva = e.target.checked;
   sonar(forma.reserva ? 'pop' : 'toque');
@@ -1359,6 +1367,66 @@ function elegirOpcion(titulo, ayuda, opciones) {
     hoja.showModal();
   });
 }
+
+// Crear grupo: aparte de "nuevo gasto" (Fede, 3/11). Con nombre, vacío o con gastos del mes.
+let duraGrupo = 'mes';
+const elegidosGrupo = new Set();
+$('boton-crear-grupo').addEventListener('click', () => {
+  sonar('toque');
+  if (estado.mesVisto < mesActual) {
+    estado.mesVisto = mesActual;
+    pintar(1);
+  }
+  const f = $('form-nuevo-grupo');
+  f.reset();
+  mostrarError('error-nuevo-grupo', null);
+  duraGrupo = 'mes';
+  elegidosGrupo.clear();
+  document.querySelectorAll('[data-dura-grupo]').forEach((b) => b.classList.toggle('activo', b.dataset.duraGrupo === duraGrupo));
+  // Los gastos comunes del mes que se mira y que no están ya en un grupo.
+  const sueltos = estado.datos.gastos.filter((g) => (g.tipo === 'puntual' || g.tipo === 'fijo') && !g.grupoId && vigente(g, estado.mesVisto));
+  $('campo-gastos-grupo').hidden = !sueltos.length;
+  $('gastos-para-grupo').replaceChildren(
+    ...sueltos.map((g) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = `${g.emoji || '💸'} ${g.nombre} · ${plata(montoEn(g, estado.mesVisto))}`;
+      b.addEventListener('click', () => {
+        if (elegidosGrupo.has(g.id)) elegidosGrupo.delete(g.id);
+        else elegidosGrupo.add(g.id);
+        b.classList.toggle('activo', elegidosGrupo.has(g.id));
+        sonar('toque');
+      });
+      return b;
+    }),
+  );
+  $('hoja-nuevo-grupo').showModal();
+});
+document.querySelectorAll('[data-dura-grupo]').forEach((b) =>
+  b.addEventListener('click', () => {
+    duraGrupo = b.dataset.duraGrupo;
+    sonar('toque');
+    document.querySelectorAll('[data-dura-grupo]').forEach((x) => x.classList.toggle('activo', x === b));
+  }),
+);
+$('form-nuevo-grupo').addEventListener('submit', unaVez(async (e) => {
+  e.preventDefault();
+  const nombre = e.target.nombre.value.trim();
+  if (!nombre) return mostrarError('error-nuevo-grupo', t('Ponele un nombre'));
+  const hallado = ADIVINAR.find(([re]) => re.test(nombre));
+  const mes = estado.mesVisto;
+  const grupo = { nombre, emoji: hallado ? hallado[1] : '🗂️', monto: 0, tipo: 'grupo', mesInicio: mes, mesFin: duraGrupo === 'mes' ? mes : null };
+  try {
+    await acciones.crearGrupo(grupo, [...elegidosGrupo]);
+    $('hoja-nuevo-grupo').close();
+    sonar('pop');
+    saltoMono();
+    $('frase').textContent = elegidosGrupo.size ? t('¡Grupo {nombre} armado! 🍌', { nombre }) : t('¡Listo el grupo! Tocá el + para ir cargándole gastos 🍌');
+  } catch (err) {
+    mostrarError('error-nuevo-grupo', err.message);
+  }
+}));
 
 // Grupo (la Visa): lo que tiene adentro, pagar todo o de a uno, y cargarle más.
 let grupoAbierto = null;
