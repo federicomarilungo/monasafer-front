@@ -746,4 +746,7 @@ export const EN = {
   'Crear grupo': 'Create group',
   '¡Grupo {nombre} armado! 🍌': 'Group {nombre} ready! 🍌',
   'vacío, tocá + para sumar': 'empty, tap + to add',
+  '{grupo} termina en {mes}: para un gasto que sigue los meses siguientes, el grupo tiene que existir esos meses también.':
+    '{grupo} ends in {mes}: for an expense that continues in the following months, the group has to exist in those months too.',
+  'Sigue después: {gastos}. Elegí "Todos los meses" o sacalos.': 'Continues after: {gastos}. Pick "Every month" or take them out.',
 };

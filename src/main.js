@@ -1125,6 +1125,8 @@ $('form-gasto').addEventListener('submit', unaVez(async (e) => {
   if (!gastoEditado) g.mesInicio = estado.mesVisto;
   if (!gastoEditado && forma.enGrupo) g.grupoId = forma.enGrupo.id;
   const volverAlGrupo = forma.enGrupo?.id ?? gastoEditado?.grupoId;
+  const grupoDestino = forma.enGrupo ?? estado.datos.gastos.find((x) => x.id === gastoEditado?.grupoId);
+  if (grupoDestino && !cabeEnGrupo({ ...gastoEditado, ...g }, grupoDestino)) return mostrarError('error-gasto', avisoNoCabe(grupoDestino));
   try {
     const directos = gastoEditado ? cambiosDirectos(gastoEditado, estado.mesVisto, g) : g;
     if (!directos) {
@@ -1399,6 +1401,18 @@ function elegirOpcion(titulo, ayuda, opciones) {
   });
 }
 
+/**
+ * Fede (3/11): un gasto que sigue en los meses siguientes no entra en un grupo que termina
+ * antes (el de "solo este mes"). La misma regla que la API.
+ */
+function cabeEnGrupo(g, grupo) {
+  if (!grupo.mesFin) return true;
+  const ultimo = g.tipo === 'puntual' ? g.mesInicio : g.mesFin;
+  return !!ultimo && ultimo <= grupo.mesFin;
+}
+const avisoNoCabe = (grupo) =>
+  t('{grupo} termina en {mes}: para un gasto que sigue los meses siguientes, el grupo tiene que existir esos meses también.', { grupo: grupo.nombre, mes: nombreMes(grupo.mesFin).toLowerCase() });
+
 // Crear grupo: aparte de "nuevo gasto" (Fede, 3/11). Con nombre, vacío o con gastos del mes.
 let duraGrupo = 'mes';
 const elegidosGrupo = new Set();
@@ -1448,6 +1462,9 @@ $('form-nuevo-grupo').addEventListener('submit', unaVez(async (e) => {
   const hallado = ADIVINAR.find(([re]) => re.test(nombre));
   const mes = estado.mesVisto;
   const grupo = { nombre, emoji: hallado ? hallado[1] : '🗂️', monto: 0, tipo: 'grupo', mesInicio: mes, mesFin: duraGrupo === 'mes' ? mes : null };
+  const siguen = estado.datos.gastos.filter((x) => elegidosGrupo.has(x.id) && !cabeEnGrupo(x, grupo));
+  if (siguen.length)
+    return mostrarError('error-nuevo-grupo', `${avisoNoCabe(grupo)} ${t('Sigue después: {gastos}. Elegí "Todos los meses" o sacalos.', { gastos: siguen.map((x) => x.nombre).join(', ') })}`);
   try {
     await acciones.crearGrupo(grupo, [...elegidosGrupo]);
     $('hoja-nuevo-grupo').close();
