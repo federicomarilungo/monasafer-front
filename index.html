@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#2f9e6b" />
     <title>Monasafer</title>
     <!-- El tema elegido en ⚙️, antes de pintar (ver src/tema.js) -->
@@ -456,17 +456,19 @@
     <!-- Chat con Mona (S3, S4) -->
     <dialog autofocus class="hoja hoja-chat" id="hoja-chat">
       <form method="dialog" id="form-chat">
-        <h3><span data-t>Mona te ayuda</span> <small class="quedan" id="chat-quedan"></small></h3>
+        <header class="chat-cabecera">
+          <h3><span data-t>Mona te ayuda</span> <small class="quedan" id="chat-quedan"></small></h3>
+          <button type="button" class="flecha chat-cerrar" data-cerrar aria-label="Cerrar" data-t-aria>✕</button>
+        </header>
         <div class="chat" id="chat"></div>
         <div class="chat-adjunto" id="chat-adjunto" hidden><img alt="" /><span data-t>Captura lista para Mona</span><button type="button" aria-label="Sacar" data-t-aria>✕</button></div>
         <div class="chat-entrada">
           <button type="button" class="boton-mic" id="boton-foto" aria-label="Mandar una captura" data-t-aria>📷</button>
           <input type="file" id="chat-foto" accept="image/*" hidden />
           <button type="button" class="boton-mic" id="boton-mic" aria-label="Hablar" data-t-aria hidden>🎙️</button>
-          <input name="texto" maxlength="500" autocomplete="off" placeholder="Compré una campera en 6 cuotas…" data-t-ph />
+          <textarea name="texto" rows="1" maxlength="500" autocomplete="off" enterkeyhint="send" placeholder="Compré una campera en 6 cuotas…" data-t-ph></textarea>
           <button type="submit" class="boton principal" aria-label="Mandar" data-t-aria>➤</button>
         </div>
-        <div class="acciones"><button type="button" class="boton" data-cerrar data-t>Cerrar</button></div>
       </form>
     </dialog>
 

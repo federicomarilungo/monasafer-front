@@ -1231,7 +1231,7 @@ $('boton-deshacer').addEventListener('click', async () => {
     sonar('pop');
     saltoMono();
     $('frase').textContent = t('¡Uf! Ya está como antes.');
-    if ($('hoja-chat').open) pintarChat();
+    if ($('hoja-chat').open) pintarChat(false);
   } catch (err) {
     avisar(err);
   }
@@ -2118,8 +2118,10 @@ function avisoMetricas(texto, animo) {
 // ---------- Chat con Mona (S3) y voz (S4) ----------
 
 const chat = [];
-function pintarChat() {
+/** `alFinal`: baja hasta el último mensaje (uno nuevo); al confirmar una propuesta vieja, no. */
+function pintarChat(alFinal = true) {
   const caja = $('chat');
+  const arriba = caja.scrollTop;
   caja.replaceChildren(
     ...chat.map((m) => {
       const d = document.createElement('div');
@@ -2139,7 +2141,7 @@ function pintarChat() {
       return d;
     }),
   );
-  caja.scrollTop = caja.scrollHeight;
+  caja.scrollTop = alFinal ? caja.scrollHeight : arriba;
 }
 
 function textoPropuesta(p) {
@@ -2240,7 +2242,7 @@ function tarjetaPropuesta(p) {
       p.hecha = true;
       sonar('pop');
       saltoMono();
-      pintarChat();
+      pintarChat(false);
     } catch (err) {
       b.disabled = false;
       avisar(err);
@@ -2257,7 +2259,41 @@ function abrirChat() {
   $('chat-quedan').textContent = estado.modo === 'real' && !esPremium() && q != null ? t('{n} mensajes gratis', { n: q }) : '';
   $('boton-mic').hidden = !Reconocimiento;
   $('hoja-chat').showModal();
+  ajustarAlTeclado();
+  $('chat').scrollTop = $('chat').scrollHeight;
 }
+
+// El teclado del celular: la hoja del chat mide lo que queda visible y queda pegada arriba
+// del teclado, con la entrada a la vista y el último mensaje abajo. Android ya achica la
+// página (interactive-widget en el viewport); iOS no, así que se mide con visualViewport.
+function ajustarAlTeclado() {
+  const hoja = $('hoja-chat');
+  const vv = window.visualViewport;
+  if (!hoja.open || !vv) return;
+  const caja = $('chat');
+  const abajo = caja.scrollHeight - caja.scrollTop - caja.clientHeight < 40;
+  const tapado = Math.max(0, Math.round(document.documentElement.clientHeight - vv.height - vv.offsetTop));
+  hoja.style.setProperty('--alto-visible', `${Math.round(vv.height)}px`);
+  hoja.style.setProperty('--bajo-teclado', `${tapado}px`);
+  if (abajo) caja.scrollTop = caja.scrollHeight;
+}
+window.visualViewport?.addEventListener('resize', ajustarAlTeclado);
+window.visualViewport?.addEventListener('scroll', ajustarAlTeclado);
+
+// La caja de texto crece con lo que se escribe (hasta 4 renglones, en el CSS). Enter manda;
+// Shift+Enter hace un renglón nuevo.
+const cajaTexto = $('form-chat').texto;
+function crecerTexto() {
+  cajaTexto.style.height = 'auto';
+  cajaTexto.style.height = `${cajaTexto.scrollHeight + 4}px`;
+}
+cajaTexto.addEventListener('input', crecerTexto);
+cajaTexto.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    $('form-chat').requestSubmit();
+  }
+});
 $('boton-chat').addEventListener('click', () => {
   sonar('toque');
   abrirChat();
@@ -2319,6 +2355,7 @@ $('form-chat').addEventListener('submit', async (e) => {
   const texto = input.value.trim() || (foto ? t('Cargá lo que ves en esta captura') : '');
   if (!texto) return;
   input.value = '';
+  crecerTexto();
   adjunto = null;
   mostrarAdjunto();
   chat.push({ rol: 'usuario', texto, imagen: foto?.url });
@@ -2370,6 +2407,7 @@ $('boton-mic').addEventListener('click', () => {
   rec.interimResults = true;
   rec.onresult = (ev) => {
     $('form-chat').texto.value = Array.from(ev.results).map((r) => r[0].transcript).join(' ');
+    crecerTexto();
     if (ev.results[ev.results.length - 1].isFinal) $('form-chat').requestSubmit();
   };
   rec.onend = () => {
