@@ -731,4 +731,6 @@ export const EN = {
   '¿Qué va adentro?': "What's inside?",
   'Borré el grupo. Sus bolsillos siguen en el cajón, sueltos.': 'Group deleted. Its pockets are still in the drawer, on their own.',
   '🗂️ Grupo': '🗂️ Group',
+  Vale: 'Worth',
+  'Vacío: tocá Editar para sumarle bolsillos': 'Empty: tap Edit to add pockets',
 };

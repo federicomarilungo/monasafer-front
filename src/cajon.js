@@ -976,7 +976,7 @@ function htmlCartera(cartera, grupos = [], deGrupo = () => []) {
     .map((g) => {
       const adentro = deGrupo(g).sort((a, b) => valor(b) - valor(a));
       const v = adentro.reduce((s, b) => s + valor(b), 0);
-      return { v, html: htmlGrupo(g, adentro, v, pct(v), adentro.map(fila).join('')) };
+      return { v, html: htmlGrupo(g, adentro, v, pct(v)) };
     })
     .sort((a, b) => b.v - a.v);
   return `<div class="cartera">
@@ -995,6 +995,37 @@ function htmlGrupo(g, adentro, valor, extra = '', filas = '', mover = '') {
         ${extra}
         <span class="bolsillo-cantidad">${n ? `≈ ${esc(plataBase(valor))}` : ''}</span></button>
       ${filas ? `<ul class="bolsillos adentro">${filas}</ul>` : ''}</div></li>`;
+}
+
+/**
+ * Lo de adentro de un grupo (Fede, 3/11: en el cajón se ve solo el total; el detalle, al
+ * entrar). Cada bolsillo se toca para editarlo, como en el cajón.
+ */
+function verGrupo(g) {
+  sonar('toque');
+  const valor = (b) => enBase(b.cantidad, b) ?? 0;
+  const adentro = cajon.bolsillos.filter((b) => b.grupoId === g.id).sort((a, b) => valor(b) - valor(a));
+  const total = adentro.reduce((s, b) => s + valor(b), 0);
+  const fila = (b) =>
+    b.mercado || esInversion(b)
+      ? `<li><button type="button" class="bolsillo" data-b="${b.id}">
+          <span class="bolsillo-info"><b>${esc(b.emoji)} ${esc(b.unidad)}</b><small>${esc(etiquetaInversion(b))}</small></span>
+          ${total > 0 && valor(b) > 0 ? `<span class="cartera-porcentaje">${Math.round((valor(b) / total) * 100)}%</span>` : ''}
+          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`
+      : `<li>${filaBolsillo(b)}</li>`;
+  paso(
+    `<h3>${esc(g.emoji || '🗂️')} ${esc(g.nombre)}</h3>
+     <div class="cajon-total"><small>${t('Vale')}</small><b>≈ ${esc(plataBase(total))}</b></div>
+     ${adentro.length ? `<ul class="bolsillos adentro">${adentro.map(fila).join('')}</ul>` : `<p class="vacio">${t('Vacío: tocá Editar para sumarle bolsillos')}</p>`}
+     <div class="acciones">
+       <button type="button" class="boton" data-editar-grupo>${t('Editar')}</button>
+       <button type="button" class="boton principal" data-cerrar-ahorro>${t('Cerrar')}</button>
+     </div>`,
+    (f) => {
+      f.querySelector('[data-editar-grupo]').addEventListener('click', () => pasoGrupo(g));
+      f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => abrirBolsillo(cajon.bolsillos.find((b) => b.id === el.dataset.b))));
+    },
+  );
 }
 
 /** Crear o editar un grupo del cajón: nombre, ícono y qué bolsillos van adentro. */
@@ -1118,7 +1149,7 @@ function pintarCajon() {
           : '';
         if (x.g) {
           const adentro = deGrupo(x.g);
-          return htmlGrupo(x.g, adentro, adentro.reduce((s, b) => s + valor(b), 0), '', ordenando ? '' : adentro.map((b) => `<li>${filaBolsillo(b)}</li>`).join(''), mover);
+          return htmlGrupo(x.g, adentro, adentro.reduce((s, b) => s + valor(b), 0), '', '', mover);
         }
         return `<li>${mover}${filaBolsillo(x.b)}</li>`;
       })
@@ -1174,7 +1205,7 @@ function pintarCajon() {
   });
   f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => !ordenando && abrirBolsillo(porId.get(el.dataset.b))));
   f.querySelector('[data-grupo]').addEventListener('click', () => pasoGrupo());
-  f.querySelectorAll('[data-g]').forEach((el) => el.addEventListener('click', () => !ordenando && pasoGrupo(grupos.find((g) => g.id === el.dataset.g))));
+  f.querySelectorAll('[data-g]').forEach((el) => el.addEventListener('click', () => !ordenando && verGrupo(grupos.find((g) => g.id === el.dataset.g))));
   f.querySelector('[data-ordenar]')?.addEventListener('click', () => {
     sonar('toque');
     ordenando = !ordenando;
