@@ -1027,6 +1027,19 @@ document.querySelectorAll('[data-meses]').forEach((b) =>
     pintarForma();
   }),
 );
+// La explicación de la reserva vive detrás del ⓘ (Fede, 3/11): así el interruptor ocupa una línea.
+function mostrarAyudaReserva(ver) {
+  $('ayuda-reserva').hidden = !ver;
+  $('info-reserva').setAttribute('aria-expanded', String(ver));
+}
+$('info-reserva').addEventListener('click', (e) => {
+  e.preventDefault(); // está dentro del <label>: que no prenda la reserva
+  e.stopPropagation();
+  const ver = $('ayuda-reserva').hidden;
+  mostrarAyudaReserva(ver);
+  if (ver) $('ayuda-reserva').animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
+  sonar('toque');
+});
 $('es-reserva').addEventListener('change', (e) => {
   forma.reserva = e.target.checked;
   sonar(forma.reserva ? 'pop' : 'toque');
@@ -1088,6 +1101,7 @@ function abrirGasto(g = null, enGrupo = null) {
   formaDesdeGasto(g);
   forma.enGrupo = enGrupo;
   pintarForma();
+  mostrarAyudaReserva(false);
   $('hoja-gasto').showModal();
   // Primero el nombre (Fede, 21/10): con él se adivina el ícono y después va el monto.
 }

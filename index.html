@@ -145,10 +145,10 @@
         </fieldset>
 
         <fieldset class="grupo" id="campo-tipo">
-          <label class="interruptor" id="campo-reserva">
+          <label class="interruptor" id="campo-reserva" for="es-reserva">
             <span>
-              <b data-t>Es una reserva</b>
-              <small data-t>Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.</small>
+              <b class="con-info"><span data-t>Es una reserva</span> <button type="button" class="info-boton" id="info-reserva" aria-expanded="false" aria-controls="ayuda-reserva" aria-label="Qué es una reserva" data-t-aria>i</button></b>
+              <small id="ayuda-reserva" hidden data-t>Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.</small>
             </span>
             <input type="checkbox" id="es-reserva" />
             <i aria-hidden="true"></i>

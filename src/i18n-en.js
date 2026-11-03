@@ -76,6 +76,7 @@ export const EN = {
   mes: 'month',
   meses: 'months',
   'Es una reserva': "It's a budget",
+  'Qué es una reserva': 'What is a budget',
   'Apartás un monto para algo difícil de calcular (transporte, súper) y lo vas gastando.':
     'You set aside an amount for something hard to predict (transport, groceries) and spend it bit by bit.',
   'Cómo se gasta la reserva': 'How the budget is spent',

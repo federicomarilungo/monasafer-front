@@ -277,8 +277,14 @@ body {
 .chips.chicas { justify-content: center; }
 .chips.chicas .chip { min-width: 44px; padding: 6px 10px; }
 .interruptor { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.interruptor span { flex: 1; display: grid; gap: 2px; }
+.interruptor > span { flex: 1; display: grid; gap: 2px; }
 .interruptor small { color: var(--suave); font-weight: 600; font-size: 0.8rem; }
+.interruptor .con-info { display: flex; align-items: center; gap: 6px; }
+.info-boton {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--suave); background: transparent; color: var(--suave);
+  font: inherit; font-size: 0.75rem; font-weight: 900; font-style: italic; line-height: 1; padding: 0; cursor: pointer; flex-shrink: 0;
+}
+.info-boton[aria-expanded="true"] { background: var(--selva); border-color: var(--selva); color: #fff; }
 .interruptor input { position: absolute; opacity: 0; pointer-events: none; }
 .interruptor i { width: 52px; height: 30px; border-radius: 99px; background: var(--borde); position: relative; flex-shrink: 0; transition: background 0.2s; }
 .interruptor i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.2); transition: transform 0.2s cubic-bezier(.3,1.6,.6,1); }
