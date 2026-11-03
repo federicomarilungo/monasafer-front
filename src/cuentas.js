@@ -2,7 +2,8 @@
 // (banco, Mercado Pago, efectivo, dólares). La principal es el saldo de siempre; las otras
 // viven aparte, cada una en su moneda, y el saldo que mira el motor es la suma pasada a la
 // moneda de la cuenta con la cotización de hoy. Quien no crea ninguna no ve nada distinto.
-// Pagar un gasto y usar una reserva salen de la principal.
+// Al pagar un gasto o usar una reserva, si hay más de una cuenta se pregunta de cuál sale
+// (Fede, 3/11); con una sola, sale de la principal sin preguntar.
 import { api } from './api.js';
 import { unaVez } from './ocupado.js';
 import { centavos, configurarMoneda, paraEditar } from './formato.js';
@@ -172,6 +173,66 @@ export function pintarDestinos(el, elegida, alElegir, alPedirNueva) {
   nueva.addEventListener('click', alPedirNueva);
   chips.append(nueva);
   el.append(titulo, chips);
+}
+
+const ULTIMA = 'monasafer.cuentaPago';
+const leerUltima = () => {
+  try {
+    return localStorage.getItem(ULTIMA);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * De qué cuenta sale `monto` (en la moneda de la persona). Sin otras cuentas no pregunta y
+ * devuelve la principal. Devuelve `{cuentaId, cantidad}` (cantidad en la moneda de la
+ * cuenta, convertida con la cotización de hoy) o null si la persona cancela.
+ */
+export async function elegirOrigen(monto, titulo) {
+  if (!hayCuentas()) return { cuentaId: null, cantidad: null };
+  const opciones = [
+    { id: null, emoji: '🏦', nombre: nombrePrincipal(), moneda: moneda(), saldo: saldoPrincipal(), cantidad: monto },
+    ...(await Promise.all(
+      cuentas().map(async (c) => ({ id: c.id, emoji: c.emoji || '💳', nombre: c.nombre, moneda: c.moneda, saldo: c.saldo, cantidad: await convertirHoy(monto, moneda(), c.moneda) })),
+    )),
+  ];
+  const ultima = leerUltima();
+  const sugerida = opciones.some((o) => (o.id ?? 'principal') === ultima) ? ultima : 'principal';
+  const hoja = $('hoja-origen');
+  $('titulo-origen').textContent = titulo;
+  $('ayuda-origen').textContent = t('¿De qué cuenta sale la plata?');
+  return new Promise((listo) => {
+    let elegida = null;
+    $('opciones-origen').replaceChildren(
+      ...opciones.map((o) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `opcion-borrar${(o.id ?? 'principal') === sugerida ? ' sugerida' : ''}`;
+        b.innerHTML = '<b></b><small></small>';
+        b.querySelector('b').textContent = `${o.emoji} ${o.nombre}`;
+        const otra = o.moneda !== moneda();
+        b.querySelector('small').textContent =
+          o.cantidad === null
+            ? t('Sin cotización de {moneda} hoy', { moneda: o.moneda })
+            : `${t('Tenés {saldo}', { saldo: plataEn(o.saldo, o.moneda) })}${otra ? ` · ${t('sale {monto}', { monto: plataEn(o.cantidad, o.moneda) })}` : ''}`;
+        b.disabled = o.cantidad === null;
+        b.addEventListener('click', () => {
+          elegida = { cuentaId: o.id, cantidad: o.id ? o.cantidad : null };
+          try {
+            localStorage.setItem(ULTIMA, o.id ?? 'principal');
+          } catch {
+            /* sin storage, no se recuerda */
+          }
+          sonar('pop');
+          hoja.close();
+        });
+        return b;
+      }),
+    );
+    hoja.addEventListener('close', () => listo(elegida), { once: true });
+    hoja.showModal();
+  });
 }
 
 /** Las cuentas en "Tu plata": cada una se toca para editarla o pasar plata. */

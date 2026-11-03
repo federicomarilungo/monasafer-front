@@ -231,7 +231,8 @@ body {
 .opcion-borrar.sugerida { border-color: var(--selva); }
 .opcion-borrar.sugerida b::after { content: ' ✓'; color: var(--selva); }
 .opcion-borrar.peligro b { color: var(--rojo); }
-.opcion-borrar:active { transform: translateY(2px); }
+.opcion-borrar:active:not(:disabled) { transform: translateY(2px); }
+.opcion-borrar:disabled { opacity: .55; cursor: default; }
 .deshacer[popover] {
   inset: auto auto 100px 50%; transform: translateX(-50%); margin: 0; border: 0; overflow: hidden;
   display: none; align-items: center; gap: 12px; background: var(--texto); color: var(--fondo);

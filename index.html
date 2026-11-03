@@ -219,6 +219,18 @@
       </form>
     </dialog>
 
+    <!-- Hoja: de qué cuenta sale la plata al pagar o usar (solo con más de una cuenta) -->
+    <dialog autofocus class="hoja" id="hoja-origen">
+      <form method="dialog">
+        <h3 id="titulo-origen"></h3>
+        <p class="ayuda" id="ayuda-origen"></p>
+        <div class="opciones-borrar" id="opciones-origen"></div>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
     <!-- Deshacer: popover para quedar arriba de cualquier hoja abierta -->
     <div class="deshacer" id="deshacer" popover="manual">
       <span id="texto-deshacer"></span>

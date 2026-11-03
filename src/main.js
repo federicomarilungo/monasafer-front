@@ -18,6 +18,7 @@ import {
   abrirCuenta,
   cuentaDe,
   cuentas,
+  elegirOrigen,
   enOtras,
   escucharHojaCuenta,
   hayCuentas,
@@ -271,18 +272,45 @@ async function ejecutar(real, demo) {
   pintar();
 }
 
+/** Mueve plata de una cuenta que no es la principal en la demo (`monto` en la moneda de la persona). */
+function moverEnDemo(d, cuentaId, monto, cantidad) {
+  d.perfil.saldo += monto;
+  const c = cuentaId && d.cuentas?.find((x) => x.id === cuentaId);
+  if (c) {
+    c.saldo += cantidad ?? monto;
+    d.enOtras = (d.enOtras ?? 0) + monto;
+  }
+}
+
+/** Lo que se descuenta al pagar: un grupo, lo que le falta (sin lo ya pagado de adentro), como el back. */
+const cuantoPagar = (l) => (l.tipo === 'grupo' ? l.pendiente : l.monto);
+
+/**
+ * Con más de una cuenta pregunta de cuál sale (Fede, 3/11); null si se canceló.
+ * Con una sola, la principal sin preguntar.
+ */
+const origenPara = (nombre, monto) => elegirOrigen(monto, t('Pagar {nombre} · {monto}', { nombre, monto: plata(monto) }));
+
 const acciones = {
-  pagar: (l, pagar) =>
+  /** `origen` ({cuentaId, cantidad}) solo al pagar: de qué cuenta sale. */
+  pagar: (l, pagar, origen = null) =>
     ejecutar(
-      () => api(pagar ? 'POST' : 'DELETE', `/gastos/${l.gastoId}/meses/${estado.mesVisto}/pagar`),
+      () =>
+        pagar
+          ? api('POST', `/gastos/${l.gastoId}/meses/${estado.mesVisto}/pagar`, origen?.cuentaId ? origen : undefined)
+          : api('DELETE', `/gastos/${l.gastoId}/meses/${estado.mesVisto}/pagar`),
       (d) => {
-        // Un grupo descuenta lo que le falta (sin lo ya pagado de adentro), como el back.
         let e = d.estados.find((x) => x.gastoId === l.gastoId && x.mes === estado.mesVisto);
         if (!e) d.estados.push((e = { gastoId: l.gastoId, mes: estado.mesVisto, pagado: false }));
-        const cuanto = pagar ? (l.tipo === 'grupo' ? l.pendiente : l.monto) : (e.montoPagado ?? l.monto);
-        e.pagado = pagar;
-        e.montoPagado = pagar ? cuanto : 0;
-        d.perfil.saldo += pagar ? -cuanto : cuanto;
+        if (pagar) {
+          const cuanto = cuantoPagar(l);
+          Object.assign(e, { pagado: true, montoPagado: cuanto, cuentaId: origen?.cuentaId ?? null, cantidadPagada: origen?.cantidad ?? null });
+          moverEnDemo(d, e.cuentaId, -cuanto, e.cantidadPagada === null ? null : -e.cantidadPagada);
+        } else {
+          const cuanto = e.montoPagado ?? l.monto;
+          moverEnDemo(d, e.cuentaId, cuanto, e.cantidadPagada);
+          Object.assign(e, { pagado: false, montoPagado: 0, cuentaId: null, cantidadPagada: null });
+        }
       },
     ),
   guardarGasto: (id, g) =>
@@ -329,12 +357,12 @@ const acciones = {
         else d.estados.push({ gastoId, mes, pagado: false, montoDelMes });
       },
     ),
-  usar: (gastoId, monto, nota) =>
+  usar: (gastoId, monto, nota, origen = null) =>
     ejecutar(
-      () => api('POST', `/gastos/${gastoId}/usos`, { mes: mesActual, monto, nota }),
+      () => api('POST', `/gastos/${gastoId}/usos`, { mes: mesActual, monto, nota, ...(origen?.cuentaId ? origen : {}) }),
       (d) => {
-        d.usos.push({ id: `demo-${Date.now()}`, gastoId, mes: mesActual, monto, nota });
-        d.perfil.saldo -= monto;
+        d.usos.push({ id: `demo-${Date.now()}`, gastoId, mes: mesActual, monto, nota, cuentaId: origen?.cuentaId ?? null });
+        moverEnDemo(d, origen?.cuentaId, -monto, origen?.cantidad == null ? null : -origen.cantidad);
       },
     ),
   guardarPlata: (saldo, ingresoMensual) =>
@@ -508,9 +536,12 @@ $('gastos').addEventListener('click', async (e) => {
     return;
   }
   const pagar = !l.pagado;
+  let origen = null;
   if (pagar) {
+    const cuanto = cuantoPagar(l);
+    origen = await origenPara(l.nombre, cuanto);
+    if (!origen) return;
     // M3: la moneda vuela de la fila al saldo y a "por gastar", suena y el mono la atrapa.
-    const cuanto = l.tipo === 'grupo' ? l.pendiente : l.monto;
     sonar('moneda');
     volarMonto(li, $('valor-saldo'), `−${plata(cuanto)}`);
     setTimeout(() => volarMonto(li, $('valor-gastar'), `−${plata(cuanto)}`), 120);
@@ -518,7 +549,7 @@ $('gastos').addEventListener('click', async (e) => {
     if (l.tipo === 'grupo') $('frase').textContent = t('¡{nombre} pagada entera! Todo lo de adentro, listo 🍌', { nombre: l.nombre });
   } else sonar('toque');
   try {
-    await acciones.pagar(l, pagar);
+    await acciones.pagar(l, pagar, origen);
   } catch (err) {
     avisar(err);
   }
@@ -1465,9 +1496,11 @@ function pintarGrupo() {
         abrirGasto(ig);
       });
       li.querySelector('button.check')?.addEventListener('click', async () => {
+        const origen = i.pagado ? null : await origenPara(i.nombre, cuantoPagar(i));
+        if (!i.pagado && !origen) return;
         sonar(i.pagado ? 'toque' : 'moneda');
         try {
-          await acciones.pagar(i, !i.pagado);
+          await acciones.pagar(i, !i.pagado, origen);
           if (!i.pagado) saltoMono();
           pintarGrupo();
         } catch (err) {
@@ -1488,9 +1521,11 @@ $('boton-pagar-grupo').addEventListener('click', async () => {
   const l = resumenDelMes(estado.datos, hoy, estado.mesVisto)?.gastos.find((x) => x.gastoId === grupoAbierto);
   if (!l) return;
   const pagar = !l.pagado;
+  const origen = pagar ? await origenPara(l.nombre, cuantoPagar(l)) : null;
+  if (pagar && !origen) return;
   sonar(pagar ? 'moneda' : 'toque');
   try {
-    await acciones.pagar(l, pagar);
+    await acciones.pagar(l, pagar, origen);
     if (pagar) {
       saltoMono();
       $('frase').textContent = t('¡{nombre} pagada entera! Todo lo de adentro, listo 🍌', { nombre: l.nombre });
@@ -1555,8 +1590,10 @@ $('form-uso').addEventListener('submit', unaVez(async (e) => {
     const { l, g } = reservaAbierta;
     // Una reserva que bajaba sola pasa a "cargo cada uso" desde este mes (el back guarda
     // manualDesde, así los meses anteriores no cambian).
+    const origen = await elegirOrigen(monto, t('Usar {monto} de {nombre}', { monto: plata(monto), nombre: l.nombre }));
+    if (!origen) return;
     if (g && g.modoReserva !== 'manual') await acciones.guardarGasto(g.id, { modoReserva: 'manual' });
-    await acciones.usar(l.gastoId, monto, e.target.nota.value.trim());
+    await acciones.usar(l.gastoId, monto, e.target.nota.value.trim(), origen);
     $('hoja-reserva').close();
     sonar('plop');
     saltoMono();
@@ -2034,9 +2071,22 @@ function tarjetaPropuesta(p) {
         estado.mesVisto = p.mes;
         // La línea del mes (un grupo descuenta lo que le falta, no su estimado).
         const l = resumenDelMes(estado.datos, hoy, p.mes)?.gastos.find((x) => x.gastoId === p.gastoId) ?? { gastoId: p.gastoId, monto: estado.datos.gastos.find((g) => g.id === p.gastoId)?.monto ?? 0 };
-        await acciones.pagar(l, true);
+        // Igual que a mano: con varias cuentas, de cuál sale.
+        const origen = await origenPara(p.nombre, cuantoPagar(l));
+        if (!origen) {
+          b.disabled = false;
+          return;
+        }
+        await acciones.pagar(l, true, origen);
         sonar('moneda');
-      } else if (p.accion === 'usar_reserva') await acciones.usar(p.gastoId, p.monto, p.nota);
+      } else if (p.accion === 'usar_reserva') {
+        const origen = await elegirOrigen(p.monto, t('Usar {monto} de {nombre}', { monto: plata(p.monto), nombre: p.nombre }));
+        if (!origen) {
+          b.disabled = false;
+          return;
+        }
+        await acciones.usar(p.gastoId, p.monto, p.nota, origen);
+      }
       else if (p.accion === 'editar_gasto') {
         // Si cambia el monto de uno que se repite, la misma pregunta que al editar a mano.
         const g = estado.datos.gastos.find((x) => x.id === p.gastoId);
