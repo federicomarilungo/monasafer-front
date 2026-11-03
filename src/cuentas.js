@@ -197,39 +197,47 @@ export async function elegirOrigen(monto, titulo) {
       cuentas().map(async (c) => ({ id: c.id, emoji: c.emoji || '💳', nombre: c.nombre, moneda: c.moneda, saldo: c.saldo, cantidad: await convertirHoy(monto, moneda(), c.moneda) })),
     )),
   ];
+  // Tocar una cuenta la marca; Confirmar paga (Fede, 3/11). Arranca marcada la última usada.
   const ultima = leerUltima();
-  const sugerida = opciones.some((o) => (o.id ?? 'principal') === ultima) ? ultima : 'principal';
+  const habilitadas = opciones.filter((o) => o.cantidad !== null);
+  let marcada = habilitadas.find((o) => (o.id ?? 'principal') === ultima) ?? habilitadas[0] ?? null;
   const hoja = $('hoja-origen');
   $('titulo-origen').textContent = titulo;
   $('ayuda-origen').textContent = t('¿De qué cuenta sale la plata?');
   return new Promise((listo) => {
     let elegida = null;
-    $('opciones-origen').replaceChildren(
-      ...opciones.map((o) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = `opcion-borrar${(o.id ?? 'principal') === sugerida ? ' sugerida' : ''}`;
-        b.innerHTML = '<b></b><small></small>';
-        b.querySelector('b').textContent = `${o.emoji} ${o.nombre}`;
-        const otra = o.moneda !== moneda();
-        b.querySelector('small').textContent =
-          o.cantidad === null
-            ? t('Sin cotización de {moneda} hoy', { moneda: o.moneda })
-            : `${t('Tenés {saldo}', { saldo: plataEn(o.saldo, o.moneda) })}${otra ? ` · ${t('sale {monto}', { monto: plataEn(o.cantidad, o.moneda) })}` : ''}`;
-        b.disabled = o.cantidad === null;
-        b.addEventListener('click', () => {
-          elegida = { cuentaId: o.id, cantidad: o.id ? o.cantidad : null };
-          try {
-            localStorage.setItem(ULTIMA, o.id ?? 'principal');
-          } catch {
-            /* sin storage, no se recuerda */
-          }
-          sonar('pop');
-          hoja.close();
-        });
-        return b;
-      }),
-    );
+    const botones = opciones.map((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `opcion-borrar${o === marcada ? ' sugerida' : ''}`;
+      b.innerHTML = '<b></b><small></small>';
+      b.querySelector('b').textContent = `${o.emoji} ${o.nombre}`;
+      const otra = o.moneda !== moneda();
+      b.querySelector('small').textContent =
+        o.cantidad === null
+          ? t('Sin cotización de {moneda} hoy', { moneda: o.moneda })
+          : `${t('Tenés {saldo}', { saldo: plataEn(o.saldo, o.moneda) })}${otra ? ` · ${t('sale {monto}', { monto: plataEn(o.cantidad, o.moneda) })}` : ''}`;
+      b.disabled = o.cantidad === null;
+      b.addEventListener('click', () => {
+        marcada = o;
+        sonar('pop');
+        for (const x of botones) x.classList.toggle('sugerida', x === b);
+      });
+      return b;
+    });
+    $('opciones-origen').replaceChildren(...botones);
+    const confirmar = $('boton-confirmar-origen');
+    confirmar.disabled = !marcada;
+    confirmar.onclick = () => {
+      if (!marcada) return;
+      elegida = { cuentaId: marcada.id, cantidad: marcada.id ? marcada.cantidad : null };
+      try {
+        localStorage.setItem(ULTIMA, marcada.id ?? 'principal');
+      } catch {
+        /* sin storage, no se recuerda */
+      }
+      hoja.close();
+    };
     hoja.addEventListener('close', () => listo(elegida), { once: true });
     hoja.showModal();
   });
