@@ -855,3 +855,8 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 .titulo-gastos { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .titulo-gastos .subtitulo { margin-bottom: 0; }
 .titulo-gastos .chip { font-size: 0.8rem; padding: 4px 10px; }
+
+/* Agregar o retirar de la cuenta principal, cuando es la única (Fede, 3/11). */
+.mover-principal { display: flex; gap: 8px; margin: -4px 0 10px; }
+.mover-principal .boton { flex: 1; }
+#form-retiro .interruptor { margin: 6px 0 4px; }

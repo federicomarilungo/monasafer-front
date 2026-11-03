@@ -219,6 +219,44 @@
       </form>
     </dialog>
 
+    <!-- Hoja: tocar una cuenta en "Tu plata" (agregar, retirar o editarla) -->
+    <dialog autofocus class="hoja" id="hoja-mover">
+      <form method="dialog">
+        <h3 id="titulo-mover"></h3>
+        <p class="ayuda" id="ayuda-mover"></p>
+        <div class="opciones-borrar">
+          <button type="button" class="opcion-borrar" id="boton-mover-agregar"><b data-t>＋ Agregar plata</b><small data-t>Te entró plata en esta cuenta.</small></button>
+          <button type="button" class="opcion-borrar" id="boton-mover-retirar"><b data-t>− Retirar plata</b><small data-t>Sacaste plata de esta cuenta.</small></button>
+          <button type="button" class="opcion-borrar" id="boton-mover-editar"><b data-t>✎ Corregir o editar la cuenta</b><small data-t>El saldo, el nombre, la moneda o pasar plata a otra.</small></button>
+        </div>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cerrar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: retirar plata de una cuenta, y si fue un gasto, anotarlo (opcional) -->
+    <dialog autofocus class="hoja" id="hoja-retiro">
+      <form method="dialog" id="form-retiro">
+        <h3 id="titulo-retiro"></h3>
+        <label class="campo monto-campo"><span id="etiqueta-monto-retiro"></span><input name="monto" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        <label class="campo"><span data-t>¿Para qué?</span><input name="detalle" maxlength="60" placeholder="Súper, efectivo, préstamo…" data-t-ph autocomplete="off" /></label>
+        <label class="interruptor">
+          <span>
+            <b data-t>Anotarlo como gasto</b>
+            <small data-t>Queda como un gasto pagado de este mes. Si no, solo baja el saldo de la cuenta.</small>
+          </span>
+          <input type="checkbox" name="gasto" />
+          <i aria-hidden="true"></i>
+        </label>
+        <p class="error" id="error-retiro" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Retirar</button>
+        </div>
+      </form>
+    </dialog>
+
     <!-- Hoja: de qué cuenta sale la plata al pagar o usar (solo con más de una cuenta) -->
     <dialog autofocus class="hoja" id="hoja-origen">
       <form method="dialog">
@@ -307,6 +345,10 @@
       <form method="dialog" id="form-plata">
         <h3 data-t>Tu plata</h3>
         <label class="campo monto-campo" id="campo-saldo-plata"><span data-t>Saldo en cuenta hoy</span><input name="saldo" inputmode="decimal" autocomplete="off" /></label>
+        <div class="mover-principal" id="mover-principal">
+          <button type="button" class="boton chico" id="boton-agregar-principal" data-t>＋ Agregar plata</button>
+          <button type="button" class="boton chico" id="boton-retirar-principal" data-t>− Retirar plata</button>
+        </div>
         <div id="cuentas-plata"></div>
         <button type="button" class="boton enlace chico" id="boton-nueva-cuenta" data-t>＋ Tengo plata en otra cuenta o moneda</button>
         <label class="campo"><span data-t>Ingreso mensual</span><input name="ingreso" inputmode="decimal" placeholder="0" autocomplete="off" /></label>

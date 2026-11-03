@@ -24,6 +24,7 @@ import {
   hayCuentas,
   iniciarCuentas,
   monedaDe,
+  nombrePrincipal,
   pintarDestinos,
   pintarListaCuentas,
   plataEn,
@@ -357,6 +358,32 @@ const acciones = {
         else d.estados.push({ gastoId, mes, pagado: false, montoDelMes });
       },
     ),
+  /**
+   * Plata que salió de una cuenta (`cantidad` en su moneda, `monto` en la de la persona).
+   * Con `gasto` (el nombre) queda un gasto puntual del mes pagado desde esa cuenta, así cuenta
+   * en las métricas; si no, solo baja el saldo de la cuenta.
+   */
+  retirar: (c, cantidad, monto, gasto) => {
+    const cuentaId = c.id === 'principal' ? null : c.id;
+    const g = gasto && { nombre: gasto.slice(0, 60), emoji: '💸', monto, tipo: 'puntual', mesInicio: mesActual };
+    return ejecutar(
+      async () => {
+        if (g) {
+          const nuevo = await api('POST', '/gastos', g);
+          await api('POST', `/gastos/${nuevo.id}/meses/${mesActual}/pagar`, cuentaId ? { cuentaId, cantidad } : undefined);
+        } else if (cuentaId) await api('PATCH', `/cuentas/${cuentaId}`, { saldo: c.saldo - cantidad });
+        else await api('PATCH', '/perfil', { saldo: c.saldo - cantidad });
+      },
+      (d) => {
+        if (g) {
+          const id = `demo-${Date.now()}`;
+          d.gastos.push({ ...g, id });
+          d.estados.push({ gastoId: id, mes: mesActual, pagado: true, montoPagado: monto, cuentaId, cantidadPagada: cuentaId ? cantidad : null });
+        }
+        moverEnDemo(d, cuentaId, -monto, -cantidad);
+      },
+    );
+  },
   usar: (gastoId, monto, nota, origen = null) =>
     ejecutar(
       () => api('POST', `/gastos/${gastoId}/usos`, { mes: mesActual, monto, nota, ...(origen?.cuentaId ? origen : {}) }),
@@ -646,7 +673,8 @@ function pintar(direccion = 0) {
     <button class="celda" id="celda-saldo" ${esActual ? '' : 'disabled'}><p class="etiqueta">${!esActual ? t('Arrancás con') : hayCuentas() ? t('Saldo · {n} 💳', { n: cuentas().length + 1 }) : t('Saldo hoy ✎')}</p><p id="valor-saldo"></p></button>
     <button class="celda" id="celda-ingreso" ${esActual ? '' : 'disabled'}><p class="etiqueta">${esActual ? t('Ingreso ＋') : t('Ingreso')}</p><p class="mas">+${plata(r.ingreso)}</p></button>
     <div class="celda" id="celda-gastar"><p class="etiqueta">${t('Por gastar')}</p><p class="menos" id="valor-gastar"></p></div>`;
-  $('celda-saldo').addEventListener('click', abrirIngreso);
+  // Fede (3/11): tocar el saldo abre primero "Tu plata" (corregir saldo o sueldo).
+  $('celda-saldo').addEventListener('click', () => (sonar('toque'), abrirPlata()));
   $('celda-ingreso').addEventListener('click', abrirIngreso);
   animarNumero($('valor-saldo'), previo.inicio, r.inicio, plata, 900);
   animarNumero($('valor-gastar'), previo.totalPendiente, r.totalPendiente, (c) => `−${plata(c)}`, 900);
@@ -1738,7 +1766,8 @@ function abrirPlata() {
   // Con varias cuentas, el saldo se corrige en cada una.
   $('campo-saldo-plata').hidden = hayCuentas();
   $('boton-nueva-cuenta').hidden = hayCuentas();
-  if (hayCuentas()) pintarListaCuentas($('cuentas-plata'), (id) => volverAPlata(() => abrirCuenta(id, abrirPlata)));
+  $('mover-principal').hidden = hayCuentas();
+  if (hayCuentas()) pintarListaCuentas($('cuentas-plata'), (id) => volverAPlata(() => abrirMover(id)));
   else $('cuentas-plata').replaceChildren();
   f.ingreso.value = p.ingresoMensual ? paraEditar(p.ingresoMensual.monto) : '';
   f.dia.value = p.ingresoMensual?.diaCobro ?? '';
@@ -1768,6 +1797,68 @@ function volverAPlata(abrir) {
 }
 
 $('boton-nueva-cuenta').addEventListener('click', () => volverAPlata(() => abrirCuenta(null, abrirPlata)));
+
+// Tocar una cuenta (Fede, 3/11): agregar plata, retirar plata o editarla.
+let cuentaMover = 'principal';
+const datosCuenta = (id) =>
+  id === 'principal' ? { id, emoji: '🏦', nombre: nombrePrincipal(), saldo: saldoPrincipal(), moneda: estado.perfil?.moneda ?? 'USD' } : cuentaDe(id);
+
+function abrirMover(id) {
+  const c = datosCuenta(id);
+  if (!c) return abrirPlata();
+  cuentaMover = id;
+  $('titulo-mover').textContent = `${c.emoji || '💳'} ${c.nombre}`;
+  $('ayuda-mover').textContent = t('Hoy hay {monto}.', { monto: plataEn(c.saldo, c.moneda) });
+  $('hoja-mover').showModal();
+}
+$('boton-mover-agregar').addEventListener('click', () => {
+  sonar('pop');
+  $('hoja-mover').close();
+  abrirIngreso(cuentaMover);
+});
+$('boton-mover-retirar').addEventListener('click', () => {
+  sonar('pop');
+  $('hoja-mover').close();
+  abrirRetiro(cuentaMover);
+});
+$('boton-mover-editar').addEventListener('click', () => {
+  sonar('toque');
+  $('hoja-mover').close();
+  abrirCuenta(cuentaMover, abrirPlata);
+});
+$('boton-agregar-principal').addEventListener('click', () => volverAPlata(() => abrirIngreso('principal')));
+$('boton-retirar-principal').addEventListener('click', () => volverAPlata(() => abrirRetiro('principal')));
+
+function abrirRetiro(id) {
+  const c = datosCuenta(id);
+  const f = $('form-retiro');
+  f.reset();
+  cuentaMover = id;
+  mostrarError('error-retiro', null);
+  $('titulo-retiro').textContent = t('Retirar de {cuenta}', { cuenta: `${c.emoji || '💳'} ${c.nombre}` });
+  $('etiqueta-monto-retiro').textContent = c.moneda === (estado.perfil?.moneda ?? 'USD') ? t('¿Cuánto sacaste?') : t('¿Cuánto sacaste? ({moneda})', { moneda: c.moneda });
+  $('hoja-retiro').showModal();
+}
+
+$('form-retiro').addEventListener('submit', unaVez(async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const c = datosCuenta(cuentaMover);
+  const cantidad = centavos(f.monto.value);
+  if (!cantidad) return mostrarError('error-retiro', t('Poné cuánto sacaste'));
+  const monto = await convertirHoy(cantidad, c.moneda, estado.perfil?.moneda ?? 'USD');
+  if (monto === null) return mostrarError('error-retiro', t('Sin cotización de {moneda} hoy', { moneda: c.moneda }));
+  const detalle = f.detalle.value.trim();
+  try {
+    await acciones.retirar(c, cantidad, monto, f.gasto.checked ? detalle || t('Retiro') : null);
+    $('hoja-retiro').close();
+    sonar(f.gasto.checked ? 'moneda' : 'plop');
+    saltoMono();
+    if (f.gasto.checked) $('frase').textContent = t('Anoté {nombre} como gasto pagado 🍌', { nombre: detalle || t('Retiro') });
+  } catch (err) {
+    mostrarError('error-retiro', err.message);
+  }
+}));
 
 iniciarCuentas({ estado, recargar: cargar, pintar: () => pintar(), alertaSuave: (texto, emoji) => alertaSuave(texto, emoji) });
 escucharHojaCuenta();
