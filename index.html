@@ -94,7 +94,7 @@
         <section>
           <div class="titulo-gastos">
             <h3 class="subtitulo" data-t>Gastos del mes</h3>
-            <button type="button" class="chip chico" id="boton-crear-grupo" data-t>🗂️ Crear grupo</button>
+            <button type="button" class="chip chico" id="boton-agregar" data-t>＋ Agregar</button>
           </div>
           <ul class="gastos" id="gastos"></ul>
           <p class="vacio" id="vacio" hidden data-t-html>Todavía no cargaste gastos. Tocá el <b>+</b> y Mona empieza a cuidar tu plata.</p>
@@ -123,7 +123,20 @@
         <label class="campo"><span id="etiqueta-monto-gasto">Monto</span><input name="monto" inputmode="decimal" placeholder="0" required autocomplete="off" /></label>
         <div class="emojis" id="emojis" aria-label="Ícono" data-t-aria></div>
 
-        <fieldset class="grupo">
+        <fieldset class="grupo" id="campo-mes-tarjeta" hidden>
+          <legend data-t>¿En qué resumen entra?</legend>
+          <div class="segmentos dos" role="radiogroup">
+            <button type="button" class="segmento" data-mes-tarjeta="0"></button>
+            <button type="button" class="segmento activo" data-mes-tarjeta="1"></button>
+          </div>
+        </fieldset>
+
+        <fieldset class="grupo" id="campo-marca-editar" hidden>
+          <legend data-t>Marca</legend>
+          <div class="chips marcas" data-marcas="editar"></div>
+        </fieldset>
+
+        <fieldset class="grupo" id="campo-duracion">
           <legend data-t>¿Cuánto dura?</legend>
           <div class="segmentos" role="radiogroup">
             <button type="button" class="segmento activo" data-duracion="mes" data-t>Solo este mes</button>
@@ -165,6 +178,39 @@
           <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden data-t>Borrar</button>
           <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
           <button type="submit" class="boton principal" data-t>Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: el ＋ Agregar de la lista (Fede, 4/11): gasto, grupo o tarjeta de crédito -->
+    <dialog autofocus class="hoja" id="hoja-agregar">
+      <form method="dialog">
+        <h3 data-t>¿Qué querés agregar?</h3>
+        <div class="opciones-borrar">
+          <button type="button" class="opcion-borrar" id="agregar-gasto"><b data-t>💸 Un gasto</b><small data-t>Algo que vas a pagar: una vez, varios meses o siempre.</small></button>
+          <button type="button" class="opcion-borrar" id="agregar-grupo"><b data-t>🗂️ Un grupo</b><small data-t>Junta gastos bajo un nombre (un viaje, un cumple). Se paga entero o de a uno.</small></button>
+          <button type="button" class="opcion-borrar" id="agregar-tarjeta"><b data-t>💳 Una tarjeta de crédito</b><small data-t>Anotás lo que comprás con ella y pagás el total cuando llega el resumen.</small></button>
+        </div>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: crear una tarjeta de crédito (un grupo que se paga entero, Fede 4/11) -->
+    <dialog autofocus class="hoja" id="hoja-nueva-tarjeta">
+      <form method="dialog" id="form-nueva-tarjeta">
+        <h3 data-t>💳 Nueva tarjeta de crédito</h3>
+        <p class="ayuda" data-t>Le vas cargando lo que comprás con ella, mes a mes, y cuando llega el resumen pagás el total.</p>
+        <fieldset class="grupo">
+          <legend data-t>Marca</legend>
+          <div class="chips marcas" data-marcas="nueva"></div>
+        </fieldset>
+        <label class="campo"><span data-t>¿Cómo la llamás? (opcional)</span><input name="nombre" maxlength="80" placeholder="Visa Galicia, la Master…" data-t-ph autocomplete="off" /></label>
+        <p class="error" id="error-nueva-tarjeta" hidden></p>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+          <button type="submit" class="boton principal" data-t>Crear tarjeta</button>
         </div>
       </form>
     </dialog>

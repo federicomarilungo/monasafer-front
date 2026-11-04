@@ -9,8 +9,8 @@ export function datosDemo(hoy = new Date()) {
     perfil: { saldo: USD(1450), ingresoMensual: { monto: USD(1200), diaCobro: 1 }, ingresoCobradoMes: mes },
     gastos: [
       { id: 'alq', nombre: 'Alquiler', emoji: '🏠', monto: USD(500), tipo: 'fijo', mesInicio: sumarMeses(mes, -6) },
-      // Un grupo (Fede, 2/11): la Visa, con lo que se pagó con la tarjeta adentro.
-      { id: 'visa', nombre: 'Visa', emoji: '💳', monto: USD(150), tipo: 'grupo', mesInicio: sumarMeses(mes, -2), mesFin: null },
+      // Una tarjeta (Fede, 2/11 y 4/11): la Visa, con lo que se pagó con ella adentro.
+      { id: 'visa', nombre: 'Visa', emoji: '💳', monto: USD(150), tipo: 'grupo', mesInicio: sumarMeses(mes, -2), mesFin: null, tarjeta: 'visa' },
       { id: 'zap', nombre: 'Zapatillas en cuotas', emoji: '👟', monto: USD(60), tipo: 'fijo', mesInicio: sumarMeses(mes, -2), mesFin: sumarMeses(mes, 2), grupoId: 'visa' },
       { id: 'cen', nombre: 'Cena con amigos', emoji: '🍔', monto: USD(70), tipo: 'puntual', mesInicio: mes, grupoId: 'visa' },
       { id: 'nfx', nombre: 'Netflix', emoji: '📺', monto: USD(12), tipo: 'fijo', mesInicio: sumarMeses(mes, -6), grupoId: 'visa' },

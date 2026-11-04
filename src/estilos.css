@@ -893,3 +893,22 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 .mover-principal { display: flex; gap: 8px; margin: -4px 0 10px; }
 .mover-principal .boton { flex: 1; }
 #form-retiro .interruptor { margin: 6px 0 4px; }
+
+/* Tarjetas de crédito (Fede, 4/11): un grupo con marca, arriba de todo, que se paga entero. */
+.gasto-tarjeta { border-style: solid; border-color: color-mix(in srgb, #1a1f71 25%, var(--borde)); }
+.marca {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 2.3rem; height: 1.5rem; border-radius: 5px; font: 800 italic 0.62rem/1 system-ui, sans-serif;
+  letter-spacing: 0.02em; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+.marca-visa { background: #1a1f71; color: #fff; font-size: 0.7rem; }
+.marca-amex { background: #2e77bc; color: #fff; font-style: normal; font-size: 0.58rem; }
+.marca-mastercard { background: #231f20; gap: 0; }
+.marca-mastercard i { width: 0.85rem; height: 0.85rem; border-radius: 50%; background: #eb001b; }
+.marca-mastercard i + i { background: #f79e1b; margin-left: -0.35rem; mix-blend-mode: screen; opacity: 0.95; }
+.marca-otra { background: var(--banana); font-style: normal; font-size: 0.95rem; }
+.gasto .emoji .marca { font-size: 0.7rem; }
+.marcas { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-marca { display: inline-flex; align-items: center; gap: 8px; }
+.chip-marca .marca { width: 1.9rem; height: 1.25rem; font-size: 0.55rem; }
+.chip-marca .marca-otra { font-size: 0.8rem; }
