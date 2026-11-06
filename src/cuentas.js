@@ -187,7 +187,8 @@ const leerUltima = () => {
 /**
  * De qué cuenta sale `monto` (en la moneda de la persona). Sin otras cuentas no pregunta y
  * devuelve la principal. Devuelve `{cuentaId, cantidad}` (cantidad en la moneda de la
- * cuenta, convertida con la cotización de hoy) o null si la persona cancela.
+ * cuenta, convertida con la cotización de hoy) o null si la persona cancela. `cuentaId:
+ * 'ninguna'`: queda pagado sin restar de ningún saldo.
  */
 export async function elegirOrigen(monto, titulo) {
   if (!hayCuentas()) return { cuentaId: null, cantidad: null };
@@ -225,17 +226,33 @@ export async function elegirOrigen(monto, titulo) {
       });
       return b;
     });
+    // Fede, 6/11: queda pagado sin tocar ningún saldo (ya lo descontó, o lo pagó otro).
+    const ninguna = { id: 'ninguna', cantidad: null };
+    const sin = document.createElement('button');
+    sin.type = 'button';
+    sin.className = `opcion-borrar${marcada === ninguna ? ' sugerida' : ''}`;
+    sin.innerHTML = '<b></b><small></small>';
+    sin.querySelector('b').textContent = `🚫 ${t('No restar de ninguna cuenta')}`;
+    sin.querySelector('small').textContent = t('Queda pagado y tus saldos no cambian');
+    sin.addEventListener('click', () => {
+      marcada = ninguna;
+      sonar('pop');
+      for (const x of botones) x.classList.toggle('sugerida', x === sin);
+    });
+    botones.push(sin);
     $('opciones-origen').replaceChildren(...botones);
     const confirmar = $('boton-confirmar-origen');
     confirmar.disabled = !marcada;
     confirmar.onclick = () => {
       if (!marcada) return;
-      elegida = { cuentaId: marcada.id, cantidad: marcada.id ? marcada.cantidad : null };
-      try {
-        localStorage.setItem(ULTIMA, marcada.id ?? 'principal');
-      } catch {
-        /* sin storage, no se recuerda */
-      }
+      elegida = { cuentaId: marcada.id, cantidad: marcada.id && marcada.id !== 'ninguna' ? marcada.cantidad : null };
+      // "Ninguna" es para una vez: no queda como la cuenta de siempre.
+      if (marcada.id !== 'ninguna')
+        try {
+          localStorage.setItem(ULTIMA, marcada.id ?? 'principal');
+        } catch {
+          /* sin storage, no se recuerda */
+        }
       hoja.close();
     };
     hoja.addEventListener('close', () => listo(elegida), { once: true });

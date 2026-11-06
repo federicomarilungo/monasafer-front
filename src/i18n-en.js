@@ -652,6 +652,8 @@ export const EN = {
   Retiro: 'Withdrawal',
   'Anoté {nombre} como gasto pagado 🍌': 'I logged {nombre} as a paid expense 🍌',
   '¿De qué cuenta sale la plata?': 'Which account does the money come from?',
+  'No restar de ninguna cuenta': "Don't take it from any account",
+  'Queda pagado y tus saldos no cambian': 'Marked as paid, your balances stay the same',
   'Pagar {nombre} · {monto}': 'Pay {nombre} · {monto}',
   'Tenés {saldo}': 'You have {saldo}',
   'sale {monto}': '{monto} comes out',

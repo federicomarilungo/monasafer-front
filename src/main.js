@@ -275,6 +275,7 @@ async function ejecutar(real, demo) {
 
 /** Mueve plata de una cuenta que no es la principal en la demo (`monto` en la moneda de la persona). */
 function moverEnDemo(d, cuentaId, monto, cantidad) {
+  if (cuentaId === 'ninguna') return;
   d.perfil.saldo += monto;
   const c = cuentaId && d.cuentas?.find((x) => x.id === cuentaId);
   if (c) {
