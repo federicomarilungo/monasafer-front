@@ -28,10 +28,23 @@ const nombreDe = (b) => (b.generico ? t('Sin asignar') : b.nombre);
 const enMoneda = (b) => b.unidad === monedaCuenta() && b.decimales === 2;
 const monedaBase = () => ctx.estado.perfil?.monedaCajon ?? monedaCuenta();
 
-function porUsd(unidad) {
+/** Los dólares de dolarapi que se pueden elegir para pasar pesos (Fede, 20/11). */
+const DOLARES = { oficial: 'Oficial', blue: 'Blue', bolsa: 'MEP', contadoconliqui: 'CCL', cripto: 'Cripto', tarjeta: 'Tarjeta', mayorista: 'Mayorista' };
+const dolarElegido = () => ctx.estado.perfil?.dolar ?? 'bolsa';
+
+/**
+ * Unidades de `unidad` por 1 USD. Para los pesos usa el dólar elegido: `venta` cuando los
+ * pesos se pasan a otra cosa (lo que pagás por cada dólar) y `compra` cuando algo se pasa a
+ * pesos (lo que te dan si lo vendés). Fede, 20/11.
+ */
+function porUsd(unidad, lado = 'venta') {
   const p = cotizaciones?.porUsd;
   if (!p) return null;
   const u = unidad.toUpperCase();
+  if (u === 'ARS') {
+    const d = cotizaciones.dolares?.[dolarElegido()];
+    if (d?.[lado]) return d[lado];
+  }
   // Un bolsillo en gramos se valúa como oro (la cotización es por onza troy).
   if (u === 'G') return p.XAU ? p.XAU * GRAMOS_POR_ONZA : null;
   if (u === 'OZ') return p.XAU ?? null;
@@ -41,8 +54,8 @@ function porUsd(unidad) {
 /** Centavos de `de` pasados a `a` con las cotizaciones del día (null si falta alguna). */
 function convertir(c, de, a) {
   if (de === a) return c;
-  const x = porUsd(de);
-  const y = porUsd(a);
+  const x = porUsd(de, 'venta');
+  const y = porUsd(a, 'compra');
   return x && y ? Math.round((c / x) * y) : null;
 }
 
@@ -59,13 +72,13 @@ function enBase(cantidad, b) {
   if (b.cotizacion) {
     const enSuMoneda = n * b.cotizacion.valor;
     if (b.cotizacion.moneda === base) return Math.round(enSuMoneda);
-    const de = porUsd(b.cotizacion.moneda);
-    const a = porUsd(base);
+    const de = porUsd(b.cotizacion.moneda, 'venta');
+    const a = porUsd(base, 'compra');
     return de && a ? Math.round((enSuMoneda / de) * a) : null;
   }
   if (b.unidad === base) return Math.round(n * 100);
-  const de = porUsd(b.unidad);
-  const a = porUsd(base);
+  const de = porUsd(b.unidad, 'venta');
+  const a = porUsd(base, 'compra');
   return de && a ? Math.round((n / de) * a * 100) : null;
 }
 
@@ -270,7 +283,8 @@ async function demoApi(metodo, ruta, c = {}) {
     demo.movimientos.unshift(x);
     return x;
   };
-  const [, recurso, id, accion] = ruta.split('/').filter(Boolean);
+  const [camino, consulta = ''] = ruta.split('?');
+  const [, recurso, id, accion] = camino.split('/').filter(Boolean);
   let r;
   if (metodo === 'GET') {
     r = { bolsillos: demo.bolsillos.map((b) => ({ ...b, cantidad: cant(b.id) })), movimientos: demo.movimientos, grupos: demo.grupos };
@@ -315,7 +329,7 @@ async function demoApi(metodo, ruta, c = {}) {
   } else if (recurso === 'bolsillos' && metodo === 'PATCH') {
     r = Object.assign(demo.bolsillos.find((b) => b.id === id), c);
   } else if (recurso === 'bolsillos' && metodo === 'DELETE') {
-    if (cant(id)) throw new Error(t('Primero vaciá el bolsillo'));
+    if (cant(id) && !consulta.includes('conPlata=1')) throw new Error(t('Primero vaciá el bolsillo'));
     demo.bolsillos = demo.bolsillos.filter((b) => b.id !== id);
     r = { ok: true };
   } else if (recurso === 'movimientos') {
@@ -1240,6 +1254,7 @@ function pintarCajon() {
     </div>`;
   f.querySelector('.cajon-historial')?.addEventListener('toggle', (e) => (historialAbierto = e.currentTarget.open));
   f.querySelector('#cajon-base')?.addEventListener('change', (e) => cambiarBase(e.target.value));
+  f.querySelector('#cajon-dolar')?.addEventListener('change', (e) => cambiarDolar(e.target.value));
   f.querySelector('[data-cerrar-cajon]').addEventListener('click', () => document.getElementById('hoja-cajon').close());
   f.querySelector('[data-ahorrar]')?.addEventListener('click', () => {
     const p = ctx.partido();
@@ -1305,7 +1320,41 @@ function htmlTotal(visibles) {
         cotizaciones ? t('Con la cotización de hoy ({hora})', { hora }) : t('Sin cotizaciones ahora: cuento solo lo que está en {moneda}', { moneda: monedaBase() })
       }${sinCotizar ? ` · ${t('{n} sin cotización', { n: sinCotizar })}` : ''}</small>
       <label class="cajon-base">${t('Ver en')} <select id="cajon-base">${MONEDAS_BASE.map((m) => `<option${m === monedaBase() ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+      ${htmlDolar(visibles)}
     </div>`;
+}
+
+/**
+ * Con qué dólar se pasan los pesos (Fede, 20/11), cuando hay pesos en juego: el selector y
+ * cuánto vale 1 USD, a la compra (USD → pesos) y a la venta (pesos → USD).
+ */
+function htmlDolar(visibles) {
+  const d = cotizaciones?.dolares;
+  if (!d || !Object.keys(d).length) return '';
+  const hayPesos =
+    monedaBase() === 'ARS' || monedaCuenta() === 'ARS' || visibles.some((b) => b.unidad === 'ARS' || b.cotizacion?.moneda === 'ARS' || ACCIONES[b.mercado] === 'ARS');
+  if (!hayPesos) return '';
+  const elegido = d[dolarElegido()] ? dolarElegido() : 'bolsa';
+  const v = d[elegido];
+  const pesos = (n) => new Intl.NumberFormat(locale(), { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(n);
+  return `<div class="cajon-dolar">
+      <label class="cajon-base">${t('Dólar')} <select id="cajon-dolar">${Object.keys(DOLARES)
+        .filter((k) => d[k])
+        .map((k) => `<option value="${k}"${k === elegido ? ' selected' : ''}>${t(DOLARES[k])}</option>`)
+        .join('')}</select></label>
+      ${v ? `<small>${t('1 USD = {compra} si vendés · {venta} si comprás', { compra: esc(pesos(v.compra)), venta: esc(pesos(v.venta)) })}</small>` : ''}
+    </div>`;
+}
+
+async function cambiarDolar(dolar) {
+  sonar('toque');
+  ctx.estado.perfil = { ...(ctx.estado.perfil ?? {}), dolar };
+  pintarCajon();
+  if (ctx.estado.modo !== 'real') return;
+  await api('PATCH', '/perfil', { dolar }).catch(ctx.avisar);
+  // El saldo suma las cuentas en otras monedas con este mismo dólar.
+  await ctx.recargar?.().catch(() => {});
+  ctx.pintar();
 }
 
 function equivalente(b) {
@@ -1322,6 +1371,37 @@ async function cambiarBase(moneda) {
 }
 
 // ---------- Un bolsillo: editar el total, volver a la cuenta, pasar a otro ----------
+
+function borrarBolsillo(boton, b) {
+  enviar(boton, async () => {
+    await llamar('DELETE', `/cajon/bolsillos/${b.id}${b.cantidad ? '?conPlata=1' : ''}`);
+    document.getElementById('hoja-ahorro').close();
+    sonar('caer');
+    ctx.alertaSuave(t('Borré {nombre}.', { nombre: nombreDe(b) }), '🗑️');
+    await refrescar(false);
+  });
+}
+
+/**
+ * Borrar un bolsillo con algo adentro (Fede, 20/11): se puede, pero antes se avisa que lo
+ * que tiene deja de contar y no vuelve al saldo (para eso está "Volver a la cuenta").
+ */
+function pasoBorrarBolsillo(b) {
+  sonar('toque');
+  paso(
+    `<h3>${t('🗑️ ¿Borrar {nombre}?', { nombre: `${esc(b.emoji)} ${esc(nombreDe(b))}` })}</h3>
+     <p>${t('Tiene {cantidad}. Si lo borrás, deja de contar en el cajón y no vuelve a tu saldo.', { cantidad: `<b>${esc(cantidadTexto(b.cantidad, b))}</b>` })}</p>
+     ${b.cantidad > 0 && !b.mercado ? `<p class="ayuda">${t('¿Querés esa plata en tu cuenta? Usá "Volver a la cuenta" en vez de borrar.')}</p>` : ''}
+     <div class="acciones">
+       <button type="button" class="boton" data-atras>${t('Atrás')}</button>
+       <button type="button" class="boton peligro" data-borrar-igual>${t('Borrar igual')}</button>
+     </div>`,
+    (f) => {
+      f.querySelector('[data-atras]').addEventListener('click', () => abrirBolsillo(b));
+      f.querySelector('[data-borrar-igual]').addEventListener('click', (e) => borrarBolsillo(e.currentTarget, b));
+    },
+  );
+}
 
 function abrirBolsillo(b) {
   sonar('toque');
@@ -1341,7 +1421,7 @@ function abrirBolsillo(b) {
        ${inversion ? '' : `<button type="button" class="chip" data-editar>${t('✏️ Nombre, moneda y valor')}</button>`}
        ${b.cantidad > 0 ? `<button type="button" class="chip" data-retirar>${t('↩️ Volver a la cuenta')}</button>` : ''}
        ${b.cantidad > 0 && cajon.bolsillos.length > 1 ? `<button type="button" class="chip" data-pasar>${t('↔️ Pasar a otro bolsillo')}</button>` : ''}
-       ${b.cantidad ? '' : `<button type="button" class="chip peligro" data-borrar>${t('🗑️ Borrar bolsillo')}</button>`}
+       <button type="button" class="chip peligro" data-borrar>${t('🗑️ Borrar bolsillo')}</button>
      </div>
      <div class="acciones"><button type="button" class="boton" data-cerrar-ahorro>${t('Cerrar')}</button><button type="submit" class="boton principal">${t('Guardar')}</button></div>`,
     (f) => {
@@ -1350,14 +1430,7 @@ function abrirBolsillo(b) {
       f.querySelector('[data-editar]')?.addEventListener('click', () => pasoEditarBolsillo(b));
       f.querySelector('[data-retirar]')?.addEventListener('click', () => pasoRetirar(b));
       f.querySelector('[data-pasar]')?.addEventListener('click', () => pasoTraspaso(b));
-      f.querySelector('[data-borrar]')?.addEventListener('click', (e) =>
-        enviar(e.currentTarget, async () => {
-          await llamar('DELETE', `/cajon/bolsillos/${b.id}`);
-          document.getElementById('hoja-ahorro').close();
-          sonar('caer');
-          await refrescar(false);
-        }),
-      );
+      f.querySelector('[data-borrar]')?.addEventListener('click', (e) => (b.cantidad ? pasoBorrarBolsillo(b) : borrarBolsillo(e.currentTarget, b)));
       f.onsubmit = (e) => {
         e.preventDefault();
         const nueva = leerCantidad(f.cantidad.value, b.decimales, !inversion);

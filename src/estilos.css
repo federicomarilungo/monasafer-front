@@ -938,3 +938,6 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 @media (prefers-reduced-motion: reduce) { .cajon-historial summary::before { transition: none; } }
 /* La cartera va en una columna: cada fila lleva su barrita y el porcentaje no se corta. */
 .cartera .bolsillos { grid-template-columns: minmax(0, 1fr); }
+/* Con qué dólar se pasan los pesos (Fede, 20/11). */
+.cajon-dolar { display: grid; justify-items: center; gap: 2px; }
+.cajon-dolar small { font-size: 0.78rem; }
