@@ -207,10 +207,35 @@ export async function elegirOrigen(monto, titulo) {
   $('ayuda-origen').textContent = t('¿De qué cuenta sale la plata?');
   return new Promise((listo) => {
     let elegida = null;
+    const confirmar = $('boton-confirmar-origen');
+    const resumen = $('resumen-origen');
+    // Fede (20/11): la tocada queda marcada (✓, como las otras hojas de opciones) y abajo
+    // dice qué va a pasar, para que Confirmar no sea a ciegas.
+    const pintar = () => {
+      opciones.forEach((o, i) => {
+        botones[i].classList.toggle('marcada', o === marcada);
+        botones[i].setAttribute('aria-checked', String(o === marcada));
+      });
+      const ult = botones[botones.length - 1];
+      ult.classList.toggle('marcada', marcada === ninguna);
+      ult.setAttribute('aria-checked', String(marcada === ninguna));
+      resumen.textContent = !marcada
+        ? ''
+        : marcada === ninguna
+          ? t('No se descuenta de ninguna cuenta')
+          : t('Se descuentan {monto} de {cuenta}', { monto: plataEn(marcada.cantidad, marcada.moneda), cuenta: `${marcada.emoji} ${marcada.nombre}` });
+      confirmar.disabled = !marcada;
+    };
+    const elegir = (o) => {
+      if (marcada !== o) sonar('pop');
+      marcada = o;
+      pintar();
+    };
     const botones = opciones.map((o) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = `opcion-borrar${o === marcada ? ' sugerida' : ''}`;
+      b.setAttribute('role', 'radio');
+      b.className = 'opcion-borrar';
       b.innerHTML = '<b></b><small></small>';
       b.querySelector('b').textContent = `${o.emoji} ${o.nombre}`;
       const otra = o.moneda !== moneda();
@@ -219,30 +244,22 @@ export async function elegirOrigen(monto, titulo) {
           ? t('Sin cotización de {moneda} hoy', { moneda: o.moneda })
           : `${t('Tenés {saldo}', { saldo: plataEn(o.saldo, o.moneda) })}${otra ? ` · ${t('sale {monto}', { monto: plataEn(o.cantidad, o.moneda) })}` : ''}`;
       b.disabled = o.cantidad === null;
-      b.addEventListener('click', () => {
-        marcada = o;
-        sonar('pop');
-        for (const x of botones) x.classList.toggle('sugerida', x === b);
-      });
+      b.addEventListener('click', () => elegir(o));
       return b;
     });
     // Fede, 6/11: queda pagado sin tocar ningún saldo (ya lo descontó, o lo pagó otro).
     const ninguna = { id: 'ninguna', cantidad: null };
     const sin = document.createElement('button');
     sin.type = 'button';
-    sin.className = `opcion-borrar${marcada === ninguna ? ' sugerida' : ''}`;
+    sin.setAttribute('role', 'radio');
+    sin.className = 'opcion-borrar';
     sin.innerHTML = '<b></b><small></small>';
     sin.querySelector('b').textContent = `🚫 ${t('No restar de ninguna cuenta')}`;
     sin.querySelector('small').textContent = t('Queda pagado y tus saldos no cambian');
-    sin.addEventListener('click', () => {
-      marcada = ninguna;
-      sonar('pop');
-      for (const x of botones) x.classList.toggle('sugerida', x === sin);
-    });
+    sin.addEventListener('click', () => elegir(ninguna));
     botones.push(sin);
     $('opciones-origen').replaceChildren(...botones);
-    const confirmar = $('boton-confirmar-origen');
-    confirmar.disabled = !marcada;
+    pintar();
     confirmar.onclick = () => {
       if (!marcada) return;
       elegida = { cuentaId: marcada.id, cantidad: marcada.id && marcada.id !== 'ninguna' ? marcada.cantidad : null };

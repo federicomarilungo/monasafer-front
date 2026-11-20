@@ -675,6 +675,8 @@ export const EN = {
   'Pagar {nombre} · {monto}': 'Pay {nombre} · {monto}',
   'Tenés {saldo}': 'You have {saldo}',
   'sale {monto}': '{monto} comes out',
+  'Se descuentan {monto} de {cuenta}': '{monto} will come out of {cuenta}',
+  'No se descuenta de ninguna cuenta': 'No account balance will change',
   'Sin cotización de {moneda} hoy': 'No {moneda} rate today',
   '＋ Nueva': '＋ New',
   'Sin cotizaciones ahora: el saldo cuenta solo lo que está en {moneda}': 'No exchange rates right now: the balance only counts what is in {moneda}',
