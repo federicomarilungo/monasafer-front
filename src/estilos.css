@@ -547,7 +547,6 @@ body {
 .cartera-titulo { display: flex; justify-content: space-between; align-items: baseline; font-family: 'Baloo 2', sans-serif; font-size: 1.15rem; }
 .cartera-titulo span { font-weight: 800; }
 .cartera .bolsillo { padding: 10px 12px; }
-.cartera-porcentaje { font-weight: 800; font-size: 0.85rem; background: color-mix(in srgb, var(--banana) 35%, transparent); border-radius: 99px; padding: 2px 8px; }
 .cajon-total b { font-family: 'Baloo 2', sans-serif; font-size: 2rem; line-height: 1.1; }
 .cajon-total small { color: var(--suave); font-weight: 700; }
 .cajon-base { font-weight: 800; font-size: 0.85rem; color: var(--suave); }
@@ -915,3 +914,27 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 .chip-marca { display: inline-flex; align-items: center; gap: 8px; }
 .chip-marca .marca { width: 1.9rem; height: 1.25rem; font-size: 0.55rem; }
 .chip-marca .marca-otra { font-size: 0.8rem; }
+
+/* Vista del cajón más clara (Fede, 20/11): montos que no se salen de la tarjeta, la parte de
+   cada inversión como texto y barrita, agregar arriba del historial y el historial plegado. */
+.cajon-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cajon-cabeza .ayuda { margin: 0; }
+.cajon-cabeza .chip-ordenar { flex: none; }
+.bolsillo-info b, .bolsillo-info small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bolsillo-cantidad { flex: none; text-align: right; }
+.cuota { display: block; height: 6px; margin: 0 12px 6px; border-radius: 99px; background: color-mix(in srgb, var(--borde) 70%, transparent); overflow: hidden; }
+.cuota i { display: block; height: 100%; border-radius: inherit; background: var(--banana); }
+.bolsillo.con-cuota { flex-wrap: wrap; row-gap: 6px; }
+.bolsillo.con-cuota .cuota { flex-basis: 100%; margin: 0; }
+.cajon-agregar { display: flex; flex-wrap: wrap; gap: 8px; }
+.cajon-agregar .chip { flex: 1 1 auto; }
+.cajon-historial summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; padding: 4px 0; }
+.cajon-historial summary::-webkit-details-marker { display: none; }
+.cajon-historial summary::before { content: '▸'; color: var(--suave); transition: transform 0.2s ease-out; }
+.cajon-historial[open] summary::before { transform: rotate(90deg); }
+.cajon-historial summary .subtitulo { margin: 0; }
+.cajon-historial summary small { color: var(--suave); font-weight: 800; background: var(--fondo); border-radius: 99px; padding: 0 8px; }
+.cajon-historial .historial { margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .cajon-historial summary::before { transition: none; } }
+/* La cartera va en una columna: cada fila lleva su barrita y el porcentaje no se corta. */
+.cartera .bolsillos { grid-template-columns: minmax(0, 1fr); }

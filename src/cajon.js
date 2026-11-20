@@ -892,8 +892,11 @@ export async function cargarCartera(posiciones) {
   return hechas;
 }
 
-/** Sumar una inversión que ya tenés: por cantidad o por lo que vale hoy (y se deduce la cantidad). */
-function pasoCargaInversion(datos) {
+/**
+ * Sumar una inversión que ya tenés: por cantidad o por lo que vale hoy (y se deduce la cantidad).
+ * Desde un grupo (Fede, 20/11), `datos` trae su `grupoId` y `despues` vuelve a ese grupo.
+ */
+function pasoCargaInversion(datos, despues = null) {
   paso(
     `<h3>${esc(datos.emoji)} ${esc(datos.unidad)}${datos.nombre !== datos.unidad ? ` · ${esc(datos.nombre)}` : ''}</h3>
      ${htmlCantidadInversion(datos, null)}
@@ -901,7 +904,8 @@ function pasoCargaInversion(datos) {
     (f) => {
       escucharCantidadInversion(f, datos);
       const cerrar = () => document.getElementById('hoja-ahorro').close();
-      f.querySelector('[data-atras]').addEventListener('click', () => pasoTicker(datos.mercado, pasoCargaInversion, () => pasoInversion(pasoCargaInversion, cerrar)));
+      const otra = (d) => pasoCargaInversion({ ...d, grupoId: datos.grupoId }, despues);
+      f.querySelector('[data-atras]').addEventListener('click', () => pasoTicker(datos.mercado, otra, () => pasoInversion(otra, despues ?? cerrar)));
       f.onsubmit = (e) => {
         e.preventDefault();
         const c = leerCantidad(f.cantidad.value, datos.decimales);
@@ -909,10 +913,11 @@ function pasoCargaInversion(datos) {
         enviar(f.querySelector('[type=submit]'), async () => {
           const b = await llamar('POST', '/cajon/bolsillos', datos);
           if (c) await llamar('POST', `/cajon/bolsillos/${b.id}/ajustar`, { cantidad: c, detalle: t('Lo que ya tenía') });
-          cerrar();
+          if (!despues) cerrar();
           sonar('fanfarria');
           ctx.saltoMono();
           await refrescar(false);
+          despues?.();
         });
       };
     },
@@ -961,39 +966,59 @@ function etiquetaInversion(b) {
   return [b.nombre !== b.unidad ? b.nombre : null, t(mercado)].filter(Boolean).join(' · ');
 }
 
+/**
+ * Qué parte de la cartera es `v` (Fede, 20/11: "100%" y "0%" confundían cuando una carpeta
+ * tenía casi todo). Cerca de los bordes va con un decimal, así 0,2 % no se lee como nada.
+ */
+function porcentaje(v, total) {
+  if (!(total > 0) || !(v > 0)) return null;
+  const x = (v / total) * 100;
+  const texto = new Intl.NumberFormat(locale(), { style: 'percent', maximumFractionDigits: x < 10 || x > 90 ? 1 : 0 }).format(x / 100);
+  return { x, texto };
+}
+
+/** La cuota como barrita debajo de la fila (vacía si no hay qué mostrar). */
+const barraCuota = (p) => (p ? `<span class="cuota" aria-hidden="true"><i style="width:${Math.max(p.x, 1.5).toFixed(1)}%"></i></span>` : '');
+
+/** Una inversión suelta (o dentro de un grupo): ticker, mercado y su parte del total. */
+function filaInversion(b, total) {
+  const p = porcentaje(enBase(b.cantidad, b) ?? 0, total);
+  const detalle = [etiquetaInversion(b), p?.texto].filter(Boolean).join(' · ');
+  return `<li><button type="button" class="bolsillo con-cuota" data-b="${b.id}">
+          <span class="bolsillo-info"><b>${esc(b.emoji)} ${esc(b.unidad)}</b><small>${esc(detalle)}</small></span>
+          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span>${barraCuota(p)}</button></li>`;
+}
+
 function htmlCartera(cartera, grupos = [], deGrupo = () => []) {
   if (!cartera.length && !grupos.length) return '';
   const valor = (b) => enBase(b.cantidad, b) ?? 0;
   const todos = [...cartera, ...grupos.flatMap(deGrupo)];
   const total = todos.reduce((s, b) => s + valor(b), 0);
-  const pct = (v) => (total > 0 && v > 0 ? `<span class="cartera-porcentaje">${Math.round((v / total) * 100)}%</span>` : '');
-  const fila = (b) => `<li><button type="button" class="bolsillo" data-b="${b.id}">
-          <span class="bolsillo-info"><b>${esc(b.emoji)} ${esc(b.unidad)}</b><small>${esc(etiquetaInversion(b))}</small></span>
-          ${pct(valor(b))}
-          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`;
   // Fede (2/11): un grupo con los índices adentro (la cartera de cada broker, por ejemplo).
   const bloques = grupos
     .map((g) => {
       const adentro = deGrupo(g).sort((a, b) => valor(b) - valor(a));
       const v = adentro.reduce((s, b) => s + valor(b), 0);
-      return { v, html: htmlGrupo(g, adentro, v, pct(v)) };
+      return { v, html: htmlGrupo(g, adentro, v, porcentaje(v, total)) };
     })
     .sort((a, b) => b.v - a.v);
+  // "Tu cartera" y no "Inversiones": la gente suele llamar así a una de sus carpetas.
   return `<div class="cartera">
-      <div class="cartera-titulo"><b>${t('📈 Inversiones')}</b><span>≈ ${esc(plataBase(total))}</span></div>
-      <ul class="bolsillos">${bloques.map((x) => x.html).join('')}${cartera.map(fila).join('')}</ul>
+      <div class="cartera-titulo"><b>${t('📈 Tu cartera')}</b><span>≈ ${esc(plataBase(total))}</span></div>
+      <ul class="bolsillos">${bloques.map((x) => x.html).join('')}${cartera.map((b) => filaInversion(b, total)).join('')}</ul>
     </div>`;
 }
 
-/** Un grupo del cajón: cabecera con lo que suma y sus bolsillos adentro. */
-function htmlGrupo(g, adentro, valor, extra = '', filas = '', mover = '') {
+/** Un grupo del cajón: cabecera con lo que suma (y su parte de la cartera, si va ahí). */
+function htmlGrupo(g, adentro, valor, cuota = null, filas = '', mover = '') {
   const n = adentro.length;
+  const cuantos = n ? (n === 1 ? t('1 bolsillo') : t('{n} bolsillos', { n })) : t('Vacío: tocá para sumarle bolsillos');
   return `<li class="grupo-cajon">${mover}<div class="grupo-cajon-caja">
       <button type="button" class="bolsillo grupo-cabeza" data-g="${g.id}">
         <span class="bolsillo-emoji">${esc(g.emoji || '🗂️')}</span>
-        <span class="bolsillo-info"><b>${esc(g.nombre)}</b><small>${n ? (n === 1 ? t('1 bolsillo') : t('{n} bolsillos', { n })) : t('Vacío: tocá para sumarle bolsillos')}</small></span>
-        ${extra}
+        <span class="bolsillo-info"><b>${esc(g.nombre)}</b><small>${esc([cuantos, cuota?.texto].filter(Boolean).join(' · '))}</small></span>
         <span class="bolsillo-cantidad">${n ? `≈ ${esc(plataBase(valor))}` : ''}</span></button>
+      ${barraCuota(cuota)}
       ${filas ? `<ul class="bolsillos adentro">${filas}</ul>` : ''}</div></li>`;
 }
 
@@ -1006,22 +1031,45 @@ function verGrupo(g) {
   const valor = (b) => enBase(b.cantidad, b) ?? 0;
   const adentro = cajon.bolsillos.filter((b) => b.grupoId === g.id).sort((a, b) => valor(b) - valor(a));
   const total = adentro.reduce((s, b) => s + valor(b), 0);
+  const deInversiones = adentro.length > 0 && adentro.every(esInversion);
+  const comunes = adentro.length > 0 && !adentro.some(esInversion);
   const fila = (b) =>
     b.mercado || esInversion(b)
-      ? `<li><button type="button" class="bolsillo" data-b="${b.id}">
-          <span class="bolsillo-info"><b>${esc(b.emoji)} ${esc(b.unidad)}</b><small>${esc(etiquetaInversion(b))}</small></span>
-          ${total > 0 && valor(b) > 0 ? `<span class="cartera-porcentaje">${Math.round((valor(b) / total) * 100)}%</span>` : ''}
-          <span class="bolsillo-cantidad">${esc(cantidadTexto(b.cantidad, b))}${equivalente(b)}</span></button></li>`
+      ? filaInversion(b, total)
       : `<li>${filaBolsillo(b)}</li>`;
   paso(
     `<h3>${esc(g.emoji || '🗂️')} ${esc(g.nombre)}</h3>
      <div class="cajon-total"><small>${t('Vale')}</small><b>≈ ${esc(plataBase(total))}</b></div>
-     ${adentro.length ? `<ul class="bolsillos adentro">${adentro.map(fila).join('')}</ul>` : `<p class="vacio">${t('Vacío: tocá Editar para sumarle bolsillos')}</p>`}
+     ${adentro.length ? `<ul class="bolsillos adentro">${adentro.map(fila).join('')}</ul>` : `<p class="vacio">${t('Vacío: sumale algo o pasale bolsillos con Editar')}</p>`}
+     <div class="cajon-agregar">
+       ${deInversiones ? '' : `<button type="button" class="chip" data-agregar-bolsillo>${t('＋ Bolsillo')}</button>`}
+       ${comunes ? '' : `<button type="button" class="chip" data-agregar-inversion>${t('＋ Inversión')}</button>`}
+     </div>
      <div class="acciones">
        <button type="button" class="boton" data-editar-grupo>${t('Editar')}</button>
        <button type="button" class="boton principal" data-cerrar-ahorro>${t('Cerrar')}</button>
      </div>`,
     (f) => {
+      // Fede (20/11): sumar algo nuevo sin salir del grupo. Una carpeta de inversiones suma
+      // inversiones; una común, bolsillos; una vacía, cualquiera de los dos.
+      const volverAlGrupo = () => verGrupo((cajon.grupos ?? []).find((x) => x.id === g.id) ?? g);
+      f.querySelector('[data-agregar-inversion]')?.addEventListener('click', () => {
+        sonar('pop');
+        const listo = (d) => pasoCargaInversion({ ...d, grupoId: g.id }, volverAlGrupo);
+        pasoInversion(listo, volverAlGrupo);
+      });
+      f.querySelector('[data-agregar-bolsillo]')?.addEventListener('click', () =>
+        pasoNuevaCategoria(
+          (b) =>
+            enviar(document.querySelector('#form-ahorro [type=submit]'), async () => {
+              await llamar('POST', '/cajon/bolsillos', { ...b, grupoId: g.id });
+              sonar('pop');
+              await refrescar(false);
+              volverAlGrupo();
+            }),
+          volverAlGrupo,
+        ),
+      );
       f.querySelector('[data-editar-grupo]').addEventListener('click', () => pasoGrupo(g));
       f.querySelectorAll('[data-b]').forEach((el) => el.addEventListener('click', () => abrirBolsillo(cajon.bolsillos.find((b) => b.id === el.dataset.b))));
     },
@@ -1105,6 +1153,7 @@ function pasoGrupo(g = null) {
 export function abrirCajon() {
   sonar('pop');
   ordenando = false;
+  historialAbierto = false;
   pintarCajon();
   document.getElementById('hoja-cajon').showModal();
   Promise.all([cargarCajon().then(cargarTodosLosPrecios), cargarCotizaciones()]).then(() => document.getElementById('hoja-cajon').open && pintarCajon());
@@ -1119,6 +1168,8 @@ const TIPOS = {
 };
 
 let ordenando = false;
+/** El historial arranca cerrado (Fede, 20/11) y queda como lo dejó la persona mientras la hoja está abierta. */
+let historialAbierto = false;
 
 function pintarCajon() {
   const f = document.getElementById('form-cajon');
@@ -1140,8 +1191,12 @@ function pintarCajon() {
   f.innerHTML = `
     <h3>${t('🍌 Cajón de bananas')}</h3>
     ${htmlTotal(todos)}
-    <p class="ayuda">${t('Lo que guardaste y en qué. Tocá un bolsillo para editarlo: si lo cambiás, te pregunto en qué se usó.')}</p>
-    ${visibles.length > 1 ? `<button type="button" class="chip chip-ordenar${ordenando ? ' activo' : ''}" data-ordenar>${ordenando ? t('✓ Listo') : t('↕️ Ordenar')}</button>` : ''}
+    ${
+      visibles.length
+        ? `<div class="cajon-cabeza"><p class="ayuda">${ordenando ? t('Subí o bajá cada bolsillo.') : t('Tocá un bolsillo para editarlo.')}</p>
+      ${visibles.length > 1 ? `<button type="button" class="chip chip-ordenar${ordenando ? ' activo' : ''}" data-ordenar>${ordenando ? t('✓ Listo') : t('↕️ Ordenar')}</button>` : ''}</div>`
+        : ''
+    }
     <ul class="bolsillos${ordenando ? ' ordenando' : ''}">${visibles
       .map((x, i) => {
         const mover = ordenando
@@ -1149,16 +1204,21 @@ function pintarCajon() {
           : '';
         if (x.g) {
           const adentro = deGrupo(x.g);
-          return htmlGrupo(x.g, adentro, adentro.reduce((s, b) => s + valor(b), 0), '', '', mover);
+          return htmlGrupo(x.g, adentro, adentro.reduce((s, b) => s + valor(b), 0), null, '', mover);
         }
         return `<li>${mover}${filaBolsillo(x.b)}</li>`;
       })
       .join('')}</ul>
     ${htmlCartera(cartera, grupos.filter(enCartera), deGrupo)}
     ${todos.length ? '' : `<p class="vacio">${t('Todavía no guardaste nada. Cuando te sobre, tocá Ahorrar y Mona lo trae acá.')}</p>`}
+    <div class="cajon-agregar">
+      <button type="button" class="chip" data-nuevo>${t('＋ Bolsillo')}</button>
+      <button type="button" class="chip" data-inversion>${t('＋ Inversión')}</button>
+      <button type="button" class="chip" data-grupo>${t('＋ Grupo')}</button>
+    </div>
     ${
       cajon.movimientos.length
-        ? `<h4 class="subtitulo">${t('Historial')}</h4>
+        ? `<details class="cajon-historial"${historialAbierto ? ' open' : ''}><summary><h4 class="subtitulo">${t('Historial')}</h4><small>${cajon.movimientos.length > 60 ? '60+' : cajon.movimientos.length}</small></summary>
     <ul class="historial">${cajon.movimientos
       .slice(0, 60)
       .map((m) => {
@@ -1171,16 +1231,14 @@ function pintarCajon() {
           <span class="movimiento-info"><b>${t(nombre)} · ${esc(b.emoji)} ${esc(nombreDe(b))}</b><small>${esc(fecha(m))}${m.detalle ? ` · ${esc(m.detalle)}` : ''}${m.monto ? ` · ${plata(m.monto)}` : ''}</small></span>
           <span class="${m.cantidad > 0 ? 'mas' : 'menos'}">${signo}${esc(cantidadTexto(Math.abs(m.cantidad), b))}</span></button></li>`;
       })
-      .join('')}</ul>`
+      .join('')}</ul></details>`
         : ''
     }
     <div class="acciones">
-      <button type="button" class="boton" data-nuevo>${t('Nuevo bolsillo')}</button>
-      <button type="button" class="boton" data-inversion>${t('📈 Inversión')}</button>
-      <button type="button" class="boton" data-grupo>${t('🗂️ Grupo')}</button>
       <button type="button" class="boton" data-cerrar-cajon>${t('Cerrar')}</button>
       ${ctx.estado.mesVisto === ctx.mesActual ? `<button type="button" class="boton principal" data-ahorrar>${t('Ahorrar 🍌')}</button>` : ''}
     </div>`;
+  f.querySelector('.cajon-historial')?.addEventListener('toggle', (e) => (historialAbierto = e.currentTarget.open));
   f.querySelector('#cajon-base')?.addEventListener('change', (e) => cambiarBase(e.target.value));
   f.querySelector('[data-cerrar-cajon]').addEventListener('click', () => document.getElementById('hoja-cajon').close());
   f.querySelector('[data-ahorrar]')?.addEventListener('click', () => {
