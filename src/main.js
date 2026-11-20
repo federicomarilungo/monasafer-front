@@ -1507,35 +1507,57 @@ function pedirBorrar(g, mes) {
   );
 }
 
-/** Hoja con opciones grandes (borrar, editar). Devuelve true si se eligió y salió bien. */
+/**
+ * Hoja con opciones grandes (borrar, editar). Fede (20/11): tocar una opción solo la marca
+ * (arranca marcada la sugerida) y OK la aplica. Devuelve true si se eligió y salió bien.
+ */
 function elegirOpcion(titulo, ayuda, opciones) {
   const hoja = $('hoja-borrar');
   $('titulo-borrar').textContent = titulo;
   $('ayuda-borrar').textContent = ayuda;
   const lista = $('opciones-borrar');
   lista.replaceChildren();
+  let marcada = opciones.find((o) => o.sugerida) ?? opciones[0];
+  const botones = opciones.map((o) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'radio');
+    b.className = `opcion-borrar${o.peligro ? ' peligro' : ''}`;
+    b.innerHTML = '<b></b><small></small>';
+    b.querySelector('b').textContent = o.titulo;
+    b.querySelector('small').textContent = o.detalle;
+    b.addEventListener('click', () => {
+      if (marcada !== o) sonar('toque');
+      marcada = o;
+      pintar();
+    });
+    lista.append(b);
+    return b;
+  });
+  const ok = $('ok-borrar');
+  const pintar = () => {
+    botones.forEach((b, i) => {
+      const si = opciones[i] === marcada;
+      b.classList.toggle('marcada', si);
+      b.setAttribute('aria-checked', String(si));
+    });
+    ok.classList.toggle('peligro', !!marcada.peligro);
+  };
+  pintar();
   return new Promise((listo) => {
     let elegida = false;
-    for (const o of opciones) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `opcion-borrar${o.sugerida ? ' sugerida' : ''}${o.peligro ? ' peligro' : ''}`;
-      b.innerHTML = '<b></b><small></small>';
-      b.querySelector('b').textContent = o.titulo;
-      b.querySelector('small').textContent = o.detalle;
-      b.addEventListener('click', async () => {
-        elegida = true;
-        hoja.close();
-        try {
-          await hacerConDeshacer(o);
-          listo(true);
-        } catch (err) {
-          avisar(err);
-          listo(false);
-        }
-      });
-      lista.append(b);
-    }
+    ok.onclick = async () => {
+      if (elegida) return;
+      elegida = true;
+      hoja.close();
+      try {
+        await hacerConDeshacer(marcada);
+        listo(true);
+      } catch (err) {
+        avisar(err);
+        listo(false);
+      }
+    };
     hoja.addEventListener('close', () => elegida || listo(false), { once: true });
     hoja.showModal();
   });

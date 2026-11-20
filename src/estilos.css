@@ -228,8 +228,11 @@ body {
 }
 .opcion-borrar b { font-size: 1rem; }
 .opcion-borrar small { color: var(--suave); }
-.opcion-borrar.sugerida { border-color: var(--selva); }
-.opcion-borrar.sugerida b::after { content: ' ✓'; color: var(--selva); }
+.opcion-borrar.marcada { border-color: var(--selva); background: color-mix(in srgb, var(--selva) 10%, var(--fondo)); }
+.opcion-borrar.marcada b::after { content: ' ✓'; color: var(--selva); }
+.opcion-borrar.marcada.peligro { border-color: var(--rojo); background: color-mix(in srgb, var(--rojo) 8%, var(--fondo)); }
+.opcion-borrar.marcada.peligro b::after { color: var(--rojo); }
+#ok-borrar.peligro { background: var(--rojo); border-color: #a3262c; box-shadow: 0 4px 0 #a3262c; }
 .opcion-borrar.peligro b { color: var(--rojo); }
 .opcion-borrar:active:not(:disabled) { transform: translateY(2px); }
 .opcion-borrar:disabled { opacity: .55; cursor: default; }
