@@ -50,3 +50,21 @@ test('moneda sugerida por país o zona horaria', async () => {
   assert.equal(monedaSugerida(['pt-BR'], 'UTC'), 'BRL');
   assert.equal(monedaSugerida(['en'], 'UTC'), 'USD');
 });
+
+test('borrarUno: un ⌫ borra un solo dígito y salta los separadores', async () => {
+  const { borrarUno } = await import('./formato.js');
+  // 560.000 → 50.000 (cursor después del 6)
+  assert.deepEqual(borrarUno('560.000', 2, true, 'es'), { valor: '50.000', pos: 1 });
+  // Cursor después del punto: borra el 0 de antes, no el punto
+  assert.deepEqual(borrarUno('560.000', 4, true, 'es'), { valor: '56.000', pos: 2 });
+  // Al final
+  assert.deepEqual(borrarUno('1.234.567', 9, true, 'es'), { valor: '123.456', pos: 7 });
+  // Supr antes del punto borra el dígito de después
+  assert.deepEqual(borrarUno('1.234', 1, false, 'es'), { valor: '134', pos: 1 });
+  // Decimales
+  assert.deepEqual(borrarUno('1.234,56', 8, true, 'es'), { valor: '1.234,5', pos: 7 });
+  assert.deepEqual(borrarUno('1,234.56', 5, true, 'en'), { valor: '123.56', pos: 3 });
+  // Nada para borrar
+  assert.equal(borrarUno('560.000', 0, true, 'es'), null);
+  assert.equal(borrarUno('', 0, true, 'es'), null);
+});

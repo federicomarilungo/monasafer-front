@@ -46,6 +46,27 @@ export function conMiles(texto, idioma = idiomaActual()) {
   return `${menos}${agrupado || '0'}${dec}${decimales}`;
 }
 
+/**
+ * Borra un solo carácter de un monto como lo haría la tecla ⌫ (o Supr con `atras` false)
+ * con el cursor en `pos`, saltando los separadores de miles: en "560.000" con el cursor
+ * después del punto, borra el 0 de antes. Devuelve el texto ya con miles y dónde queda el
+ * cursor, o null si no hay nada para borrar. Lo usa main.js para que en el celular un ⌫
+ * nunca se lleve el número entero (Fede, 20/11/2026: "al borrar un dígito se borra todo").
+ */
+export function borrarUno(valor, pos, atras = true, idioma = idiomaActual()) {
+  const significativo = idioma === 'en' ? /[\d.\-]/ : /[\d,\-]/;
+  const paso = atras ? -1 : 1;
+  let i = atras ? pos - 1 : pos;
+  while (i >= 0 && i < valor.length && !significativo.test(valor[i])) i += paso;
+  if (i < 0 || i >= valor.length) return null;
+  const crudo = valor.slice(0, i) + valor.slice(i + 1);
+  const antes = [...crudo.slice(0, i)].filter((c) => significativo.test(c)).length;
+  const nuevo = conMiles(crudo, idioma);
+  let cursor = 0;
+  for (let n = 0; cursor < nuevo.length && n < antes; cursor++) if (significativo.test(nuevo[cursor])) n++;
+  return { valor: nuevo, pos: cursor };
+}
+
 /** Moneda probable de quien entra, por país del navegador o zona horaria. USD si no se sabe. */
 export function monedaSugerida(
   idiomas = (typeof navigator !== 'undefined' && (navigator.languages?.length ? navigator.languages : [navigator.language])) || [],

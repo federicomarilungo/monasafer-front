@@ -5,7 +5,7 @@ import { datosDemo } from './demo.js';
 import { mostrarBotonGoogle, olvidarGoogle } from './google.js';
 import { unaVez } from './ocupado.js';
 import { api, ErrorApi, guardarToken, hayToken } from './api.js';
-import { centavos, plata, nombreMes, configurarMoneda, conMiles, paraEditar, monedaSugerida } from './formato.js';
+import { centavos, plata, nombreMes, configurarMoneda, conMiles, borrarUno, paraEditar, monedaSugerida } from './formato.js';
 import { alternarSilencio, estaSilenciado, sonar } from './sonidos.js';
 import { iniciarOnboarding } from './onboarding.js';
 import { MESES_NORMAL, MESES_PREMIUM, montarMetricas } from './metricas.js';
@@ -2681,20 +2681,63 @@ document.addEventListener('focusout', (e) => {
 });
 
 
+// Sin sugerencias ni autocorrector en los montos: en Android el teclado toma "560.000" como
+// una palabra y puede reemplazarla entera. Va antes del foco (al tocar) para que el
+// teclado lo lea al abrirse.
+const sinSugerencias = (el) => {
+  if (!el.matches?.(MONTO) || el.hasAttribute('spellcheck')) return;
+  el.setAttribute('spellcheck', 'false');
+  el.setAttribute('autocorrect', 'off');
+  el.setAttribute('autocapitalize', 'off');
+  if (!el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
+};
+document.addEventListener('pointerdown', (e) => sinSugerencias(e.target), true);
+document.addEventListener('focusin', (e) => sinSugerencias(e.target), true);
+
+// Un ⌫ (o Supr) borra un solo dígito. En el celular, editar un monto precargado (560.000 →
+// 580.000) a veces se llevaba el número entero: el teclado borraba toda la "palabra".
+// Antes de borrar se anota cómo estaba; si después falta más de un dígito, se deja como
+// habría quedado con un solo ⌫. También salta el punto de miles en vez de borrarlo.
+const antesDeBorrar = new WeakMap();
+document.addEventListener('beforeinput', (e) => {
+  const el = e.target;
+  if (!el.matches?.(MONTO)) return;
+  if (!/^delete(Content)?(Backward|Forward)$/.test(e.inputType ?? '') || el.selectionStart !== el.selectionEnd) {
+    antesDeBorrar.delete(el);
+    return;
+  }
+  antesDeBorrar.set(el, { valor: el.value, pos: el.selectionStart, atras: !e.inputType.endsWith('Forward') });
+});
+const significativos = (s) => s.replace(idiomaActual() === 'en' ? /[^\d.\-]/g : /[^\d,\-]/g, '');
+function corregirBorrado(el, e) {
+  const previo = antesDeBorrar.get(el);
+  antesDeBorrar.delete(el);
+  if (!previo || !/^delete/.test(e.inputType ?? '') || /Word|Line/.test(e.inputType)) return false;
+  const esperado = borrarUno(previo.valor, previo.pos, previo.atras);
+  if (!esperado || significativos(esperado.valor) === significativos(el.value)) return false;
+  el.value = esperado.valor;
+  try {
+    el.setSelectionRange(esperado.pos, esperado.pos);
+  } catch {
+    /* inputs sin selección */
+  }
+  return true;
+}
+
 // Separador de miles mientras se escribe (700000 → 700.000). El cursor queda después del
 // mismo dígito. En castellano un "." pegado como decimal ("12.50") se toma como coma.
 document.addEventListener('input', (e) => {
   const el = e.target;
-  if (!el.matches?.(MONTO) || e.isComposing) return;
+  if (!el.matches?.(MONTO)) return;
+  if (corregirBorrado(el, e) || e.isComposing) return;
   let valor = el.value;
   if (e.inputType === 'insertFromPaste' && idiomaActual() !== 'en' && /^\s*-?\d+\.\d{1,2}\s*$/.test(valor)) valor = valor.replace('.', ',');
   const nuevo = conMiles(valor);
   if (nuevo === el.value) return;
-  const significativos = (s) => s.replace(idiomaActual() === 'en' ? /[^\d.\-]/g : /[^\d,\-]/g, '').length;
-  const antes = significativos(el.value.slice(0, el.selectionStart ?? el.value.length));
+  const antes = significativos(el.value.slice(0, el.selectionStart ?? el.value.length)).length;
   el.value = nuevo;
   let pos = 0;
-  for (let n = 0; pos < nuevo.length && n < antes; pos++) if (significativos(nuevo[pos])) n++;
+  for (let n = 0; pos < nuevo.length && n < antes; pos++) if (significativos(nuevo[pos]).length) n++;
   try {
     el.setSelectionRange(pos, pos);
   } catch {
