@@ -390,7 +390,10 @@
     <!-- Hoja: saldo e ingreso -->
     <dialog autofocus class="hoja" id="hoja-plata">
       <form method="dialog" id="form-plata">
-        <h3 data-t>Tu plata</h3>
+        <div class="titulo-hoja">
+          <h3 data-t>Tu plata</h3>
+          <button type="button" class="chip" id="boton-otra-cuenta" hidden data-t>＋ Cuenta</button>
+        </div>
         <label class="campo monto-campo" id="campo-saldo-plata"><span data-t>Saldo en cuenta hoy</span><input name="saldo" inputmode="decimal" autocomplete="off" /></label>
         <div class="mover-principal" id="mover-principal">
           <button type="button" class="boton chico" id="boton-agregar-principal" data-t>＋ Agregar plata</button>

@@ -120,6 +120,7 @@ export const EN = {
 
   // Plata
   'Tu plata': 'Your money',
+  '＋ Cuenta': '＋ Account',
   'Saldo en cuenta hoy': 'Account balance today',
   'Ingreso mensual': 'Monthly income',
   'Día de cobro': 'Payday',

@@ -253,9 +253,10 @@ function empezarOnboarding() {
 
 async function cargar() {
   const [datos, perfil] = await Promise.all([api('GET', '/datos'), api('GET', '/perfil')]);
+  // Primero el perfil: las cuentas en otra moneda se pasan con el dólar que eligió (Fede, 20/11).
+  estado.perfil = perfil;
   await sumarCuentas(datos, perfil);
   estado.datos = datos;
-  estado.perfil = perfil;
   estado.pasados = {};
   if (perfil.idioma && perfil.idioma !== idiomaActual()) {
     cambiarIdioma(perfil.idioma);
@@ -1968,6 +1969,8 @@ function abrirPlata() {
   // Con varias cuentas, el saldo se corrige en cada una.
   $('campo-saldo-plata').hidden = hayCuentas();
   $('boton-nueva-cuenta').hidden = hayCuentas();
+  // Con cuentas, la lista no deja lugar al botón de abajo: va al lado del título (Fede, 20/11).
+  $('boton-otra-cuenta').hidden = !hayCuentas();
   $('mover-principal').hidden = hayCuentas();
   if (hayCuentas()) pintarListaCuentas($('cuentas-plata'), (id) => volverAPlata(() => abrirMover(id)));
   else $('cuentas-plata').replaceChildren();
@@ -1999,6 +2002,7 @@ function volverAPlata(abrir) {
 }
 
 $('boton-nueva-cuenta').addEventListener('click', () => volverAPlata(() => abrirCuenta(null, abrirPlata)));
+$('boton-otra-cuenta').addEventListener('click', () => volverAPlata(() => abrirCuenta(null, abrirPlata)));
 
 // Tocar una cuenta (Fede, 3/11): agregar plata, retirar plata o editarla.
 let cuentaMover = 'principal';

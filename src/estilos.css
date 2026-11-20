@@ -941,3 +941,7 @@ details[open] > summary.tipo-fila b::after { content: ' ▴'; }
 /* Con qué dólar se pasan los pesos (Fede, 20/11). */
 .cajon-dolar { display: grid; justify-items: center; gap: 2px; }
 .cajon-dolar small { font-size: 0.78rem; }
+/* Título de hoja con una acción al lado ("Tu plata" + "＋ Cuenta", Fede 20/11). */
+.titulo-hoja { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.titulo-hoja h3 { margin: 0; }
+.titulo-hoja .chip { flex: none; font-size: 0.8rem; padding: 6px 12px; }
