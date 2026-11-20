@@ -737,9 +737,16 @@ function pintar(direccion = 0) {
   estado.filas = [];
   // Las tarjetas van arriba de todo (Fede, 4/11).
   const porId = new Map(d.gastos.map((g) => [g.id, g]));
-  const orden = [...r.gastos].sort((a, b) => esTarjeta(porId.get(b.gastoId)) - esTarjeta(porId.get(a.gastoId)));
+  // Fede (20/11): lo que se sacó de un mes ("Solo en diciembre" al borrar, monto del mes 0)
+  // no se ve ese mes; los demás meses siguen igual.
+  const salteado = (l) =>
+    !l.pagado &&
+    d.estados.some((e) => e.gastoId === l.gastoId && e.mes === r.mes && e.montoDelMes === 0) &&
+    !d.usos.some((u) => u.gastoId === l.gastoId && u.mes === r.mes);
+  const visibles = r.gastos.filter((l) => !salteado(l));
+  const orden = [...visibles].sort((a, b) => esTarjeta(porId.get(b.gastoId)) - esTarjeta(porId.get(a.gastoId)));
   lista.replaceChildren(...orden.map(filaGasto));
-  $('vacio').hidden = r.gastos.length > 0;
+  $('vacio').hidden = visibles.length > 0;
   // Se animan las filas y no la lista: con la lista animada (transform) Chrome a veces
   // dejaba de registrar los toques sobre los gastos después de cambiar de mes.
   if (direccion) {
