@@ -1067,7 +1067,9 @@ function pintarForma() {
   const editandoTarjeta = esTarjeta(gastoEditado);
   $('campo-duracion').hidden = editandoTarjeta || forma.pague;
   $('campo-marca-editar').hidden = !editandoTarjeta;
-  $('emojis').hidden = editandoTarjeta;
+  // Gasté (Fede, 21/11): solo qué es y el monto; el ícono se adivina por el nombre.
+  $('emojis').hidden = editandoTarjeta || forma.pague;
+  $('resumen-gasto').hidden = forma.pague;
   const varios = forma.duracion === 'hasta';
   $('meses-elegir').hidden = !varios;
   $('meses-rapidos').hidden = !varios;
@@ -1107,7 +1109,6 @@ function pintarForma() {
   if (forma.enTarjeta) texto += ' ' + t('Lo pagás con {tarjeta}.', { tarjeta: forma.enGrupo.nombre });
   else if (forma.enGrupo) texto += ' ' + t('Va adentro de {grupo}.', { grupo: `${forma.enGrupo.emoji || '💳'} ${forma.enGrupo.nombre}` });
   if (editandoTarjeta) texto = t('Una tarjeta de todos los meses: le anotás compras y pagás el total.');
-  if (forma.pague) texto = t('{cuanto} ya pagado en {inicio}. Después elegís de dónde salió la plata.', v);
   $('resumen-gasto').textContent = texto;
 }
 
@@ -1210,7 +1211,7 @@ function abrirGasto(g = null, enGrupo = null, pague = false) {
     ? t('Compra con {tarjeta}', { tarjeta: enGrupo.nombre })
     : enGrupo
       ? t('Nuevo gasto en {grupo}', { grupo: `${enGrupo.emoji || '💳'} ${enGrupo.nombre}` })
-      : esTarjeta(g) ? t('Editar tarjeta') : g?.tipo === 'grupo' ? t('Editar grupo') : g ? t('Editar gasto') : pague ? t('🧾 Pagué algo') : t('Nuevo gasto');
+      : esTarjeta(g) ? t('Editar tarjeta') : g?.tipo === 'grupo' ? t('Editar grupo') : g ? t('Editar gasto') : pague ? t('🧾 Gasté') : t('Nuevo gasto');
   $('boton-guardar-gasto').textContent = pague ? t('Siguiente') : t('Guardar');
   $('boton-borrar-gasto').hidden = !g;
   // El monto del mes que estás mirando: si cambió desde algún mes, el que rige ahí.
@@ -1233,7 +1234,7 @@ function abrirGasto(g = null, enGrupo = null, pague = false) {
   // Primero el nombre (Fede, 21/10): con él se adivina el ícono y después va el monto.
 }
 
-// El + (Fede, 21/11): "Pagué algo" o "Anotar gasto futuro".
+// El + (Fede, 21/11): dos botones, Gasté (ya pagado) y Gastaré (a futuro).
 $('boton-nuevo').addEventListener('click', () => {
   sonar('toque');
   // En un mes pasado no se cargan gastos: se vuelve a hoy y se carga ahí.
@@ -1251,6 +1252,7 @@ $('nuevo-futuro').addEventListener('click', () => {
   $('hoja-nuevo').close();
   sonar('pop');
   abrirGasto();
+  $('titulo-hoja-gasto').textContent = t('📅 Gastaré');
 });
 
 /** Lo que ya pagaste es de hoy: si estabas mirando otro mes, se vuelve a este. */
@@ -1741,6 +1743,7 @@ $('agregar-gasto').addEventListener('click', () => {
   $('hoja-agregar').close();
   sonar('pop');
   abrirGasto();
+  $('titulo-hoja-gasto').textContent = t('📅 Gastaré');
 });
 $('agregar-grupo').addEventListener('click', () => {
   $('hoja-agregar').close();

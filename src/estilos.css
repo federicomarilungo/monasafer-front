@@ -222,6 +222,16 @@ body {
 
 /* ---- Borrar un gasto que se repite y Deshacer ---- */
 .opciones-borrar { display: grid; gap: 8px; }
+.dos-caminos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 4px; }
+.camino {
+  font: inherit; display: grid; justify-items: center; gap: 6px; padding: 22px 8px 18px; border-radius: 24px; cursor: pointer;
+  border: 2px solid var(--borde); background: var(--fondo); color: var(--texto);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12); transition: transform 0.1s;
+}
+.camino span { font-size: 2.6rem; line-height: 1; }
+.camino b { font-family: 'Baloo 2', sans-serif; font-size: 1.3rem; }
+.camino:active { transform: translateY(3px) scale(0.97); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12); }
+#nuevo-pague { border-color: var(--selva); }
 .seccion-origen { margin: 6px 2px -2px; color: var(--suave); }
 .resumen-origen { margin: 10px 0 0; min-height: 1.3em; font-weight: 700; color: var(--selva); text-align: center; }
 .resumen-origen:empty { display: none; }

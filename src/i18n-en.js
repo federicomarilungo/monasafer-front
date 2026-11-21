@@ -829,13 +829,13 @@ export const EN = {
   '＋ Anotar compra': '＋ Add purchase',
   'el mes que viene': 'next month',
   'este mes': 'this month',
-  // Pagué algo (Fede, 21/11)
-  "🧾 Pagué algo": "🧾 I paid something",
-  "Ya lo pagaste hoy: queda pagado y elegís de dónde salió la plata.": "You already paid it: it is marked as paid and you pick where the money came from.",
-  "📅 Anotar gasto futuro": "📅 Add a future expense",
+  // Gasté / Gastaré (Fede, 21/11)
+  "Gasté": "I spent",
+  "Gastaré": "I'll spend",
+  "🧾 Gasté": "🧾 I spent",
+  "📅 Gastaré": "📅 I'll spend",
   "¿Qué querés anotar?": "What do you want to add?",
   "Siguiente": "Next",
-  "{cuanto} ya pagado en {inicio}. Después elegís de dónde salió la plata.": "{cuanto} already paid in {inicio}. Next you pick where the money came from.",
   "Quedan {queda}": "{queda} left",
   "Se usa de {nombre}: quedan {queda}": "Taken from {nombre}: {queda} left",
   "Lleva {suma}": "{suma} so far",
