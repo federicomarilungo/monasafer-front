@@ -30,6 +30,8 @@ import {
   plataEn,
   saldoPrincipal,
   sumarCuentas,
+  leerUltima,
+  origenDeCuenta,
 } from './cuentas.js';
 
 const $ = (id) => document.getElementById(id);
@@ -1070,6 +1072,8 @@ function pintarForma() {
   // Gasté (Fede, 21/11): solo qué es y el monto; el ícono se adivina por el nombre.
   $('emojis').hidden = editandoTarjeta || forma.pague;
   $('resumen-gasto').hidden = forma.pague;
+  $('campo-sale').hidden = !forma.pague || !opcionesSale().length;
+  if (forma.pague) pintarSale();
   const varios = forma.duracion === 'hasta';
   $('meses-elegir').hidden = !varios;
   $('meses-rapidos').hidden = !varios;
@@ -1221,6 +1225,7 @@ function abrirGasto(g = null, enGrupo = null, pague = false) {
   emojiAMano = !!g;
   formaDesdeGasto(g);
   forma.pague = pague && !g && !enGrupo;
+  forma.sale = null;
   forma.enGrupo = enGrupo;
   // Lo que pagás hoy con la tarjeta te viene el mes que viene (Fede, 4/11): por defecto, el
   // resumen siguiente y de una vez. Si fuiste a mirar otro mes, ese.
@@ -1267,11 +1272,58 @@ function abrirPague() {
 }
 
 /**
- * Después de "Pagué algo": de dónde salió la plata (Fede, 21/11). Una cuenta (el selector de
- * siempre), una reserva del mes (queda como un uso), un grupo (adentro, pagado) o una tarjeta
- * (adentro, en el resumen que viene: esa se paga con el total). Devuelve false si se canceló.
+ * Gasté, paso 1 (Fede, 21/11): debajo del monto, de dónde sale: tus cuentas (los bolsillos)
+ * o una tarjeta de crédito. Con solo la cuenta principal y sin tarjetas no se muestra.
+ */
+const mesTarjetaGaste = () => sumarMeses(mesActual, 1);
+function opcionesSale() {
+  const tarjetas = estado.datos.gastos.filter((x) => esTarjeta(x) && vigente(x, mesTarjetaGaste()));
+  if (!hayCuentas() && !tarjetas.length) return [];
+  return [
+    { id: 'principal', texto: `🏦 ${nombrePrincipal()}` },
+    ...cuentas().map((c) => ({ id: c.id, texto: `${c.emoji || '💳'} ${c.nombre}` })),
+    ...tarjetas.map((x) => ({ id: x.id, tarjeta: x, texto: `💳 ${x.nombre}` })),
+    { id: 'ninguna', texto: `🚫 ${t('Ninguna')}` },
+  ];
+}
+function pintarSale() {
+  const ops = opcionesSale();
+  if (!ops.length) return;
+  if (!ops.some((o) => o.id === forma.sale)) forma.sale = ops.find((o) => o.id === leerUltima())?.id ?? 'principal';
+  $('chips-sale').replaceChildren(
+    ...ops.map((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `chip${o.id === forma.sale ? ' activo' : ''}`;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(o.id === forma.sale));
+      b.textContent = o.texto;
+      b.addEventListener('click', () => {
+        if (forma.sale !== o.id) sonar('toque');
+        forma.sale = o.id;
+        pintarSale();
+      });
+      return b;
+    }),
+  );
+}
+
+/**
+ * Gasté, paso 2 (Fede, 21/11): con la cuenta ya elegida, si hay reservas (o grupos) en el
+ * mes pregunta si lo resta de alguna. Con tarjeta no: entra a la tarjeta en el resumen que
+ * viene (se paga con el total). Devuelve false si se canceló.
  */
 async function pagueAlgo(g) {
+  const tarjeta = opcionesSale().find((o) => o.id === forma.sale)?.tarjeta;
+  if (tarjeta) {
+    const mes = nombreMes(mesTarjetaGaste()).split(' ')[0].toLowerCase();
+    await acciones.guardarGasto(null, { ...g, grupoId: tarjeta.id, mesInicio: mesTarjetaGaste() });
+    $('frase').textContent = t('Anotado en {tarjeta}: lo pagás en {mes} 💳', { tarjeta: tarjeta.nombre, mes });
+    alertaSuave(t('Anotado en {tarjeta}: lo pagás en {mes}', { tarjeta: tarjeta.nombre, mes }), '💳');
+    return true;
+  }
+  const origen = await origenDeCuenta(forma.sale, g.monto);
+  if (!origen) throw new Error(t('Sin cotización de {moneda} hoy', { moneda: cuentaDe(forma.sale)?.moneda ?? '' }));
   const lineas = resumenDelMes(estado.datos, hoy, mesActual)?.gastos ?? [];
   const deLista = (id) => estado.datos.gastos.find((x) => x.id === id);
   const reservas = lineas
@@ -1292,49 +1344,34 @@ async function pagueAlgo(g) {
       resumen: t('Queda pagado adentro de {grupo}', { grupo: l.nombre }),
     }))
     .filter((x) => x.grupo && cabeEnGrupo(g, x.grupo));
-  // Lo que pagás hoy con la tarjeta te viene en el resumen del mes que viene (como al cargar una compra).
-  const mesTarjeta = sumarMeses(mesActual, 1);
-  const mesCorto = nombreMes(mesTarjeta).split(' ')[0].toLowerCase();
-  const tarjetas = estado.datos.gastos
-    .filter((x) => esTarjeta(x) && vigente(x, mesTarjeta))
-    .map((x) => ({
-      tipo: 'tarjeta', grupo: x, emoji: '💳', nombre: x.nombre,
-      detalle: t('Va al resumen de {mes}', { mes: mesCorto }),
-      resumen: t('Se suma al resumen de {mes} de {tarjeta}', { mes: mesCorto, tarjeta: x.nombre }),
-    }));
-  const r = await elegirOrigen(g.monto, `${g.emoji} ${g.nombre} · ${plata(g.monto)}`, {
-    ayuda: t('¿De dónde salió la plata?'),
-    extras: [
-      { titulo: t('De una reserva'), items: reservas },
-      { titulo: t('En un grupo'), items: grupos },
-      { titulo: t('Con una tarjeta de crédito'), items: tarjetas },
-    ],
-  });
-  if (!r) return false;
-  const d = r.destino;
-  if (!d) {
-    await acciones.crearPagado(g, r);
-    $('frase').textContent = t('¡Anotado y pagado! Ya salió de tu plata 🍌');
-    return true;
+  let d = null;
+  if (reservas.length || grupos.length) {
+    const no = { tipo: 'no', emoji: '➖', nombre: t('No, de ninguna'), detalle: '', resumen: '', marcada: true };
+    const r = await elegirOrigen(g.monto, `${g.emoji} ${g.nombre} · ${plata(g.monto)}`, {
+      ayuda: reservas.length ? t('¿Lo restás de alguna reserva?') : t('¿Va en algún grupo?'),
+      sinCuentas: true,
+      extras: [
+        { titulo: '', items: [no] },
+        { titulo: reservas.length && grupos.length ? t('Reservas') : '', items: reservas },
+        { titulo: t('En un grupo'), items: reservas.length ? grupos : [] },
+        { titulo: '', items: reservas.length ? [] : grupos },
+      ],
+    });
+    if (!r) return false;
+    d = r.destino?.tipo === 'no' ? null : r.destino;
   }
-  if (d.tipo === 'tarjeta') {
-    await acciones.guardarGasto(null, { ...g, grupoId: d.grupo.id, mesInicio: mesTarjeta });
-    $('frase').textContent = t('Anotado en {tarjeta}: lo pagás en {mes} 💳', { tarjeta: d.nombre, mes: mesCorto });
-    alertaSuave(t('Anotado en {tarjeta}: lo pagás en {mes}', { tarjeta: d.nombre, mes: mesCorto }), '💳');
-    return true;
-  }
-  // Reserva o grupo: igual que pagar a mano, con varias cuentas pregunta de cuál salió.
-  const origen = await elegirOrigen(g.monto, `${g.emoji} ${g.nombre} · ${plata(g.monto)}`);
-  if (!origen) return false;
-  if (d.tipo === 'reserva') {
+  if (d?.tipo === 'reserva') {
     // Una reserva que bajaba sola pasa a "cargo cada uso" desde este mes, como al cargar un uso.
     const res = deLista(d.l.gastoId);
     if (res && res.modoReserva !== 'manual') await acciones.guardarGasto(res.id, { modoReserva: 'manual' });
     await acciones.usar(d.l.gastoId, g.monto, g.nombre, origen);
     $('frase').textContent = t('Lo saqué de {reserva} 🍌', { reserva: d.nombre });
-  } else {
+  } else if (d?.tipo === 'grupo') {
     await acciones.crearPagado({ ...g, grupoId: d.grupo.id }, origen);
     $('frase').textContent = t('Pagado y adentro de {grupo} 🍌', { grupo: d.nombre });
+  } else {
+    await acciones.crearPagado(g, origen);
+    $('frase').textContent = t('¡Anotado y pagado! Ya salió de tu plata 🍌');
   }
   return true;
 }

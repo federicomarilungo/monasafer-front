@@ -176,7 +176,7 @@ export function pintarDestinos(el, elegida, alElegir, alPedirNueva) {
 }
 
 const ULTIMA = 'monasafer.cuentaPago';
-const leerUltima = () => {
+export const leerUltima = () => {
   try {
     return localStorage.getItem(ULTIMA);
   } catch {
@@ -194,7 +194,7 @@ const leerUltima = () => {
  * secciones `[{titulo, items: [{emoji, nombre, detalle, ...}]}]` (reservas, grupos, tarjetas).
  * Con extras siempre pregunta, y si se elige uno devuelve `{destino: item}`.
  */
-export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null } = {}) {
+export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null, sinCuentas = false } = {}) {
   extras = extras.filter((x) => x.items.length);
   if (!hayCuentas() && !extras.length) return { cuentaId: null, cantidad: null };
   const opciones = [
@@ -207,6 +207,8 @@ export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null } 
   const ultima = leerUltima();
   const habilitadas = opciones.filter((o) => o.cantidad !== null);
   let marcada = habilitadas.find((o) => (o.id ?? 'principal') === ultima) ?? habilitadas[0] ?? null;
+  // `sinCuentas` (Gasté, paso 2): solo los extras; arranca marcado el que trae `marcada`.
+  if (sinCuentas) marcada = null;
   const hoja = $('hoja-origen');
   $('titulo-origen').textContent = titulo;
   $('ayuda-origen').textContent = ayuda ?? t('¿De qué cuenta sale la plata?');
@@ -257,8 +259,8 @@ export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null } 
       return p;
     };
     const nodos = [];
-    if (extras.length) nodos.push(etiqueta(t('De tu plata')));
-    for (const o of opciones) {
+    if (extras.length && !sinCuentas) nodos.push(etiqueta(t('De tu plata')));
+    for (const o of sinCuentas ? [] : opciones) {
       const otra = o.moneda !== moneda();
       const b = boton(
         o,
@@ -271,10 +273,14 @@ export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null } 
       nodos.push(b);
     }
     // Fede, 6/11: queda pagado sin tocar ningún saldo (ya lo descontó, o lo pagó otro).
-    nodos.push(boton(ninguna, `🚫 ${t('No restar de ninguna cuenta')}`, t('Queda pagado y tus saldos no cambian')));
+    if (!sinCuentas) nodos.push(boton(ninguna, `🚫 ${t('No restar de ninguna cuenta')}`, t('Queda pagado y tus saldos no cambian')));
     for (const sec of extras) {
-      nodos.push(etiqueta(sec.titulo));
-      for (const item of sec.items) nodos.push(boton({ destino: item }, `${item.emoji} ${item.nombre}`, item.detalle));
+      if (sec.titulo) nodos.push(etiqueta(sec.titulo));
+      for (const item of sec.items) {
+        const o = { destino: item };
+        if (item.marcada) marcada = o;
+        nodos.push(boton(o, `${item.emoji} ${item.nombre}`, item.detalle));
+      }
     }
     $('opciones-origen').replaceChildren(...nodos);
     pintar();
@@ -297,6 +303,23 @@ export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null } 
     hoja.addEventListener('close', () => listo(elegida), { once: true });
     hoja.showModal();
   });
+}
+
+/**
+ * Gasté (Fede, 21/11): la cuenta elegida en la hoja, como la devuelve elegirOrigen
+ * (`cantidad` en su moneda). null si no hay cotización de su moneda hoy.
+ */
+export async function origenDeCuenta(id, monto) {
+  if (id === 'ninguna') return { cuentaId: 'ninguna', cantidad: null };
+  const c = id && id !== 'principal' ? cuentaDe(id) : null;
+  const cantidad = c ? await convertirHoy(monto, moneda(), c.moneda) : null;
+  if (c && cantidad === null) return null;
+  try {
+    localStorage.setItem(ULTIMA, c ? c.id : 'principal');
+  } catch {
+    /* sin storage, no se recuerda */
+  }
+  return c ? { cuentaId: c.id, cantidad } : { cuentaId: null, cantidad: null };
 }
 
 /** Las cuentas en "Tu plata": cada una se toca para editarla o pasar plata. */

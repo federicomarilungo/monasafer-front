@@ -830,6 +830,11 @@ export const EN = {
   'el mes que viene': 'next month',
   'este mes': 'this month',
   // Gasté / Gastaré (Fede, 21/11)
+  "¿De dónde sale?": "Where does it come from?",
+  "Ninguna": "None",
+  "No, de ninguna": "No, none",
+  "¿Lo restás de alguna reserva?": "Take it from a budget?",
+  "¿Va en algún grupo?": "Does it go in a group?",
   "Gasté": "I spent",
   "Gastaré": "I'll spend",
   "🧾 Gasté": "🧾 I spent",
