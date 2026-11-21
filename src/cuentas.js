@@ -189,9 +189,14 @@ const leerUltima = () => {
  * devuelve la principal. Devuelve `{cuentaId, cantidad}` (cantidad en la moneda de la
  * cuenta, convertida con la cotización de hoy) o null si la persona cancela. `cuentaId:
  * 'ninguna'`: queda pagado sin restar de ningún saldo.
+ *
+ * `extras` (Fede, 21/11, "Pagué algo"): más lugares de donde pudo salir la plata, por
+ * secciones `[{titulo, items: [{emoji, nombre, detalle, ...}]}]` (reservas, grupos, tarjetas).
+ * Con extras siempre pregunta, y si se elige uno devuelve `{destino: item}`.
  */
-export async function elegirOrigen(monto, titulo) {
-  if (!hayCuentas()) return { cuentaId: null, cantidad: null };
+export async function elegirOrigen(monto, titulo, { extras = [], ayuda = null } = {}) {
+  extras = extras.filter((x) => x.items.length);
+  if (!hayCuentas() && !extras.length) return { cuentaId: null, cantidad: null };
   const opciones = [
     { id: null, emoji: '🏦', nombre: nombrePrincipal(), moneda: moneda(), saldo: saldoPrincipal(), cantidad: monto },
     ...(await Promise.all(
@@ -204,26 +209,28 @@ export async function elegirOrigen(monto, titulo) {
   let marcada = habilitadas.find((o) => (o.id ?? 'principal') === ultima) ?? habilitadas[0] ?? null;
   const hoja = $('hoja-origen');
   $('titulo-origen').textContent = titulo;
-  $('ayuda-origen').textContent = t('¿De qué cuenta sale la plata?');
+  $('ayuda-origen').textContent = ayuda ?? t('¿De qué cuenta sale la plata?');
   return new Promise((listo) => {
     let elegida = null;
     const confirmar = $('boton-confirmar-origen');
     const resumen = $('resumen-origen');
+    // Cada botón con lo que elige: una cuenta, "ninguna" o un destino de los extras.
+    const filas = [];
+    const ninguna = { id: 'ninguna', cantidad: null };
     // Fede (20/11): la tocada queda marcada (✓, como las otras hojas de opciones) y abajo
     // dice qué va a pasar, para que Confirmar no sea a ciegas.
     const pintar = () => {
-      opciones.forEach((o, i) => {
-        botones[i].classList.toggle('marcada', o === marcada);
-        botones[i].setAttribute('aria-checked', String(o === marcada));
-      });
-      const ult = botones[botones.length - 1];
-      ult.classList.toggle('marcada', marcada === ninguna);
-      ult.setAttribute('aria-checked', String(marcada === ninguna));
+      for (const [o, b] of filas) {
+        b.classList.toggle('marcada', o === marcada);
+        b.setAttribute('aria-checked', String(o === marcada));
+      }
       resumen.textContent = !marcada
         ? ''
         : marcada === ninguna
           ? t('No se descuenta de ninguna cuenta')
-          : t('Se descuentan {monto} de {cuenta}', { monto: plataEn(marcada.cantidad, marcada.moneda), cuenta: `${marcada.emoji} ${marcada.nombre}` });
+          : marcada.destino
+            ? marcada.destino.resumen
+            : t('Se descuentan {monto} de {cuenta}', { monto: plataEn(marcada.cantidad, marcada.moneda), cuenta: `${marcada.emoji} ${marcada.nombre}` });
       confirmar.disabled = !marcada;
     };
     const elegir = (o) => {
@@ -231,37 +238,52 @@ export async function elegirOrigen(monto, titulo) {
       marcada = o;
       pintar();
     };
-    const botones = opciones.map((o) => {
+    const boton = (o, nombre, detalle) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.setAttribute('role', 'radio');
       b.className = 'opcion-borrar';
       b.innerHTML = '<b></b><small></small>';
-      b.querySelector('b').textContent = `${o.emoji} ${o.nombre}`;
+      b.querySelector('b').textContent = nombre;
+      b.querySelector('small').textContent = detalle;
+      b.addEventListener('click', () => elegir(o));
+      filas.push([o, b]);
+      return b;
+    };
+    const etiqueta = (texto) => {
+      const p = document.createElement('p');
+      p.className = 'etiqueta seccion-origen';
+      p.textContent = texto;
+      return p;
+    };
+    const nodos = [];
+    if (extras.length) nodos.push(etiqueta(t('De tu plata')));
+    for (const o of opciones) {
       const otra = o.moneda !== moneda();
-      b.querySelector('small').textContent =
+      const b = boton(
+        o,
+        `${o.emoji} ${o.nombre}`,
         o.cantidad === null
           ? t('Sin cotización de {moneda} hoy', { moneda: o.moneda })
-          : `${t('Tenés {saldo}', { saldo: plataEn(o.saldo, o.moneda) })}${otra ? ` · ${t('sale {monto}', { monto: plataEn(o.cantidad, o.moneda) })}` : ''}`;
+          : `${t('Tenés {saldo}', { saldo: plataEn(o.saldo, o.moneda) })}${otra ? ` · ${t('sale {monto}', { monto: plataEn(o.cantidad, o.moneda) })}` : ''}`,
+      );
       b.disabled = o.cantidad === null;
-      b.addEventListener('click', () => elegir(o));
-      return b;
-    });
+      nodos.push(b);
+    }
     // Fede, 6/11: queda pagado sin tocar ningún saldo (ya lo descontó, o lo pagó otro).
-    const ninguna = { id: 'ninguna', cantidad: null };
-    const sin = document.createElement('button');
-    sin.type = 'button';
-    sin.setAttribute('role', 'radio');
-    sin.className = 'opcion-borrar';
-    sin.innerHTML = '<b></b><small></small>';
-    sin.querySelector('b').textContent = `🚫 ${t('No restar de ninguna cuenta')}`;
-    sin.querySelector('small').textContent = t('Queda pagado y tus saldos no cambian');
-    sin.addEventListener('click', () => elegir(ninguna));
-    botones.push(sin);
-    $('opciones-origen').replaceChildren(...botones);
+    nodos.push(boton(ninguna, `🚫 ${t('No restar de ninguna cuenta')}`, t('Queda pagado y tus saldos no cambian')));
+    for (const sec of extras) {
+      nodos.push(etiqueta(sec.titulo));
+      for (const item of sec.items) nodos.push(boton({ destino: item }, `${item.emoji} ${item.nombre}`, item.detalle));
+    }
+    $('opciones-origen').replaceChildren(...nodos);
     pintar();
     confirmar.onclick = () => {
       if (!marcada) return;
+      if (marcada.destino) {
+        elegida = { destino: marcada.destino };
+        return hoja.close();
+      }
       elegida = { cuentaId: marcada.id, cantidad: marcada.id && marcada.id !== 'ninguna' ? marcada.cantidad : null };
       // "Ninguna" es para una vez: no queda como la cuenta de siempre.
       if (marcada.id !== 'ninguna')

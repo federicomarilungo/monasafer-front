@@ -177,7 +177,7 @@
         <div class="acciones">
           <button type="button" class="boton peligro" id="boton-borrar-gasto" hidden data-t>Borrar</button>
           <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
-          <button type="submit" class="boton principal" data-t>Guardar</button>
+          <button type="submit" class="boton principal" id="boton-guardar-gasto">Guardar</button>
         </div>
       </form>
     </dialog>
@@ -187,9 +187,24 @@
       <form method="dialog">
         <h3 data-t>¿Qué querés agregar?</h3>
         <div class="opciones-borrar">
-          <button type="button" class="opcion-borrar" id="agregar-gasto"><b data-t>💸 Un gasto</b><small data-t>Algo que vas a pagar: una vez, varios meses o siempre.</small></button>
+          <button type="button" class="opcion-borrar" id="agregar-pague"><b data-t>🧾 Pagué algo</b><small data-t>Ya lo pagaste hoy: queda pagado y elegís de dónde salió la plata.</small></button>
+          <button type="button" class="opcion-borrar" id="agregar-gasto"><b data-t>📅 Anotar gasto futuro</b><small data-t>Algo que vas a pagar: una vez, varios meses o siempre.</small></button>
           <button type="button" class="opcion-borrar" id="agregar-grupo"><b data-t>🗂️ Un grupo</b><small data-t>Junta gastos bajo un nombre (un viaje, un cumple). Se paga entero o de a uno.</small></button>
           <button type="button" class="opcion-borrar" id="agregar-tarjeta"><b data-t>💳 Una tarjeta de crédito</b><small data-t>Anotás lo que comprás con ella y pagás el total cuando llega el resumen.</small></button>
+        </div>
+        <div class="acciones">
+          <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hoja: el + flotante (Fede, 21/11): algo que ya pagaste o un gasto que vas a tener -->
+    <dialog autofocus class="hoja" id="hoja-nuevo">
+      <form method="dialog">
+        <h3 data-t>¿Qué querés anotar?</h3>
+        <div class="opciones-borrar">
+          <button type="button" class="opcion-borrar" id="nuevo-pague"><b data-t>🧾 Pagué algo</b><small data-t>Ya lo pagaste hoy: queda pagado y elegís de dónde salió la plata.</small></button>
+          <button type="button" class="opcion-borrar" id="nuevo-futuro"><b data-t>📅 Anotar gasto futuro</b><small data-t>Algo que vas a pagar: una vez, varios meses o siempre.</small></button>
         </div>
         <div class="acciones">
           <button type="button" class="boton" data-cerrar data-t>Cancelar</button>
