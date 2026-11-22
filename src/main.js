@@ -794,7 +794,7 @@ iniciarCajon({
 });
 $('ahorrar-mes').addEventListener('click', () => {
   sonar('pop');
-  abrirAhorrar(partirBalance(estado.datos, resumenDelMes(estado.datos, hoy, mesActual), estado.datos.ahorros ?? []).delMes > 0 ? 'mes' : 'acumulado');
+  abrirAhorrar();
 });
 $('boton-cajon').addEventListener('click', abrirCajon);
 

@@ -408,6 +408,8 @@ function pintarResumen() {
 
 /** M5 del cajón: al arrancar el mes, Mona propone guardar lo que sobró de antes. */
 export function sugerenciaCajon(acumulado, descartadas, descartar) {
+  // Nunca más que el balance: si este mes da negativo, lo de antes ya se usa para cubrirlo.
+  acumulado = Math.min(acumulado, ctx.partido().total);
   const clave = `cajon:${ctx.mesActual}`;
   const yaAhorro = (ctx.estado.datos.ahorros ?? []).some((a) => a.mes === ctx.mesActual);
   if (acumulado <= 0 || yaAhorro || descartadas.includes(clave)) return null;
@@ -420,7 +422,7 @@ export function sugerenciaCajon(acumulado, descartadas, descartar) {
     sonar('toque');
     tarjeta.remove();
   });
-  tarjeta.querySelector('[data-si]').addEventListener('click', () => abrirAhorrar('acumulado'));
+  tarjeta.querySelector('[data-si]').addEventListener('click', () => abrirAhorrar(acumulado));
   return tarjeta;
 }
 
@@ -465,32 +467,31 @@ function enviar(boton, accion) {
 
 // ---------- Ahorrar ----------
 
-/** origen: 'mes' (lo que sobra este mes) o 'acumulado' (lo que viene de antes). */
-export function abrirAhorrar(origen) {
-  flujo = {};
-  elegirOrigen(origen);
+/**
+ * Fede (21/11): lo sugerido es el balance del mes (el número grande del inicio), no lo de
+ * "meses anteriores": lo que sobró antes ya está en el saldo y el balance lo incluye.
+ * `sugerido` lo baja (la tarjeta de Mona propone solo lo que sobró de antes).
+ */
+export function abrirAhorrar(sugerido) {
+  const p = ctx.partido();
+  const disponible = Math.max(0, p.total);
+  flujo = { disponible, partes: p, monto: Math.min(disponible, Math.max(0, sugerido ?? disponible)) };
   pasoMonto();
 }
 
-function elegirOrigen(origen) {
-  const p = ctx.partido();
-  const disponible = Math.max(0, origen === 'mes' ? p.delMes : p.acumulado);
-  Object.assign(flujo, { origen, disponible, monto: disponible, ambos: p.delMes > 0 && p.acumulado > 0, partes: p });
+/**
+ * El back separa lo que se guarda "del mes" de lo que viene de antes (para las métricas):
+ * si entra en lo que sobra del mes es del mes; si no, sale de lo acumulado.
+ */
+function origenDe(monto) {
+  return monto <= flujo.partes.delMes ? 'mes' : 'acumulado';
 }
 
 function pasoMonto() {
   const saldo = ctx.estado.datos.perfil.saldo;
   paso(
     `<h3>${t('🍌 ¿Cuánto guardás?')}</h3>
-     ${
-       flujo.ambos
-         ? `<div class="segmentos dos" role="radiogroup">
-         <button type="button" class="segmento${flujo.origen === 'mes' ? ' activo' : ''}" data-origen="mes">${t('Del mes')}<small>${plata(flujo.partes.delMes)}</small></button>
-         <button type="button" class="segmento${flujo.origen === 'acumulado' ? ' activo' : ''}" data-origen="acumulado">${t('De meses anteriores')}<small>${plata(flujo.partes.acumulado)}</small></button>
-       </div>`
-         : ''
-     }
-     <p class="ayuda">${flujo.origen === 'mes' ? t('Este mes te sobran {monto}.', { monto: plata(flujo.disponible) }) : t('De meses anteriores tenés {monto}.', { monto: plata(flujo.disponible) })}</p>
+     <p class="ayuda">${t('Este mes te sobran {monto}.', { monto: plata(flujo.disponible) })}</p>
      <label class="campo monto-campo"><span>${t('Plata que sacás de tu cuenta')}</span><input name="monto" inputmode="decimal" autocomplete="off" /></label>
      <div class="chips"><button type="button" class="chip" data-parte="1">${t('Todo')}</button><button type="button" class="chip" data-parte="0.5">${t('La mitad')}</button></div>
      <label class="campo"><span>${t('O decime cuánto te queda en la cuenta')}</span><input name="queda" inputmode="decimal" autocomplete="off" /></label>
@@ -506,13 +507,6 @@ function pasoMonto() {
           queda < 0
             ? t('Es {pasa} más de lo que te sobra: tu balance queda en {queda}. Si igual lo tenés, dale.', { pasa: plata(-queda), queda: plata(queda) })
             : t('Tu balance queda en {queda}.', { queda: plata(queda) });
-        f.querySelectorAll('[data-origen]').forEach((c) =>
-        c.addEventListener('click', () => {
-          sonar('toque');
-          elegirOrigen(c.dataset.origen);
-          pasoMonto();
-        }),
-      );
       f.querySelectorAll('[data-parte]').forEach((c) => c.classList.toggle('activo', Math.round(flujo.disponible * Number(c.dataset.parte)) === m));
       };
       const ponerMonto = (m) => {
@@ -542,6 +536,7 @@ function pasoMonto() {
         const m = centavos(f.monto.value);
         if (!m) return error(t('Poné cuánto guardás'));
         flujo.monto = m;
+        flujo.origen = origenDe(m);
         sonar('pop');
         pasoDonde();
       };
@@ -1257,8 +1252,7 @@ function pintarCajon() {
   f.querySelector('#cajon-dolar')?.addEventListener('change', (e) => cambiarDolar(e.target.value));
   f.querySelector('[data-cerrar-cajon]').addEventListener('click', () => document.getElementById('hoja-cajon').close());
   f.querySelector('[data-ahorrar]')?.addEventListener('click', () => {
-    const p = ctx.partido();
-    abrirAhorrar(p.acumulado > 0 || p.delMes <= 0 ? 'acumulado' : 'mes');
+    abrirAhorrar();
   });
   f.querySelector('[data-nuevo]').addEventListener('click', () =>
     pasoNuevaCategoria(
