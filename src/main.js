@@ -2913,6 +2913,8 @@ function corregirBorrado(el, e) {
 
 // Separador de miles mientras se escribe (700000 → 700.000). El cursor queda después del
 // mismo dígito. En castellano un "." pegado como decimal ("12.50") se toma como coma.
+// Va en captura, antes que los 'input' de cada campo: si no, el resumen de "Gastaré" leía
+// "40.0000" a medio formatear (= 40) y quedaba en $ 40 con 400.000 escrito (Fede, 27/11).
 document.addEventListener('input', (e) => {
   const el = e.target;
   if (!el.matches?.(MONTO)) return;
@@ -2930,4 +2932,4 @@ document.addEventListener('input', (e) => {
   } catch {
     /* inputs sin selección */
   }
-});
+}, true);
